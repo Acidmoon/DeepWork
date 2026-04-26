@@ -74,8 +74,10 @@ export interface WorkspacePanelViewState {
   kind: 'workspace'
   selectedBucket: string
   selectedOrigin: string
+  searchQuery: string
   draftContextLabel: string
   selectedArtifactIds: string[]
+  previewArtifactId: string | null
   promptTargetPanelId: string
   promptDraft: string
   projectId: string

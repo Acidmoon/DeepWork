@@ -1,0 +1,332 @@
+{
+  "projectId": "default",
+  "workspaceRoot": "C:/Users/17740/Documents/AI-Workspace/projects/default",
+  "manifestPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/artifacts.json",
+  "contextIndexPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/context-index.json",
+  "originManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/origins",
+  "rulesPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/rules",
+  "initialized": true,
+  "artifactCount": 5,
+  "bucketCounts": {
+    "artifacts/": 4,
+    "outputs/": 0,
+    "logs/": 1
+  },
+  "contextEntries": [
+    {
+      "origin": "codex-cli",
+      "contextLabel": "session-0001",
+      "scopeId": "codex-cli__session-0001",
+      "artifactCount": 1,
+      "artifactIds": [
+        "log_0010"
+      ],
+      "latestArtifactId": "log_0010",
+      "latestUpdatedAt": "2026-04-26T12:54:01.511Z"
+    },
+    {
+      "origin": "deepseek-web",
+      "contextLabel": "a-chat-s-9b9f89a2-ceff",
+      "scopeId": "deepseek-web__a-chat-s-9b9f89a2-ceff",
+      "artifactCount": 2,
+      "artifactIds": [
+        "json_0006",
+        "markdown_0016"
+      ],
+      "latestArtifactId": "json_0006",
+      "latestUpdatedAt": "2026-04-26T12:53:39.772Z"
+    },
+    {
+      "origin": "minimax-web",
+      "contextLabel": "minimax-agent",
+      "scopeId": "minimax-web__minimax-agent",
+      "artifactCount": 2,
+      "artifactIds": [
+        "markdown_0015",
+        "markdown_0014"
+      ],
+      "latestArtifactId": "markdown_0015",
+      "latestUpdatedAt": "2026-04-26T12:52:45.168Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "markdown_0016",
+      "name": "markdown_0016.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_0016.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_0016.md",
+      "origin": "deepseek-web",
+      "summary": "Auto-captured web session from 用户询问数字111含义 - DeepSeek with 1 structured messages.",
+      "tags": [
+        "markdown",
+        "deepseek-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:53:39.681Z",
+      "updatedAt": "2026-04-26T12:53:39.681Z",
+      "size": 810,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
+        "pageTitle": "用户询问数字111含义 - DeepSeek",
+        "messageCount": 1,
+        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+      }
+    },
+    {
+      "id": "json_0006",
+      "name": "json_0006.json",
+      "type": "json",
+      "path": "artifacts/json/json_0006.json",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/json/json_0006.json",
+      "origin": "deepseek-web",
+      "summary": "Structured message index for 用户询问数字111含义 - DeepSeek.",
+      "tags": [
+        "json",
+        "deepseek-web",
+        "web",
+        "messages",
+        "session-index"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:53:39.772Z",
+      "updatedAt": "2026-04-26T12:53:39.772Z",
+      "size": 612,
+      "metadata": {
+        "captureMode": "auto-web-messages",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
+        "pageTitle": "用户询问数字111含义 - DeepSeek",
+        "messageCount": 1,
+        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+      }
+    },
+    {
+      "id": "log_0010",
+      "name": "log_0010.log",
+      "type": "log",
+      "path": "logs/log_0010.log",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/logs/log_0010.log",
+      "origin": "codex-cli",
+      "summary": "Codex CLI transcript captured from session 1.",
+      "tags": [
+        "log",
+        "codex-cli",
+        "terminal",
+        "session"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:52:21.757Z",
+      "updatedAt": "2026-04-26T12:54:01.511Z",
+      "size": 22409,
+      "metadata": {
+        "captureMode": "auto-terminal-transcript",
+        "panelId": "codex-cli",
+        "launchCount": 1,
+        "contextLabel": "session-0001"
+      }
+    },
+    {
+      "id": "markdown_0015",
+      "name": "markdown_0015.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_0015.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_0015.md",
+      "origin": "minimax-web",
+      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能.",
+      "tags": [
+        "markdown",
+        "minimax-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:52:45.168Z",
+      "updatedAt": "2026-04-26T12:52:45.168Z",
+      "size": 34492,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "minimax-web",
+        "sourceUrl": "https://agent.minimaxi.com/",
+        "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
+        "messageCount": 0,
+        "contextLabel": "minimax-agent"
+      }
+    },
+    {
+      "id": "markdown_0014",
+      "name": "markdown_0014.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_0014.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_0014.md",
+      "origin": "minimax-web",
+      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能.",
+      "tags": [
+        "markdown",
+        "minimax-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:40:00.765Z",
+      "updatedAt": "2026-04-26T12:40:00.765Z",
+      "size": 34500,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "minimax-web",
+        "sourceUrl": "https://agent.minimaxi.com/",
+        "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
+        "messageCount": 0,
+        "contextLabel": "minimax-agent"
+      }
+    }
+  ],
+  "recentArtifacts": [
+    {
+      "id": "markdown_0016",
+      "name": "markdown_0016.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_0016.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_0016.md",
+      "origin": "deepseek-web",
+      "summary": "Auto-captured web session from 用户询问数字111含义 - DeepSeek with 1 structured messages.",
+      "tags": [
+        "markdown",
+        "deepseek-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:53:39.681Z",
+      "updatedAt": "2026-04-26T12:53:39.681Z",
+      "size": 810,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
+        "pageTitle": "用户询问数字111含义 - DeepSeek",
+        "messageCount": 1,
+        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+      }
+    },
+    {
+      "id": "json_0006",
+      "name": "json_0006.json",
+      "type": "json",
+      "path": "artifacts/json/json_0006.json",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/json/json_0006.json",
+      "origin": "deepseek-web",
+      "summary": "Structured message index for 用户询问数字111含义 - DeepSeek.",
+      "tags": [
+        "json",
+        "deepseek-web",
+        "web",
+        "messages",
+        "session-index"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:53:39.772Z",
+      "updatedAt": "2026-04-26T12:53:39.772Z",
+      "size": 612,
+      "metadata": {
+        "captureMode": "auto-web-messages",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
+        "pageTitle": "用户询问数字111含义 - DeepSeek",
+        "messageCount": 1,
+        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+      }
+    },
+    {
+      "id": "log_0010",
+      "name": "log_0010.log",
+      "type": "log",
+      "path": "logs/log_0010.log",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/logs/log_0010.log",
+      "origin": "codex-cli",
+      "summary": "Codex CLI transcript captured from session 1.",
+      "tags": [
+        "log",
+        "codex-cli",
+        "terminal",
+        "session"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:52:21.757Z",
+      "updatedAt": "2026-04-26T12:54:01.511Z",
+      "size": 22409,
+      "metadata": {
+        "captureMode": "auto-terminal-transcript",
+        "panelId": "codex-cli",
+        "launchCount": 1,
+        "contextLabel": "session-0001"
+      }
+    },
+    {
+      "id": "markdown_0015",
+      "name": "markdown_0015.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_0015.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_0015.md",
+      "origin": "minimax-web",
+      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能.",
+      "tags": [
+        "markdown",
+        "minimax-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:52:45.168Z",
+      "updatedAt": "2026-04-26T12:52:45.168Z",
+      "size": 34492,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "minimax-web",
+        "sourceUrl": "https://agent.minimaxi.com/",
+        "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
+        "messageCount": 0,
+        "contextLabel": "minimax-agent"
+      }
+    },
+    {
+      "id": "markdown_0014",
+      "name": "markdown_0014.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_0014.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_0014.md",
+      "origin": "minimax-web",
+      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能.",
+      "tags": [
+        "markdown",
+        "minimax-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:40:00.765Z",
+      "updatedAt": "2026-04-26T12:40:00.765Z",
+      "size": 34500,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "minimax-web",
+        "sourceUrl": "https://agent.minimaxi.com/",
+        "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
+        "messageCount": 0,
+        "contextLabel": "minimax-agent"
+      }
+    }
+  ],
+  "lastSavedArtifactId": null,
+  "lastError": null
+}

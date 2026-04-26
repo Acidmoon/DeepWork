@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "rebuild:native": "electron-rebuild -f -w node-pty",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "validate:workspace-regression": "node validation/workspace-regression/run-workspace-regression.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",

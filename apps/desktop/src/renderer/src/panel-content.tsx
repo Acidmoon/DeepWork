@@ -651,6 +651,8 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
   const allPanels = useWorkbenchStore((store) => store.panels)
   const [sessionMessages, setSessionMessages] = useState<Array<{ id: string; role: string; text: string }>>([])
   const [sessionLogExcerpt, setSessionLogExcerpt] = useState<string>('')
+  const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable' | 'unsupported'>('idle')
+  const [previewContent, setPreviewContent] = useState('')
 
   useEffect(() => {
     void window.workbenchShell.workspace.getState().then((snapshot) => {
@@ -660,20 +662,36 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
     })
   }, [syncWorkspaceState])
 
+  const normalizedQuery = normalizeWorkspaceSearchQuery(state.searchQuery)
+  const sessionSummaries = state.contextEntries.map((entry) => {
+    const scopedArtifacts = state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === entry.scopeId)
+    const bucketArtifacts = scopedArtifacts.filter((artifact) => matchesWorkspaceBucket(artifact, state.selectedBucket))
+    const matchingArtifacts = normalizedQuery
+      ? bucketArtifacts.filter((artifact) => matchesWorkspaceArtifactQuery(artifact, normalizedQuery))
+      : bucketArtifacts
+    const searchableSession = buildSessionSearchText(entry, scopedArtifacts)
+
+    return {
+      ...buildSessionSummary(entry, state.artifacts, locale),
+      matchesOrigin: state.selectedOrigin === 'all' || entry.scopeId === state.selectedOrigin,
+      matchesQuery: !normalizedQuery || searchableSession.includes(normalizedQuery) || matchingArtifacts.length > 0,
+      availableArtifactCount: bucketArtifacts.length
+    }
+  })
+  const filteredSessionSummaries = sessionSummaries.filter(
+    (session) => session.matchesOrigin && session.availableArtifactCount > 0 && session.matchesQuery
+  )
   const filteredArtifacts = state.artifacts.filter((artifact) => {
     const matchesOrigin = state.selectedOrigin === 'all' || getArtifactScopeId(artifact) === state.selectedOrigin
-    const matchesBucket = state.selectedBucket === 'artifacts/'
-      ? artifact.path.startsWith('artifacts/')
-      : state.selectedBucket === 'outputs/'
-        ? artifact.path.startsWith('outputs/')
-        : artifact.path.startsWith('logs/')
+    const matchesBucket = matchesWorkspaceBucket(artifact, state.selectedBucket)
+    const matchesQuery = !normalizedQuery || matchesWorkspaceArtifactQuery(artifact, normalizedQuery)
 
-    return matchesOrigin && matchesBucket
+    return matchesOrigin && matchesBucket && matchesQuery
   })
-
-  const selectedArtifacts = filteredArtifacts.filter((artifact) => state.selectedArtifactIds.includes(artifact.id))
-  const recentArtifacts = filteredArtifacts.slice(0, 12)
-  const sessionSummaries = state.contextEntries.map((entry) => buildSessionSummary(entry, state.artifacts, locale))
+  const selectedArtifacts = state.artifacts.filter((artifact) => state.selectedArtifactIds.includes(artifact.id))
+  const selectedPreviewArtifact = state.previewArtifactId
+    ? state.artifacts.find((artifact) => artifact.id === state.previewArtifactId) ?? null
+    : null
   const terminalTargets = Object.values(allPanels)
     .filter((item) => item.definition.kind === 'terminal')
     .map((item) => item.definition)
@@ -684,6 +702,13 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
       selectedArtifactIds: state.selectedArtifactIds.includes(artifactId)
         ? state.selectedArtifactIds.filter((id) => id !== artifactId)
         : [...state.selectedArtifactIds, artifactId]
+    })
+  }
+
+  const setPreviewArtifact = (artifactId: string | null): void => {
+    useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
+      ...state,
+      previewArtifactId: artifactId
     })
   }
 
@@ -738,6 +763,7 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
   const selectedScopeArtifacts = selectedScope
     ? state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === selectedScope.scopeId)
     : []
+  const selectedScopeArtifactKey = selectedScopeArtifacts.map((artifact) => artifact.id).join('|')
 
   const deleteSelectedScope = async (): Promise<void> => {
     if (!selectedScope) {
@@ -801,7 +827,47 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
     return () => {
       cancelled = true
     }
-  }, [selectedScope?.scopeId, selectedScopeArtifacts])
+  }, [selectedScope?.scopeId, selectedScopeArtifactKey])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const hydrateArtifactPreview = async (): Promise<void> => {
+      if (!selectedPreviewArtifact) {
+        setPreviewStatus('idle')
+        setPreviewContent('')
+        return
+      }
+
+      if (!supportsTextArtifactPreview(selectedPreviewArtifact.type)) {
+        setPreviewStatus('unsupported')
+        setPreviewContent('')
+        return
+      }
+
+      setPreviewStatus('loading')
+      setPreviewContent('')
+
+      const payload = await window.workbenchShell.workspace.readArtifact(selectedPreviewArtifact.id)
+      if (cancelled) {
+        return
+      }
+
+      if (!payload) {
+        setPreviewStatus('unavailable')
+        return
+      }
+
+      setPreviewStatus('ready')
+      setPreviewContent(payload.content)
+    }
+
+    void hydrateArtifactPreview()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedPreviewArtifact?.id, selectedPreviewArtifact?.type])
 
   return (
     <div className="panel-layout">
@@ -888,6 +954,19 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
             </select>
           </label>
         </div>
+        <label className="field">
+          <span>{ui.workspaceSearch}</span>
+          <input
+            value={state.searchQuery}
+            placeholder={ui.workspaceSearchPlaceholder}
+            onChange={(event) =>
+              useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
+                ...state,
+                searchQuery: event.target.value
+              })
+            }
+          />
+        </label>
 
         {selectedScope ? (
           <div className="workspace-inline-note">
@@ -895,7 +974,11 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
               <strong>{ui.currentSelection}</strong>
               <span>{formatContextEntryDescription(selectedScope, locale)}</span>
             </div>
-            <button type="button" className="action-button action-button--ghost action-button--danger" onClick={() => void deleteSelectedScope()}>
+            <button
+              type="button"
+              className="action-button action-button--ghost action-button--danger"
+              onClick={() => void deleteSelectedScope()}
+            >
               {ui.deleteSession}
             </button>
           </div>
@@ -907,13 +990,15 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
       <div className="panel-section">
         <div className="section-line">
           <strong>{ui.sessionList}</strong>
-          <span>{sessionSummaries.length} {ui.shownCount}</span>
+          <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
         </div>
         {state.contextEntries.length === 0 ? (
           <p className="section-empty">{ui.workspaceEmptyHint}</p>
+        ) : filteredSessionSummaries.length === 0 ? (
+          <p className="section-empty">{ui.noArtifactsForFilter}</p>
         ) : (
           <div className="artifact-list">
-            {sessionSummaries.slice(0, 8).map((session) => (
+            {filteredSessionSummaries.map((session) => (
               <button
                 key={session.scopeId}
                 type="button"
@@ -925,7 +1010,7 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
                   })
                 }
               >
-                <div>
+                <div className="artifact-row__body">
                   <strong>{session.title}</strong>
                   <p>{session.preview}</p>
                   <div className="session-badges">
@@ -982,14 +1067,17 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
       <div className="panel-section">
         <div className="section-line">
           <strong>{selectedScope ? ui.currentSessionContent : ui.recentArtifacts}</strong>
-          <span>{recentArtifacts.length} {ui.shownCount}</span>
+          <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
         </div>
-        {recentArtifacts.length === 0 ? (
+        {filteredArtifacts.length === 0 ? (
           <p className="section-empty">{ui.noArtifactsForFilter}</p>
         ) : (
           <div className="artifact-list">
-            {recentArtifacts.map((artifact) => (
-              <label key={artifact.id} className="artifact-row artifact-row--selectable">
+            {filteredArtifacts.map((artifact) => (
+              <article
+                key={artifact.id}
+                className={`artifact-row artifact-row--selectable${state.previewArtifactId === artifact.id ? ' artifact-row--active' : ''}`}
+              >
                 <div className="artifact-row__select">
                   <input
                     type="checkbox"
@@ -997,7 +1085,7 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
                     onChange={() => toggleArtifactSelection(artifact.id)}
                   />
                 </div>
-                <div>
+                <div className="artifact-row__body">
                   <strong>{formatArtifactTitle(artifact, locale)}</strong>
                   <p>{formatArtifactSummary(artifact)}</p>
                 </div>
@@ -1005,8 +1093,46 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
                   <span>{formatArtifactMeta(artifact, locale)}</span>
                   <small>{formatTimestamp(artifact.updatedAt, locale)}</small>
                 </div>
-              </label>
+                <div className="artifact-row__actions">
+                  <button
+                    type="button"
+                    className="action-button action-button--ghost action-button--compact"
+                    onClick={() => setPreviewArtifact(artifact.id)}
+                  >
+                    {ui.previewArtifact}
+                  </button>
+                </div>
+              </article>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel-section">
+        <div className="section-line">
+          <strong>{ui.artifactPreview}</strong>
+          <span>{selectedPreviewArtifact?.id ?? ui.artifactPreviewEmpty}</span>
+        </div>
+        {!selectedPreviewArtifact ? (
+          <p className="section-empty">{ui.artifactPreviewHint}</p>
+        ) : (
+          <div className="artifact-preview">
+            <div className="artifact-preview__meta">
+              <span>{formatArtifactMeta(selectedPreviewArtifact, locale)}</span>
+              <span>{selectedPreviewArtifact.path}</span>
+              <span>{formatTimestamp(selectedPreviewArtifact.updatedAt, locale)}</span>
+            </div>
+            <div className="artifact-preview__body">
+              {previewStatus === 'loading' ? (
+                <p className="section-empty">{ui.artifactPreviewLoading}</p>
+              ) : previewStatus === 'unsupported' ? (
+                <p className="section-empty">{ui.artifactPreviewUnsupported}</p>
+              ) : previewStatus === 'unavailable' ? (
+                <p className="section-empty">{ui.artifactPreviewUnavailable}</p>
+              ) : (
+                <pre>{previewContent}</pre>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1063,23 +1189,16 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
 
           <div className="panel-section">
             <div className="section-line">
-              <strong>{ui.artifactSelection}</strong>
+              <strong>{ui.selectedArtifacts}</strong>
               <span>{selectedArtifacts.length} {ui.selectedCount}</span>
             </div>
-            {filteredArtifacts.length === 0 ? (
-              <p className="section-empty">{ui.noArtifactsForFilter}</p>
+            {selectedArtifacts.length === 0 ? (
+              <p className="section-empty">{ui.selectionRequired}</p>
             ) : (
               <div className="artifact-list">
-                {filteredArtifacts.map((artifact) => (
-                  <label key={artifact.id} className="artifact-row artifact-row--selectable">
-                    <div className="artifact-row__select">
-                      <input
-                        type="checkbox"
-                        checked={state.selectedArtifactIds.includes(artifact.id)}
-                        onChange={() => toggleArtifactSelection(artifact.id)}
-                      />
-                    </div>
-                    <div>
+                {selectedArtifacts.map((artifact) => (
+                  <article key={artifact.id} className="artifact-row">
+                    <div className="artifact-row__body">
                       <strong>{artifact.id}</strong>
                       <p>{artifact.summary}</p>
                     </div>
@@ -1087,7 +1206,16 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
                       <span>{artifact.origin}</span>
                       <small>{artifact.path}</small>
                     </div>
-                  </label>
+                    <div className="artifact-row__actions">
+                      <button
+                        type="button"
+                        className="action-button action-button--ghost action-button--compact"
+                        onClick={() => setPreviewArtifact(artifact.id)}
+                      >
+                        {ui.previewArtifact}
+                      </button>
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
@@ -1473,6 +1601,74 @@ function toNavigableUrl(rawUrl: string): string {
   }
 
   return `https://${rawUrl}`
+}
+
+function normalizeWorkspaceSearchQuery(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function matchesWorkspaceBucket(artifact: { path: string }, selectedBucket: string): boolean {
+  return selectedBucket === 'artifacts/'
+    ? artifact.path.startsWith('artifacts/')
+    : selectedBucket === 'outputs/'
+      ? artifact.path.startsWith('outputs/')
+      : artifact.path.startsWith('logs/')
+}
+
+function matchesWorkspaceArtifactQuery(artifact: ArtifactRecord, normalizedQuery: string): boolean {
+  if (!normalizedQuery) {
+    return true
+  }
+
+  return buildArtifactSearchText(artifact).includes(normalizedQuery)
+}
+
+function buildArtifactSearchText(artifact: ArtifactRecord): string {
+  const metadataValues = artifact.metadata
+    ? Object.values(artifact.metadata)
+        .flatMap((value) => normalizeSearchValue(value))
+        .join(' ')
+    : ''
+
+  return [
+    artifact.id,
+    artifact.name,
+    artifact.origin,
+    artifact.summary,
+    artifact.path,
+    artifact.absolutePath,
+    artifact.type,
+    artifact.tags.join(' '),
+    metadataValues
+  ]
+    .join(' ')
+    .toLowerCase()
+}
+
+function buildSessionSearchText(entry: ContextIndexEntry, artifacts: ArtifactRecord[]): string {
+  return [entry.origin, entry.contextLabel, entry.scopeId, ...artifacts.map((artifact) => buildArtifactSearchText(artifact))]
+    .join(' ')
+    .toLowerCase()
+}
+
+function normalizeSearchValue(value: unknown): string[] {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return [String(value)]
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizeSearchValue(item))
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap((item) => normalizeSearchValue(item))
+  }
+
+  return []
+}
+
+function supportsTextArtifactPreview(type: ArtifactRecord['type']): boolean {
+  return ['markdown', 'text', 'json', 'log', 'code', 'review', 'html'].includes(type)
 }
 
 function getArtifactScopeId(artifact: { origin: string; metadata?: Record<string, unknown> }): string {

@@ -284,6 +284,19 @@ select {
   background: var(--panel-hover);
 }
 
+.nav-item__button {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
 .nav-item--active {
   border-color: rgba(58, 122, 254, 0.08);
   background: var(--panel-active);
@@ -1041,6 +1054,27 @@ select {
   font-size: 0.72rem;
 }
 
+.artifact-row__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.artifact-row__body p,
+.artifact-preview__body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.artifact-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .session-badges {
   display: flex;
   flex-wrap: wrap;
@@ -1136,6 +1170,46 @@ select {
   flex-direction: column;
   gap: 14px;
   padding-top: 16px;
+}
+
+.artifact-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel-surface-elevated);
+}
+
+.artifact-preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.artifact-preview__meta span {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  color: var(--panel-muted);
+  font-size: 0.76rem;
+}
+
+.artifact-preview pre {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--code-bg);
+  color: var(--panel-strong);
+  font-family: "Cascadia Mono", "IBM Plex Mono", monospace;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
 }
 
 .status-bar {

@@ -446,24 +446,24 @@ function SidebarSection({
       </div>
       <div className="nav-section__items">
         {panels.map((panel) => (
-          <button
+          <div
             key={panel.definition.id}
-            type="button"
-            className={`nav-item ${activePanelId === panel.definition.id ? 'nav-item--active' : ''}`}
-            onClick={() => onSelect(panel.definition.id)}
+            className={`nav-item ${activePanelId === panel.definition.id ? ' nav-item--active' : ''}`}
             onContextMenu={(event) => {
               if (!panel.definition.userDefined) {
                 return
               }
 
               event.preventDefault()
-              onItemMenu(panel.definition.id, event)
+              onItemMenu(panel.definition.id, event as unknown as MouseEvent<HTMLButtonElement>)
             }}
           >
-            <span className="nav-item__main">
-              <span className="nav-item__icon">{getPanelBadge(localizePanelDefinition(panel.definition, locale).title)}</span>
-              <strong>{localizePanelDefinition(panel.definition, locale).title}</strong>
-            </span>
+            <button type="button" className="nav-item__button" onClick={() => onSelect(panel.definition.id)}>
+              <span className="nav-item__main">
+                <span className="nav-item__icon">{getPanelBadge(localizePanelDefinition(panel.definition, locale).title)}</span>
+                <strong>{localizePanelDefinition(panel.definition, locale).title}</strong>
+              </span>
+            </button>
             <div className="nav-item__meta">
               <button
                 type="button"
@@ -480,7 +480,7 @@ function SidebarSection({
                 }}
               />
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </section>

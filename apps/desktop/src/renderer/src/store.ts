@@ -112,8 +112,10 @@ function createDefaultViewState(panel: PanelDefinition): PanelViewState {
         kind: 'workspace',
         selectedBucket: panel.id === 'artifacts' ? 'artifacts/' : 'logs/',
         selectedOrigin: 'all',
+        searchQuery: '',
         draftContextLabel: '',
         selectedArtifactIds: [],
+        previewArtifactId: null,
         promptTargetPanelId: 'codex-cli',
         promptDraft: '',
         projectId: 'default',
@@ -709,6 +711,11 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         nextViewState.selectedArtifactIds = nextViewState.selectedArtifactIds.filter((artifactId) =>
           snapshot.artifacts.some((artifact) => artifact.id === artifactId)
         )
+        nextViewState.previewArtifactId = snapshot.artifacts.some(
+          (artifact) => artifact.id === nextViewState.previewArtifactId
+        )
+          ? nextViewState.previewArtifactId
+          : null
 
         nextPanels[panelId] = {
           ...panel,

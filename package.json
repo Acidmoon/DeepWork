@@ -11,6 +11,7 @@
     "dev": "npm run dev -w @ai-workbench/desktop",
     "build": "npm run build -w @ai-workbench/desktop",
     "rebuild:native": "npm run rebuild:native -w @ai-workbench/desktop",
-    "typecheck": "npm run typecheck -w @ai-workbench/desktop"
+    "typecheck": "npm run typecheck -w @ai-workbench/desktop",
+    "validate:workspace-regression": "npm run validate:workspace-regression -w @ai-workbench/desktop"
   }
 }
