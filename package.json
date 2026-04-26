@@ -1,0 +1,16 @@
+{
+  "name": "ai-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@11.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @ai-workbench/desktop",
+    "build": "npm run build -w @ai-workbench/desktop",
+    "rebuild:native": "npm run rebuild:native -w @ai-workbench/desktop",
+    "typecheck": "npm run typecheck -w @ai-workbench/desktop"
+  }
+}

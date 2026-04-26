@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+*.log
+
+apps/*/dist/
+apps/*/out/
+tech-validation/.playwright-browsers/
+tech-validation/.npm-cache/
+
+Dev/

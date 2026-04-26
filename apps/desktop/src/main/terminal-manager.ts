@@ -1,0 +1,561 @@
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+import type { BrowserWindow } from 'electron'
+import type { IPty } from 'node-pty'
+import * as pty from 'node-pty'
+import type { CustomTerminalPanelSettings } from '../shared/settings'
+import {
+  createCustomTerminalPanelConfig,
+  getTerminalPanelConfig,
+  terminalPanelConfigs,
+  type TerminalOutputEvent,
+  type TerminalPanelAttachPayload,
+  type TerminalPanelConfig,
+  type TerminalPanelSnapshot,
+  type TerminalResizePayload
+} from '../shared/terminal-panels'
+
+const DEFAULT_COLS = 120
+const DEFAULT_ROWS = 32
+const MAX_BUFFER_SIZE = 180_000
+const STARTUP_COMMAND_DELAY_MS = 1_600
+const TRANSCRIPT_FLUSH_DELAY_MS = 1_200
+
+function psQuote(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`
+}
+
+function createWorkspaceBootstrap(workspaceRoot: string, sessionCwd: string): string {
+  const toolsPath = join(workspaceRoot, 'rules', 'WORKBENCH_TOOLS.ps1')
+
+  return [
+    `$env:AI_WORKBENCH_WORKSPACE_ROOT=${psQuote(workspaceRoot)}`,
+    `if (Test-Path -LiteralPath ${psQuote(sessionCwd)}) { Set-Location -LiteralPath ${psQuote(sessionCwd)} }`,
+    `if (Test-Path -LiteralPath ${psQuote(toolsPath)}) { . ${psQuote(toolsPath)} }`
+  ].join('\r')
+}
+
+interface ManagedTerminalSession {
+  config: TerminalPanelConfig
+  ptyProcess: IPty | null
+  snapshot: TerminalPanelSnapshot
+  buffer: string
+  captureBuffer: string
+  bootTimer: NodeJS.Timeout | null
+  captureTimer: NodeJS.Timeout | null
+  logPath: string
+  hasReceivedData: boolean
+  sessionToken: number
+  captureArtifactId: string | null
+  contextLabel: string | null
+}
+
+interface PersistTerminalTranscriptPayload {
+  artifactId: string | null
+  panelId: string
+  title: string
+  launchCount: number
+  contextLabel: string
+  content: string
+}
+
+function trimBuffer(buffer: string): string {
+  if (buffer.length <= MAX_BUFFER_SIZE) {
+    return buffer
+  }
+
+  return buffer.slice(buffer.length - MAX_BUFFER_SIZE)
+}
+
+function appendLog(logPath: string, chunk: string): void {
+  appendFileSync(logPath, chunk, 'utf8')
+}
+
+function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath: string): TerminalPanelSnapshot {
+  return {
+    panelId: config.id,
+    title: config.title,
+    shell: config.shell,
+    cwd,
+    startupCommand: config.startupCommand,
+    status: 'idle',
+    hasSession: false,
+    isRunning: false,
+    launchCount: 0,
+    pid: null,
+    cols: DEFAULT_COLS,
+    rows: DEFAULT_ROWS,
+    bufferSize: 0,
+    logPath,
+    lastExitCode: null,
+    lastExitSignal: null,
+    lastError: null
+  }
+}
+
+export class TerminalManager {
+  private readonly sessions = new Map<string, ManagedTerminalSession>()
+  private readonly logDirectory: string
+  private readonly builtInIds = new Set(terminalPanelConfigs.map((config) => config.id))
+  private workspaceRoot: string
+  private globalStartupPreludeCommands: string[]
+
+  constructor(
+    private readonly window: BrowserWindow,
+    baseDirectory: string,
+    defaultCwd: string,
+    customPanels: CustomTerminalPanelSettings[] = [],
+    startupPreludeCommands: string[] = [],
+    private readonly persistTerminalTranscript?: (payload: PersistTerminalTranscriptPayload) => string | null
+  ) {
+    this.workspaceRoot = defaultCwd
+    this.globalStartupPreludeCommands = startupPreludeCommands
+    this.logDirectory = join(baseDirectory, 'logs', 'terminal')
+    mkdirSync(this.logDirectory, { recursive: true })
+
+    for (const config of terminalPanelConfigs) {
+      this.upsertSession(this.resolveBuiltInConfig(config))
+    }
+
+    this.syncCustomPanels(customPanels)
+  }
+
+  getSnapshot(panelId: string): TerminalPanelSnapshot | null {
+    return this.sessions.get(panelId)?.snapshot ?? null
+  }
+
+  attach(panelId: string): TerminalPanelAttachPayload | null {
+    const session = this.sessions.get(panelId)
+    if (!session) {
+      return null
+    }
+
+    return {
+      snapshot: session.snapshot,
+      buffer: session.buffer
+    }
+  }
+
+  start(panelId: string): TerminalPanelSnapshot | null {
+    const session = this.sessions.get(panelId)
+    if (!session) {
+      return null
+    }
+
+    if (session.ptyProcess && session.snapshot.isRunning) {
+      return session.snapshot
+    }
+
+    if (session.ptyProcess) {
+      this.disposeSession(session)
+    }
+
+    try {
+      const cwd = session.config.cwd ?? this.workspaceRoot
+      const env = {
+        ...process.env,
+        AI_WORKBENCH_WORKSPACE_ROOT: this.workspaceRoot,
+        ...session.config.env
+      }
+      const sessionToken = session.sessionToken + 1
+      const nextLaunchCount = session.snapshot.launchCount + 1
+      const contextLabel = `session-${String(nextLaunchCount).padStart(4, '0')}`
+
+      session.ptyProcess = pty.spawn(session.config.shell, session.config.shellArgs, {
+        name: 'xterm-color',
+        cols: session.snapshot.cols,
+        rows: session.snapshot.rows,
+        cwd,
+        env,
+        useConpty: true
+      })
+      session.hasReceivedData = false
+      session.buffer = ''
+      session.captureBuffer = ''
+      session.sessionToken = sessionToken
+      session.captureArtifactId = null
+      session.contextLabel = contextLabel
+
+      session.snapshot = {
+        ...session.snapshot,
+        title: session.config.title,
+        shell: session.config.shell,
+        cwd,
+        startupCommand: session.config.startupCommand,
+        status: 'starting',
+        hasSession: true,
+        isRunning: false,
+        launchCount: nextLaunchCount,
+        pid: session.ptyProcess.pid,
+        bufferSize: 0,
+        lastExitCode: null,
+        lastExitSignal: null,
+        lastError: null
+      }
+
+      appendLog(session.logPath, `\n\n=== SESSION ${new Date().toISOString()} (${session.config.id}) ===\n`)
+      this.publishState(session.snapshot)
+      this.attachProcessListeners(session, sessionToken)
+
+      session.bootTimer = setTimeout(() => {
+        if (!session.ptyProcess) {
+          return
+        }
+
+        session.ptyProcess.write(`${createWorkspaceBootstrap(this.workspaceRoot, cwd)}\r`)
+        for (const command of this.resolvePreludeCommands(session.config)) {
+          if (command.trim().length > 0) {
+            session.ptyProcess.write(`${command}\r`)
+          }
+        }
+        if (session.config.startupCommand.trim().length > 0) {
+          session.ptyProcess.write(`${session.config.startupCommand}\r`)
+        }
+      }, STARTUP_COMMAND_DELAY_MS)
+
+      return session.snapshot
+    } catch (error) {
+      session.snapshot = {
+        ...session.snapshot,
+        status: 'error',
+        hasSession: false,
+        isRunning: false,
+        pid: null,
+        lastError: error instanceof Error ? error.message : String(error)
+      }
+      this.publishState(session.snapshot)
+      return session.snapshot
+    }
+  }
+
+  restart(panelId: string): TerminalPanelSnapshot | null {
+    const session = this.sessions.get(panelId)
+    if (!session) {
+      return null
+    }
+
+    this.disposeSession(session)
+    return this.start(panelId)
+  }
+
+  write(panelId: string, data: string): void {
+    const session = this.sessions.get(panelId)
+    if (!session?.ptyProcess) {
+      return
+    }
+
+    session.ptyProcess.write(data)
+  }
+
+  resize(panelId: string, size: TerminalResizePayload): void {
+    const session = this.sessions.get(panelId)
+    if (!session) {
+      return
+    }
+
+    session.snapshot = {
+      ...session.snapshot,
+      cols: size.cols,
+      rows: size.rows
+    }
+
+    if (session.ptyProcess && size.cols > 0 && size.rows > 0) {
+      session.ptyProcess.resize(size.cols, size.rows)
+    }
+  }
+
+  clearBuffer(panelId: string): TerminalPanelAttachPayload | null {
+    const session = this.sessions.get(panelId)
+    if (!session) {
+      return null
+    }
+
+    session.buffer = ''
+    session.snapshot = {
+      ...session.snapshot,
+      bufferSize: 0
+    }
+
+    if (session.ptyProcess) {
+      session.ptyProcess.clear()
+    }
+
+    this.publishState(session.snapshot)
+    return {
+      snapshot: session.snapshot,
+      buffer: session.buffer
+    }
+  }
+
+  syncCustomPanels(customPanels: CustomTerminalPanelSettings[]): void {
+    const nextConfigs = new Map(customPanels.map((panel) => [panel.id, createCustomTerminalPanelConfig(panel)]))
+
+    for (const [panelId, session] of this.sessions) {
+      if (this.builtInIds.has(panelId)) {
+        continue
+      }
+
+      const nextConfig = nextConfigs.get(panelId)
+      if (!nextConfig) {
+        this.disposeSession(session)
+        this.sessions.delete(panelId)
+        continue
+      }
+
+      this.upsertSession(nextConfig)
+      nextConfigs.delete(panelId)
+    }
+
+    for (const config of nextConfigs.values()) {
+      this.upsertSession(config)
+    }
+  }
+
+  syncStartupPreludeCommands(commands: string[]): void {
+    this.globalStartupPreludeCommands = commands
+
+    for (const config of terminalPanelConfigs) {
+      this.upsertSession(this.resolveBuiltInConfig(config))
+    }
+  }
+
+  syncWorkspaceRoot(workspaceRoot: string): void {
+    this.workspaceRoot = workspaceRoot
+
+    for (const session of this.sessions.values()) {
+      if (session.config.cwd) {
+        continue
+      }
+
+      session.snapshot = {
+        ...session.snapshot,
+        cwd: workspaceRoot
+      }
+
+      if (session.ptyProcess) {
+        const sessionCwd = session.config.cwd ?? workspaceRoot
+        session.ptyProcess.write(`${createWorkspaceBootstrap(workspaceRoot, sessionCwd)}\r`)
+      }
+
+      this.publishState(session.snapshot)
+    }
+  }
+
+  dispose(): void {
+    for (const session of this.sessions.values()) {
+      this.disposeSession(session)
+    }
+  }
+
+  private attachProcessListeners(session: ManagedTerminalSession, sessionToken: number): void {
+    if (!session.ptyProcess) {
+      return
+    }
+
+    session.ptyProcess.onData((data) => {
+      if (sessionToken !== session.sessionToken) {
+        return
+      }
+
+      session.buffer = trimBuffer(session.buffer + data)
+      session.captureBuffer += data
+      appendLog(session.logPath, data)
+
+      if (!session.hasReceivedData) {
+        session.hasReceivedData = true
+        session.snapshot = {
+          ...session.snapshot,
+          status: 'running',
+          isRunning: true,
+          lastError: null
+        }
+      }
+
+      session.snapshot = {
+        ...session.snapshot,
+        bufferSize: session.buffer.length,
+        pid: session.ptyProcess?.pid ?? null
+      }
+
+      this.publishState(session.snapshot)
+      this.publishOutput({
+        panelId: session.config.id,
+        data
+      })
+      this.scheduleTranscriptPersist(session)
+    })
+
+    session.ptyProcess.onExit(({ exitCode, signal }) => {
+      if (sessionToken !== session.sessionToken) {
+        return
+      }
+
+      if (session.bootTimer) {
+        clearTimeout(session.bootTimer)
+        session.bootTimer = null
+      }
+
+      this.flushTranscript(session)
+
+      session.ptyProcess = null
+      session.snapshot = {
+        ...session.snapshot,
+        status: exitCode === 0 ? 'exited' : 'error',
+        hasSession: false,
+        isRunning: false,
+        pid: null,
+        lastExitCode: exitCode,
+        lastExitSignal: signal ?? null,
+        lastError: exitCode === 0 ? null : `Terminal exited with code ${exitCode}`
+      }
+
+      appendLog(
+        session.logPath,
+        `\n=== EXIT ${new Date().toISOString()} code=${exitCode} signal=${signal ?? 'none'} ===\n`
+      )
+      this.publishState(session.snapshot)
+    })
+  }
+
+  private disposeSession(session: ManagedTerminalSession): void {
+    session.sessionToken += 1
+
+    if (session.bootTimer) {
+      clearTimeout(session.bootTimer)
+      session.bootTimer = null
+    }
+
+    if (session.captureTimer) {
+      clearTimeout(session.captureTimer)
+      session.captureTimer = null
+    }
+
+    this.flushTranscript(session)
+
+    if (session.ptyProcess) {
+      const ptyProcess = session.ptyProcess
+      session.ptyProcess = null
+
+      try {
+        ptyProcess.write('\u0003')
+        ptyProcess.write('exit\r')
+      } catch {
+        // Ignore shutdown races during app close/restart.
+      }
+
+      setTimeout(() => {
+        try {
+          ptyProcess.kill()
+        } catch {
+          // Ignore late kill failures if the shell already exited.
+        }
+      }, 500)
+    } else {
+      session.ptyProcess = null
+    }
+
+    session.snapshot = {
+      ...session.snapshot,
+      hasSession: false,
+      isRunning: false,
+      pid: null
+    }
+  }
+
+  private publishState(snapshot: TerminalPanelSnapshot): void {
+    if (!this.window.isDestroyed()) {
+      this.window.webContents.send('terminal:state-changed', snapshot)
+    }
+  }
+
+  private publishOutput(event: TerminalOutputEvent): void {
+    if (!this.window.isDestroyed()) {
+      this.window.webContents.send('terminal:output', event)
+    }
+  }
+
+  private upsertSession(config: TerminalPanelConfig): void {
+    const existingSession = this.sessions.get(config.id)
+    const cwd = config.cwd ?? this.workspaceRoot
+    const logPath = existingSession?.logPath ?? join(this.logDirectory, `${config.id}.log`)
+
+    if (!existingSession) {
+      this.sessions.set(config.id, {
+        config,
+        ptyProcess: null,
+        snapshot: createInitialSnapshot(config, cwd, logPath),
+        buffer: '',
+        captureBuffer: '',
+        bootTimer: null,
+        captureTimer: null,
+        logPath,
+        hasReceivedData: false,
+        sessionToken: 0,
+        captureArtifactId: null,
+        contextLabel: null
+      })
+      return
+    }
+
+    existingSession.config = config
+    existingSession.snapshot = {
+      ...existingSession.snapshot,
+      title: config.title,
+      shell: config.shell,
+      cwd,
+      startupCommand: config.startupCommand
+    }
+
+    this.publishState(existingSession.snapshot)
+  }
+
+  private scheduleTranscriptPersist(session: ManagedTerminalSession): void {
+    if (!this.persistTerminalTranscript) {
+      return
+    }
+
+    if (session.captureTimer) {
+      clearTimeout(session.captureTimer)
+    }
+
+    session.captureTimer = setTimeout(() => {
+      this.flushTranscript(session)
+    }, TRANSCRIPT_FLUSH_DELAY_MS)
+  }
+
+  private flushTranscript(session: ManagedTerminalSession): void {
+    if (!this.persistTerminalTranscript || !session.contextLabel || session.captureBuffer.length === 0) {
+      return
+    }
+
+    if (session.captureTimer) {
+      clearTimeout(session.captureTimer)
+      session.captureTimer = null
+    }
+
+    session.captureArtifactId =
+      this.persistTerminalTranscript({
+        artifactId: session.captureArtifactId,
+        panelId: session.config.id,
+        title: session.config.title,
+        launchCount: session.snapshot.launchCount,
+        contextLabel: session.contextLabel,
+        content: session.captureBuffer
+      }) ?? session.captureArtifactId
+  }
+
+  private resolveBuiltInConfig(config: TerminalPanelConfig): TerminalPanelConfig {
+    return {
+      ...config,
+      startupPreludeCommands: this.globalStartupPreludeCommands
+    }
+  }
+
+  private resolvePreludeCommands(config: TerminalPanelConfig): string[] {
+    return config.startupPreludeCommands ?? this.globalStartupPreludeCommands
+  }
+}
+
+export function isTerminalPanel(panelId: string): boolean {
+  return Boolean(getTerminalPanelConfig(panelId))
+}

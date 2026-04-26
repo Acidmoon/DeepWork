@@ -1,0 +1,17 @@
+{
+  "name": "ai-workbench-tech-validation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal technical validation harness for AI Workbench MVP",
+  "main": "electron-web-validation.js",
+  "scripts": {
+    "validate:web": "electron ./electron-web-validation.js",
+    "validate:pty": "node ./pty-validation.js",
+    "validate:render": "node ./playwright-render-validation.js"
+  },
+  "dependencies": {
+    "electron": "^37.2.0",
+    "node-pty": "^1.0.0",
+    "playwright": "^1.54.1"
+  }
+}
