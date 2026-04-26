@@ -1,11 +1,16 @@
 node_modules/
+.npm-cache/
 dist/
 out/
 *.log
 
 apps/*/dist/
 apps/*/out/
+apps/*/node_modules/.vite/
 tech-validation/.playwright-browsers/
 tech-validation/.npm-cache/
+tech-validation/node_modules/
+tech-validation/*-validation-result.json
+tech-validation/sample-render-output.pdf
 
 Dev/

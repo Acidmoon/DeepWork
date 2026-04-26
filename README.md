@@ -34,6 +34,16 @@ npm install
 npm run typecheck
 ```
 
+这里的默认安装只包含桌面应用本体依赖。
+
+不会默认下载这些大体积验证资源：
+
+1. Playwright 浏览器运行时
+2. `tech-validation` 目录下的独立验证依赖
+3. 本地 npm 缓存
+
+这几类都改成了按需准备，不属于普通用户的首次启动路径。
+
 ## 3. 如何打开应用
 
 这是当前最直接、最推荐的打开方式：
@@ -65,7 +75,37 @@ npm run build
 
 这会生成 Electron 构建产物，但它不是安装包流程。当前仓库主要还是按开发模式启动。
 
-## 6. 工作区文件会写到哪里
+## 6. 可选的技术验证依赖
+
+`tech-validation/` 是开发验证工具目录，不是应用运行必需项。
+
+只有在你要验证以下能力时，才需要单独安装：
+
+1. Electron Web 验证
+2. PTY 终端验证
+3. Playwright HTML/PDF 渲染验证
+
+按需安装方式：
+
+```powershell
+cd E:\vibecoding\DeepWork\tech-validation
+npm install
+```
+
+如果你还需要 Playwright 浏览器，再额外安装：
+
+```powershell
+npx playwright install chromium
+```
+
+说明：
+
+1. 这一步会下载较大的浏览器二进制文件。
+2. 下载内容会进入 `tech-validation/.playwright-browsers/`。
+3. 这些文件已经加入 `.gitignore`，不会作为仓库内容提交。
+4. 普通使用 `DeepWork` 不需要做这一步。
+
+## 7. 工作区文件会写到哪里
 
 应用启动后，Workspace 会自动初始化到用户文档目录下：
 
@@ -91,7 +131,7 @@ Documents/AI-Workspace/projects/default/manifests/artifacts.json
 
 现在这个默认目录不是固定死的，你也可以在应用内的 `Workspace` 面板里使用 `选择工作区` 改成你自己的文件夹。改完后会持久化，下次启动仍会继续使用该目录。
 
-## 7. CLI 如何自助检索工作区
+## 8. CLI 如何自助检索工作区
 
 现在 `Codex CLI` / `Claude Code` 启动后会默认进入当前工作区根目录，并自动获得一组 PowerShell 检索命令。
 
@@ -125,9 +165,9 @@ aw-artifact <id>
 3. `aw-origin <scopeId>`：打开某个具体来源/上下文索引。
 4. `aw-artifact <id>`：查看某个具体 Artifact 的完整记录。
 
-## 8. 常见问题
+## 9. 常见问题
 
-### 8.1 `npm run dev` 前就报依赖缺失
+### 9.1 `npm run dev` 前就报依赖缺失
 
 通常是还没安装依赖，重新执行：
 
@@ -135,7 +175,7 @@ aw-artifact <id>
 npm install
 ```
 
-### 8.2 `node-pty` 相关原生模块报错
+### 9.2 `node-pty` 相关原生模块报错
 
 项目里 Terminal Panel 依赖 `node-pty`。如果你更换了 Node / Electron 环境，或者本机原生模块 ABI 不匹配，可以尝试：
 
@@ -143,7 +183,7 @@ npm install
 npm run rebuild:native
 ```
 
-### 8.3 `npm run rebuild:native` 失败，提示 `MSB8040`
+### 9.3 `npm run rebuild:native` 失败，提示 `MSB8040`
 
 这不是仓库代码问题，而是本机 Visual Studio C++ 组件缺失。
 
@@ -159,7 +199,7 @@ MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs
 npm run rebuild:native
 ```
 
-### 8.4 应用能构建，但终端面板打不开
+### 9.4 应用能构建，但终端面板打不开
 
 先按顺序检查：
 
@@ -169,7 +209,24 @@ npm run rebuild:native
 4. 终端里是否出现 `node-pty` 相关错误
 5. 如果有原生模块错误，再执行 `npm run rebuild:native`
 
-## 9. 当前可用命令
+### 9.5 为什么仓库本地会很大
+
+如果你发现本地目录接近 `1GB+`，通常不是源码本身，而是下面这些内容在占空间：
+
+1. 根目录 `node_modules/`
+2. 根目录 `.npm-cache/`
+3. `tech-validation/.playwright-browsers/`
+4. `tech-validation/.npm-cache/`
+
+其中最大的通常是：
+
+1. Electron 运行时
+2. Playwright 下载的 Chromium
+3. npm 缓存
+
+源码本身只占很小一部分。
+
+## 10. 当前可用命令
 
 在项目根目录执行：
 
@@ -180,7 +237,17 @@ npm run build
 npm run rebuild:native
 ```
 
-## 10. 当前最短打开路径
+如果你要做可选验证，还可以在 `tech-validation/` 下运行：
+
+```powershell
+npm run validate:web
+npm run validate:pty
+npm run validate:render
+```
+
+注意：这些命令需要你先单独安装 `tech-validation` 依赖；`validate:render` 还需要先安装 Playwright Chromium。
+
+## 11. 当前最短打开路径
 
 如果你只想最快把应用跑起来，只做下面两步：
 
