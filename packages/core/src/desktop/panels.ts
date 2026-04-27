@@ -168,7 +168,7 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'web',
     state: 'validated',
     summary: 'DeepSeek 现已通过独立 WebContentsView 接入，并使用 persist partition 保持登录态。',
-    nextStep: '后续在 Artifact 阶段增加网页内容捕获与发送动作。',
+    nextStep: '后续在 Artifact 阶段增加网页内容捕获与工作区索引联动能力。',
     delivery: 'Phase 2 交付物：真实网页面板可导航、可保活。',
     signal: 'Persistent web session'
   },
@@ -192,7 +192,7 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'terminal',
     state: 'validated',
     summary: 'Codex CLI 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-    nextStep: '后续与 Workspace / Send to Agent 串联，把标准提示词直接写入终端。',
+    nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
     delivery: 'Phase 3 交付物：Codex 终端面板已可启动与保活。',
     signal: 'Codex terminal live'
   },
@@ -204,7 +204,7 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'terminal',
     state: 'validated',
     summary: 'Claude Code 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-    nextStep: '后续与 Artifact 路径协议串联，补齐发送 prompt 的标准动作。',
+    nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
     delivery: 'Phase 3 交付物：Claude Code 终端面板已可启动与保活。',
     signal: 'Claude terminal live'
   },
@@ -252,7 +252,7 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'settings',
     state: 'scaffolded',
     summary: '设置面板开始承接应用级偏好项，当前先落地语言选项与后续能力的占位配置。',
-    nextStep: '继续把 CLI prompt 模板、默认工作区、终端启动策略等接入可配置项。',
+    nextStep: '继续把 CLI 工作区检索策略、默认工作区、终端启动策略等接入可配置项。',
     delivery: '首版设置面板：语言切换入口 + 可扩展占位。',
     signal: 'Preferences scaffolded'
   }
@@ -280,7 +280,7 @@ export const navigationSections: NavigationSection[] = [
   {
     id: 'workspace',
     title: 'Workspace',
-    caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和发送流程接进来。',
+    caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。',
     panelIds: ['artifacts', 'logs']
   },
   {
@@ -304,8 +304,8 @@ const DISABLED_WEB_PANEL_ERROR = 'Disabled until enabled'
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
   {
     id: 'cli-prompt-template',
-    label: 'CLI Prompt Template',
-    description: '后续允许为 Codex / Claude 配置默认启动提示词与发送模板。',
+    label: 'CLI Workspace Retrieval',
+    description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。',
     status: 'planned'
   },
   {

@@ -1,7 +1,7 @@
 # agent-session-handoff Specification
 
 ## Purpose
-TBD - created by archiving change establish-mvp-baseline-specs. Update Purpose after archive.
+Define how managed CLI sessions bootstrap into the workspace, let users talk to the model in ordinary language, and persist transcripts so later workspace retrieval stays possible without manual handoff packaging.
 ## Requirements
 ### Requirement: Workspace-aware terminal bootstrap
 Managed CLI sessions SHALL bootstrap into the current workspace context before running their configured startup commands.
@@ -12,32 +12,26 @@ Managed CLI sessions SHALL bootstrap into the current workspace context before r
 - **THEN** it changes the shell working directory to the configured session directory or current workspace root
 - **THEN** it loads the workspace helper PowerShell commands before executing prelude commands and the startup command
 
-### Requirement: Context-limited prompt generation
-The workspace panel SHALL generate prompt text that references only the selected artifacts, current workspace paths, and target-agent instruction file for the chosen terminal target.
+### Requirement: Natural-language-first CLI interaction
+Managed CLI sessions SHALL treat ordinary user messages as the primary interaction mode and SHALL rely on workspace retrieval instead of manual context handoff prompts when earlier context matters.
 
-#### Scenario: Generate a prompt draft from selected artifacts
-- **WHEN** the user has selected one or more artifacts and requests prompt generation
-- **THEN** the generated prompt names the target assistant profile
-- **THEN** it includes the workspace rules path, context-index path, selected origin, suggested output directory, and selected artifact list
-- **THEN** it instructs the target agent not to scan unrelated workspace files
+#### Scenario: Handle a self-contained request directly
+- **WHEN** the user sends a request that does not depend on prior workspace history
+- **THEN** the managed CLI session answers directly
+- **THEN** the interaction does not require a separately generated workspace handoff prompt
 
-#### Scenario: Generate a prompt draft without selection
-- **WHEN** the user requests prompt generation without selecting any artifacts
-- **THEN** the workspace panel shows a selection-required message instead of an empty prompt
+#### Scenario: Mention a prior session in natural language
+- **WHEN** the user refers to an earlier session, source, or saved workspace context in ordinary language
+- **THEN** the managed CLI session consults workspace retrieval helpers on demand
+- **THEN** the session narrows to the relevant scope before reading raw artifact content
 
-### Requirement: Prompt delivery into managed CLI sessions
-The workspace panel SHALL deliver the generated prompt into the selected managed terminal panel and SHALL auto-start the session first when it is not already running.
+### Requirement: Optional manual workspace inspection
+The system MAY still expose manual artifact or scope inspection surfaces for operator review, but managed CLI retrieval SHALL NOT depend on renderer-side prompt packaging.
 
-#### Scenario: Send a prompt to an idle managed terminal
-- **WHEN** the user sends a prompt to a target terminal that is idle or stopped
-- **THEN** the renderer starts the terminal session first
-- **THEN** it writes the prompt into the terminal after startup bootstrap delay
-- **THEN** it focuses the target terminal panel in the workbench
-
-#### Scenario: Send a prompt to a running managed terminal
-- **WHEN** the user sends a prompt to a target terminal that is already running
-- **THEN** the renderer writes the prompt into that terminal immediately
-- **THEN** it focuses the target terminal panel in the workbench
+#### Scenario: Inspect workspace context manually
+- **WHEN** an operator explicitly opens a workspace scope, artifact preview, or helper command output
+- **THEN** that inspection serves as optional review or debugging support
+- **THEN** normal CLI use still remains direct natural-language interaction without mandatory manual handoff steps
 
 ### Requirement: Terminal transcript capture for later retrieval
 Managed terminal sessions SHALL flush buffered transcript content back into the workspace as scope-grouped artifacts.
@@ -50,4 +44,3 @@ Managed terminal sessions SHALL flush buffered transcript content back into the 
 #### Scenario: Terminal session exits or is disposed
 - **WHEN** a managed terminal session exits or is disposed
 - **THEN** any buffered transcript content is flushed into the workspace before the session is fully torn down
-

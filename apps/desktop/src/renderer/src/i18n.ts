@@ -22,7 +22,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'DeepSeek Web',
       group: 'Web Apps',
       summary: 'DeepSeek 现已通过独立 WebContentsView 接入，并使用 persist partition 保持登录态。',
-      nextStep: '后续在 Artifact 阶段增加网页内容捕获与发送动作。',
+      nextStep: '后续在 Artifact 阶段增加网页内容捕获与工作区索引联动能力。',
       delivery: 'Phase 2 交付物：真实网页面板可导航、可保活。',
       signal: 'Persistent web session'
     },
@@ -38,7 +38,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Codex CLI',
       group: 'CLI Agents',
       summary: 'Codex CLI 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-      nextStep: '后续与 Workspace / Send to Agent 串联，把标准提示词直接写入终端。',
+      nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
       delivery: 'Phase 3 交付物：Codex 终端面板已可启动与保活。',
       signal: 'Codex terminal live'
     },
@@ -46,7 +46,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Claude Code',
       group: 'CLI Agents',
       summary: 'Claude Code 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-      nextStep: '后续与 Artifact 路径协议串联，补齐发送 prompt 的标准动作。',
+      nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
       delivery: 'Phase 3 交付物：Claude Code 终端面板已可启动与保活。',
       signal: 'Claude terminal live'
     },
@@ -78,7 +78,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Settings',
       group: 'System',
       summary: '设置面板开始承接应用级偏好项，当前先落地语言选项与后续能力的占位配置。',
-      nextStep: '继续把 CLI prompt 模板、默认工作区、终端启动策略等接入可配置项。',
+      nextStep: '继续把 CLI 工作区检索策略、默认工作区、终端启动策略等接入可配置项。',
       delivery: '首版设置面板：语言切换入口 + 可扩展占位。',
       signal: 'Preferences scaffolded'
     }
@@ -96,7 +96,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'DeepSeek Web',
       group: 'Web Apps',
       summary: 'DeepSeek now runs through an isolated WebContentsView with a persist partition for login retention.',
-      nextStep: 'Add page capture and send actions in the Artifact phase.',
+      nextStep: 'Add page capture and workspace-index integration in the Artifact phase.',
       delivery: 'Phase 2 deliverable: the live web panel can navigate and stay alive.',
       signal: 'Persistent web session'
     },
@@ -112,7 +112,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Codex CLI',
       group: 'CLI Agents',
       summary: 'Codex CLI is connected as a live persistent terminal through PowerShell, node-pty, and xterm.js.',
-      nextStep: 'Connect Workspace and Send to Agent so standard prompts can be written straight into the terminal.',
+      nextStep: 'Keep strengthening automatic workspace retrieval so the CLI can locate the right context when you mention a prior session.',
       delivery: 'Phase 3 deliverable: the Codex terminal panel can start and stay alive.',
       signal: 'Codex terminal live'
     },
@@ -120,7 +120,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Claude Code',
       group: 'CLI Agents',
       summary: 'Claude Code is connected as a live persistent terminal through PowerShell, node-pty, and xterm.js.',
-      nextStep: 'Connect Artifact path protocols and complete the standard prompt-send action.',
+      nextStep: 'Keep strengthening automatic workspace retrieval so the CLI can locate the right context when you mention a prior session.',
       delivery: 'Phase 3 deliverable: the Claude terminal panel can start and stay alive.',
       signal: 'Claude terminal live'
     },
@@ -152,7 +152,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Settings',
       group: 'System',
       summary: 'The settings panel now starts owning app-level preferences, beginning with language options and placeholders for future capabilities.',
-      nextStep: 'Keep wiring CLI prompt templates, default workspace selection, and terminal startup behavior into real settings.',
+      nextStep: 'Keep wiring CLI workspace-retrieval defaults, default workspace selection, and terminal startup behavior into real settings.',
       delivery: 'First settings panel: language switch entry plus expandable placeholders.',
       signal: 'Preferences scaffolded'
     }
@@ -175,7 +175,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     workspace: {
       title: 'Workspace',
-      caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和发送流程接进来。'
+      caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。'
     },
     tools: {
       title: 'Tools',
@@ -201,7 +201,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     workspace: {
       title: 'Workspace',
-      caption: 'The workspace now exists on disk with a manifest, and list, preview, and send flows will continue from here.'
+      caption: 'The workspace now exists on disk with a manifest, and list, preview, and automatic retrieval support will continue from here.'
     },
     tools: {
       title: 'Tools',
@@ -230,8 +230,8 @@ const stateLabels: Record<SupportedLocale, Record<PanelState, string>> = {
 const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<SettingsOptionPlaceholder, 'label' | 'description'>>> = {
   'zh-CN': {
     'cli-prompt-template': {
-      label: 'CLI Prompt Template',
-      description: '后续允许为 Codex / Claude 配置默认启动提示词与发送模板。'
+      label: 'CLI Workspace Retrieval',
+      description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。'
     },
     'default-workspace': {
       label: 'Default Workspace',
@@ -244,8 +244,8 @@ const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<Sett
   },
   'en-US': {
     'cli-prompt-template': {
-      label: 'CLI Prompt Template',
-      description: 'Later this will allow default startup prompts and send templates for Codex and Claude.'
+      label: 'CLI Workspace Retrieval',
+      description: 'Later this will allow retrieval defaults, session disambiguation hints, and automatic indexing behavior for Codex and Claude.'
     },
     'default-workspace': {
       label: 'Default Workspace',
@@ -373,27 +373,27 @@ const uiText = {
     contextLabel: '上下文标签',
     allSources: '全部来源',
     latestArtifact: '最新 Artifact',
-    contextSelectionHint: '后续给 CLI 发送上下文时，应优先选定单个来源索引，而不是加载全部 Artifact。',
+    contextSelectionHint: 'CLI 正常工作时应自动按需检索；这里的来源选择主要用于人工检查或排障。',
     artifactSelection: 'Artifact 选择',
     selectedCount: '已选数量',
     previewArtifact: '预览',
     selectedArtifacts: '已选 Artifact',
     artifactPreview: 'Artifact 预览',
-    artifactPreviewHint: '选择一条 Artifact 进行按需加载预览，不会影响勾选的 Prompt 选择。',
+    artifactPreviewHint: '选择一条 Artifact 进行按需加载预览，不会影响勾选的可选手动草稿选择。',
     artifactPreviewEmpty: '等待选择要预览的 Artifact。',
     artifactPreviewLoading: '正在加载 Artifact 预览...',
     artifactPreviewUnavailable: '未能读取这条 Artifact，可能已被删除或暂时不可用。',
     artifactPreviewUnsupported: '该 Artifact 类型暂不支持文本预览。',
-    promptBuilder: 'Prompt Builder',
-    promptTarget: '目标 CLI',
-    promptPreview: 'Prompt 预览',
-    generatePrompt: '生成 Prompt',
-    sendPrompt: '发送到 CLI',
-    cliSelfSearch: 'CLI 自助检索',
-    cliSelfSearchHint: 'CLI 现在会默认进入当前工作区，并可直接使用以下 PowerShell 命令检索索引。',
+    promptBuilder: '手动上下文草稿（可选）',
+    promptTarget: '目标 CLI（可选）',
+    promptPreview: '草稿预览',
+    generatePrompt: '生成手动草稿',
+    sendPrompt: '发送草稿到 CLI',
+    cliSelfSearch: 'CLI 自动工作区检索',
+    cliSelfSearchHint: 'CLI 现在会默认进入当前工作区，并在你提到某个会话或来源时优先自动查索引；下面这些命令主要用于显式检查或排障。',
     defaultContextLabel: '默认上下文',
     noArtifactsForFilter: '当前筛选条件下还没有可选 Artifact。',
-    selectionRequired: '请先选至少一个 Artifact。',
+    selectionRequired: '请先选至少一个 Artifact，才能生成手动草稿。',
     manifest: '清单文件',
     artifactsIndexed: '已索引 Artifact',
     artifactsBucket: 'Artifacts 桶',
@@ -576,27 +576,27 @@ const uiText = {
     contextLabel: 'Context Label',
     allSources: 'All Sources',
     latestArtifact: 'Latest Artifact',
-    contextSelectionHint: 'When sending context to a CLI later, prefer selecting one source index instead of loading every artifact.',
+    contextSelectionHint: 'Normal CLI use should rely on automatic workspace retrieval; this source picker is mainly for manual inspection or debugging.',
     artifactSelection: 'Artifact Selection',
     selectedCount: 'Selected Count',
     previewArtifact: 'Preview',
     selectedArtifacts: 'Selected Artifacts',
     artifactPreview: 'Artifact Preview',
-    artifactPreviewHint: 'Pick one artifact to preview on demand without changing the checkbox selection used for prompts.',
+    artifactPreviewHint: 'Pick one artifact to preview on demand without changing the checkbox selection used for the optional manual draft.',
     artifactPreviewEmpty: 'Waiting for an artifact to preview.',
     artifactPreviewLoading: 'Loading artifact preview...',
     artifactPreviewUnavailable: 'This artifact could not be read. It may have been removed or is temporarily unavailable.',
     artifactPreviewUnsupported: 'This artifact type does not support text preview yet.',
-    promptBuilder: 'Prompt Builder',
-    promptTarget: 'Target CLI',
-    promptPreview: 'Prompt Preview',
-    generatePrompt: 'Generate Prompt',
-    sendPrompt: 'Send to CLI',
-    cliSelfSearch: 'CLI Self-Search',
-    cliSelfSearchHint: 'CLI sessions now enter the current workspace by default and can use these PowerShell commands to inspect indexes directly.',
+    promptBuilder: 'Manual Context Draft (Optional)',
+    promptTarget: 'Target CLI (Optional)',
+    promptPreview: 'Draft Preview',
+    generatePrompt: 'Generate Manual Draft',
+    sendPrompt: 'Send Draft to CLI',
+    cliSelfSearch: 'Automatic CLI Workspace Retrieval',
+    cliSelfSearchHint: 'Managed CLI sessions enter the current workspace automatically and should consult indexes when you mention a prior session or source. These commands are mainly for explicit inspection and debugging.',
     defaultContextLabel: 'default-context',
     noArtifactsForFilter: 'There are no selectable artifacts for the current filter.',
-    selectionRequired: 'Select at least one artifact first.',
+    selectionRequired: 'Select at least one artifact first to generate a manual draft.',
     manifest: 'Manifest',
     artifactsIndexed: 'Artifacts Indexed',
     artifactsBucket: 'Artifacts Bucket',

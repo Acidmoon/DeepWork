@@ -1,7 +1,7 @@
 # settings-and-panel-extensibility Specification
 
 ## Purpose
-TBD - created by archiving change establish-mvp-baseline-specs. Update Purpose after archive.
+Define how application settings and panel definitions are persisted, including the future-facing preferences that shape how managed CLI sessions discover workspace context by default.
 ## Requirements
 ### Requirement: Persisted application settings
 The system SHALL persist application-level settings for language, theme, workspace root, terminal prelude commands, built-in web panel overrides, and custom panel definitions.
@@ -64,6 +64,5 @@ The settings panel SHALL expose the preferences that are currently implemented a
 
 #### Scenario: View deferred preferences
 - **WHEN** the user opens the settings panel
-- **THEN** placeholder entries remain visible for CLI prompt templates, default workspace behavior, and terminal behavior extensions
+- **THEN** placeholder entries remain visible for CLI workspace-retrieval defaults, default workspace behavior, and terminal behavior extensions
 - **THEN** those entries are presented as future-facing placeholders rather than active runtime configuration
-

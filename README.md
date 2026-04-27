@@ -131,9 +131,19 @@ Documents/AI-Workspace/projects/default/manifests/artifacts.json
 
 现在这个默认目录不是固定死的，你也可以在应用内的 `Workspace` 面板里使用 `选择工作区` 改成你自己的文件夹。改完后会持久化，下次启动仍会继续使用该目录。
 
-## 8. CLI 如何自助检索工作区
+## 8. CLI 如何自动感知工作区
 
-现在 `Codex CLI` / `Claude Code` 启动后会默认进入当前工作区根目录，并自动获得一组 PowerShell 检索命令。
+现在 `Codex CLI` / `Claude Code` 启动后会默认进入当前工作区根目录，并自动获得工作区检索能力。
+
+正常使用时，你不需要手动整理 prompt、也不需要先把上下文打包再发给 CLI。
+
+更推荐的使用方式是直接自然语言描述任务，比如提到：
+
+1. 某个之前的 CLI 会话
+2. 某次网页对话
+3. 某个来源或上下文标签
+
+在这种情况下，CLI 应该先根据工作区索引按需定位相关 scope，再决定是否读取具体 Artifact。
 
 工作区里当前会维护这些核心索引文件：
 
@@ -149,11 +159,18 @@ manifests/origins/<scopeId>.json
 2. `context-index.json` 是按 `origin + contextLabel` 聚合后的上下文索引。
 3. `manifests/origins/<scopeId>.json` 是某一个具体来源/上下文的独立索引。
 
-在 CLI 面板里可以直接使用：
+CLI 侧的 PowerShell helper 仍然可用，但它们主要用于：
+
+1. 显式检查当前索引
+2. 调试检索行为
+3. 在模型需要时提供结构化辅助
+
+可用命令包括：
 
 ```powershell
 aw-workspace
 aw-origins
+aw-suggest "<natural-language query>"
 aw-origin <scopeId>
 aw-artifact <id>
 ```
@@ -162,8 +179,11 @@ aw-artifact <id>
 
 1. `aw-workspace`：查看当前工作区和核心 manifest 路径。
 2. `aw-origins`：列出所有来源/上下文索引。
-3. `aw-origin <scopeId>`：打开某个具体来源/上下文索引。
-4. `aw-artifact <id>`：查看某个具体 Artifact 的完整记录。
+3. `aw-suggest "<natural-language query>"`：按自然语言请求对可疑相关的 scope 做排序。
+4. `aw-origin <scopeId>`：打开某个具体来源/上下文索引。
+5. `aw-artifact <id>`：查看某个具体 Artifact 的完整记录。
+
+也就是说，这套命令现在更像 CLI 自动工作区感知的底层检索面，而不是要求你手工做上下文交接的操作界面。
 
 ## 9. 常见问题
 

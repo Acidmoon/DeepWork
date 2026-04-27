@@ -1,7 +1,7 @@
 # cli-workspace-awareness Specification
 
 ## Purpose
-TBD - created by archiving change make-cli-session-workspace-aware. Update Purpose after archive.
+Define how managed CLI sessions stay workspace-aware by default, decide when prior context is needed from ordinary natural-language requests, and retrieve only the bounded scope that matches the user's intent.
 ## Requirements
 ### Requirement: Natural-language-triggered workspace retrieval
 Managed CLI sessions SHALL treat ordinary natural-language user requests as the trigger for deciding whether prior workspace context is needed.
@@ -15,6 +15,11 @@ Managed CLI sessions SHALL treat ordinary natural-language user requests as the 
 - **WHEN** the user request implies earlier browser, CLI, or workspace context
 - **THEN** the managed CLI session consults workspace retrieval helpers before opening raw artifact content
 - **THEN** the lookup begins from indexed scope metadata rather than global transcript injection
+
+#### Scenario: Mention a prior session directly
+- **WHEN** the user explicitly mentions a prior session, source, or context label in natural language
+- **THEN** the managed CLI session treats that mention as a retrieval hint and consults the workspace index on demand
+- **THEN** the user does not need to manually assemble or send a separate context handoff prompt
 
 ### Requirement: Scope-bounded CLI retrieval flow
 Managed CLI sessions SHALL retrieve workspace context at scope or session granularity before reading individual artifacts.
@@ -41,4 +46,3 @@ The system SHALL make managed CLI retrieval outcomes inspectable for each sessio
 - **WHEN** a managed CLI session performs a lookup and no relevant scope is selected
 - **THEN** the workspace records that no scope was chosen for the query
 - **THEN** the recorded evidence includes a machine-readable reason or outcome for the no-match case
-

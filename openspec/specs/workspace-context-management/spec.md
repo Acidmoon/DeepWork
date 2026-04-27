@@ -1,7 +1,7 @@
 # workspace-context-management Specification
 
 ## Purpose
-TBD - created by archiving change establish-mvp-baseline-specs. Update Purpose after archive.
+Define how the shared workspace persists artifacts, maintains retrieval-safe indexes, and supports optional human inspection without making manual context packaging a prerequisite for CLI use.
 ## Requirements
 ### Requirement: Workspace initialization and structure
 The system SHALL initialize a writable workspace root containing stable bucket directories, manifest files, rules files, and origin index files for artifact retrieval.
@@ -88,7 +88,7 @@ The workspace panel SHALL present artifact and session result lists as search-aw
 #### Scenario: Browse filtered artifact results
 - **WHEN** the workspace contains artifact records that match the active filter state
 - **THEN** the artifact list updates to reflect the filtered workspace state
-- **THEN** artifact selection for prompt building remains available from that filtered list
+- **THEN** artifact review and optional manual inspection remain available from that filtered list without gating automatic CLI retrieval
 
 ### Requirement: On-demand artifact preview
 The workspace panel SHALL let users preview a selected artifact by loading its content on demand through the existing artifact read operation.
@@ -122,4 +122,3 @@ The system SHALL persist scope-level retrieval metadata in `context-index.json` 
 - **WHEN** artifacts belong to different origins or context labels
 - **THEN** the workspace manager keeps retrieval metadata grouped by scope ID
 - **THEN** unrelated sessions are not merged into one retrieval candidate
-
