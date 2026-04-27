@@ -1660,7 +1660,18 @@ function buildArtifactSearchText(artifact: ArtifactRecord): string {
 }
 
 function buildSessionSearchText(entry: ContextIndexEntry, artifacts: ArtifactRecord[]): string {
-  return [entry.origin, entry.contextLabel, entry.scopeId, ...artifacts.map((artifact) => buildArtifactSearchText(artifact))]
+  return [
+    entry.origin,
+    entry.contextLabel,
+    entry.scopeId,
+    entry.retrieval.scopeSummary,
+    entry.retrieval.latestArtifactSummary,
+    entry.retrieval.latestArtifactType,
+    entry.retrieval.artifactTypes.join(' '),
+    entry.retrieval.tags.join(' '),
+    entry.retrieval.searchTerms.join(' '),
+    ...artifacts.map((artifact) => buildArtifactSearchText(artifact))
+  ]
     .join(' ')
     .toLowerCase()
 }
@@ -1718,7 +1729,7 @@ function buildSessionSummary(
   const messageCount = Number(representative?.metadata?.messageCount ?? 0)
   const transcriptCount = scopedArtifacts.filter((artifact) => artifact.type === 'markdown').length
   const logCount = scopedArtifacts.filter((artifact) => artifact.type === 'log').length
-  const preview = extractSessionPreview(representative) || formatContextEntryDescription(entry, locale)
+  const preview = extractSessionPreview(representative) || entry.retrieval.scopeSummary || formatContextEntryDescription(entry, locale)
   const title = deriveSessionTitle(entry, representative, locale)
   const badges = [
     locale === 'zh-CN' ? `${entry.artifactCount} 条记录` : `${entry.artifactCount} items`,

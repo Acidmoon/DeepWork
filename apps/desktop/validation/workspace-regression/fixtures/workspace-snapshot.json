@@ -22,7 +22,35 @@
         "log_0010"
       ],
       "latestArtifactId": "log_0010",
-      "latestUpdatedAt": "2026-04-26T12:54:01.511Z"
+      "latestUpdatedAt": "2026-04-26T12:54:01.511Z",
+      "retrieval": {
+        "normalizedOrigin": "codex-cli",
+        "normalizedContextLabel": "session-0001",
+        "latestArtifactSummary": "Codex CLI transcript captured from session 1.",
+        "latestArtifactType": "log",
+        "artifactTypes": [
+          "log"
+        ],
+        "tags": [
+          "codex-cli",
+          "log",
+          "session",
+          "terminal"
+        ],
+        "searchTerms": [
+          "codex-cli",
+          "session-0001",
+          "log",
+          "session",
+          "terminal",
+          "codex",
+          "cli",
+          "0001",
+          "transcript",
+          "captured"
+        ],
+        "scopeSummary": "Codex CLI transcript captured from session 1."
+      }
     },
     {
       "origin": "deepseek-web",
@@ -34,7 +62,46 @@
         "markdown_0016"
       ],
       "latestArtifactId": "json_0006",
-      "latestUpdatedAt": "2026-04-26T12:53:39.772Z"
+      "latestUpdatedAt": "2026-04-26T12:53:39.772Z",
+      "retrieval": {
+        "normalizedOrigin": "deepseek-web",
+        "normalizedContextLabel": "a-chat-s-9b9f89a2-ceff",
+        "latestArtifactSummary": "Structured message index for 用户询问数字111含义 - DeepSeek.",
+        "latestArtifactType": "json",
+        "artifactTypes": [
+          "json",
+          "markdown"
+        ],
+        "tags": [
+          "auto-capture",
+          "context",
+          "deepseek-web",
+          "json",
+          "markdown",
+          "messages",
+          "session-index",
+          "web"
+        ],
+        "searchTerms": [
+          "deepseek-web",
+          "a-chat-s-9b9f89a2-ceff",
+          "json",
+          "markdown",
+          "messages",
+          "session-index",
+          "auto-capture",
+          "context",
+          "web",
+          "deepseek",
+          "chat",
+          "structured",
+          "message",
+          "index",
+          "111",
+          "用户询问数字111含义"
+        ],
+        "scopeSummary": "Structured message index for 用户询问数字111含义 - DeepSeek. | Auto-captured web session from 用户询问数字111含义 - DeepSeek with 1 structured messages."
+      }
     },
     {
       "origin": "minimax-web",
@@ -46,7 +113,36 @@
         "markdown_0014"
       ],
       "latestArtifactId": "markdown_0015",
-      "latestUpdatedAt": "2026-04-26T12:52:45.168Z"
+      "latestUpdatedAt": "2026-04-26T12:52:45.168Z",
+      "retrieval": {
+        "normalizedOrigin": "minimax-web",
+        "normalizedContextLabel": "minimax-agent",
+        "latestArtifactSummary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能.",
+        "latestArtifactType": "markdown",
+        "artifactTypes": [
+          "markdown"
+        ],
+        "tags": [
+          "auto-capture",
+          "context",
+          "markdown",
+          "minimax-web",
+          "web"
+        ],
+        "searchTerms": [
+          "minimax-web",
+          "minimax-agent",
+          "markdown",
+          "auto-capture",
+          "context",
+          "web",
+          "minimax",
+          "agent",
+          "简单指令",
+          "无限可能"
+        ],
+        "scopeSummary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能."
+      }
     }
   ],
   "artifacts": [

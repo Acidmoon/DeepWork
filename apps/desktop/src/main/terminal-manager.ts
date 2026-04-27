@@ -4,6 +4,7 @@ import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
 import * as pty from 'node-pty'
 import type { CustomTerminalPanelSettings } from '@ai-workbench/core/desktop/settings'
+import { sanitizeContextLabel, sanitizeOrigin } from '@ai-workbench/core/desktop/workspace'
 import {
   createCustomTerminalPanelConfig,
   getTerminalPanelConfig,
@@ -25,11 +26,57 @@ function psQuote(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
 }
 
-function createWorkspaceBootstrap(workspaceRoot: string, sessionCwd: string): string {
+interface ManagedSessionIdentity {
+  panelId: string
+  title: string
+  launchCount: number
+  contextLabel: string
+  sessionScopeId: string
+  retrievalAuditPath: string
+  retrievalStatePath: string
+}
+
+function createManagedSessionIdentity(
+  workspaceRoot: string,
+  panelId: string,
+  title: string,
+  launchCount: number,
+  contextLabel: string
+): ManagedSessionIdentity {
+  const sessionScopeId = `${sanitizeOrigin(panelId)}__${sanitizeContextLabel(contextLabel)}`
+  const retrievalDirectory = join(workspaceRoot, 'logs', 'retrieval')
+
+  return {
+    panelId,
+    title,
+    launchCount,
+    contextLabel,
+    sessionScopeId,
+    retrievalAuditPath: join(retrievalDirectory, `${sessionScopeId}.jsonl`),
+    retrievalStatePath: join(retrievalDirectory, `${sessionScopeId}.pending.json`)
+  }
+}
+
+function createWorkspaceBootstrap(
+  workspaceRoot: string,
+  sessionCwd: string,
+  sessionIdentity: ManagedSessionIdentity | null = null
+): string {
   const toolsPath = join(workspaceRoot, 'rules', 'WORKBENCH_TOOLS.ps1')
+  const environmentAssignments = {
+    AI_WORKBENCH_WORKSPACE_ROOT: workspaceRoot,
+    AI_WORKBENCH_MANAGED_SESSION: '1',
+    AI_WORKBENCH_SESSION_PANEL_ID: sessionIdentity?.panelId ?? '',
+    AI_WORKBENCH_SESSION_TITLE: sessionIdentity?.title ?? '',
+    AI_WORKBENCH_SESSION_LAUNCH_COUNT: sessionIdentity ? String(sessionIdentity.launchCount) : '',
+    AI_WORKBENCH_SESSION_CONTEXT_LABEL: sessionIdentity?.contextLabel ?? '',
+    AI_WORKBENCH_SESSION_SCOPE_ID: sessionIdentity?.sessionScopeId ?? '',
+    AI_WORKBENCH_RETRIEVAL_AUDIT_PATH: sessionIdentity?.retrievalAuditPath ?? '',
+    AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity?.retrievalStatePath ?? ''
+  }
 
   return [
-    `$env:AI_WORKBENCH_WORKSPACE_ROOT=${psQuote(workspaceRoot)}`,
+    ...Object.entries(environmentAssignments).map(([key, value]) => `$env:${key}=${psQuote(value)}`),
     `if (Test-Path -LiteralPath ${psQuote(sessionCwd)}) { Set-Location -LiteralPath ${psQuote(sessionCwd)} }`,
     `if (Test-Path -LiteralPath ${psQuote(toolsPath)}) { . ${psQuote(toolsPath)} }`
   ].join('\r')
@@ -162,14 +209,29 @@ export class TerminalManager {
 
     try {
       const cwd = session.config.cwd ?? this.workspaceRoot
-      const env = {
-        ...process.env,
-        AI_WORKBENCH_WORKSPACE_ROOT: this.workspaceRoot,
-        ...session.config.env
-      }
       const sessionToken = session.sessionToken + 1
       const nextLaunchCount = session.snapshot.launchCount + 1
       const contextLabel = `session-${String(nextLaunchCount).padStart(4, '0')}`
+      const sessionIdentity = createManagedSessionIdentity(
+        this.workspaceRoot,
+        session.config.id,
+        session.config.title,
+        nextLaunchCount,
+        contextLabel
+      )
+      const env = {
+        ...process.env,
+        AI_WORKBENCH_WORKSPACE_ROOT: this.workspaceRoot,
+        AI_WORKBENCH_MANAGED_SESSION: '1',
+        AI_WORKBENCH_SESSION_PANEL_ID: sessionIdentity.panelId,
+        AI_WORKBENCH_SESSION_TITLE: sessionIdentity.title,
+        AI_WORKBENCH_SESSION_LAUNCH_COUNT: String(sessionIdentity.launchCount),
+        AI_WORKBENCH_SESSION_CONTEXT_LABEL: sessionIdentity.contextLabel,
+        AI_WORKBENCH_SESSION_SCOPE_ID: sessionIdentity.sessionScopeId,
+        AI_WORKBENCH_RETRIEVAL_AUDIT_PATH: sessionIdentity.retrievalAuditPath,
+        AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity.retrievalStatePath,
+        ...session.config.env
+      }
 
       session.ptyProcess = pty.spawn(session.config.shell, session.config.shellArgs, {
         name: 'xterm-color',
@@ -213,7 +275,7 @@ export class TerminalManager {
           return
         }
 
-        session.ptyProcess.write(`${createWorkspaceBootstrap(this.workspaceRoot, cwd)}\r`)
+        session.ptyProcess.write(`${createWorkspaceBootstrap(this.workspaceRoot, cwd, sessionIdentity)}\r`)
         for (const command of this.resolvePreludeCommands(session.config)) {
           if (command.trim().length > 0) {
             session.ptyProcess.write(`${command}\r`)
@@ -354,7 +416,10 @@ export class TerminalManager {
 
       if (session.ptyProcess) {
         const sessionCwd = session.config.cwd ?? workspaceRoot
-        session.ptyProcess.write(`${createWorkspaceBootstrap(workspaceRoot, sessionCwd)}\r`)
+        const sessionIdentity = session.contextLabel
+          ? createManagedSessionIdentity(workspaceRoot, session.config.id, session.config.title, session.snapshot.launchCount, session.contextLabel)
+          : null
+        session.ptyProcess.write(`${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity)}\r`)
       }
 
       this.publishState(session.snapshot)
