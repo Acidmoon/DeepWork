@@ -14,6 +14,7 @@ import {
 const WEB_CAPTURE_DEBOUNCE_MS = 1_800
 const WEB_CAPTURE_INTERVAL_MS = 15_000
 const WEB_CAPTURE_MAX_TEXT = 32_000
+const WEB_PENDING_INPUT_GRACE_MS = 8_000
 
 const WEB_CONTEXT_SCRAPE_SCRIPT = `(() => {
   const host = location.hostname.toLowerCase()
@@ -171,6 +172,11 @@ interface ManagedWebPanel {
   transcriptArtifactId: string | null
   messagesArtifactId: string | null
   captureContextLabel: string | null
+  captureUnlocked: boolean
+  pendingConversationUnlock: boolean
+  pendingUserMessageBaseline: number
+  lastObservedUserMessageCount: number
+  lastMeaningfulInputAt: number | null
   captureTimer: NodeJS.Timeout | null
   captureInterval: NodeJS.Timeout | null
 }
@@ -207,6 +213,23 @@ function isSafeNavigationTarget(rawUrl: string): boolean {
   } catch {
     return false
   }
+}
+
+function isMeaningfulWebInput(input: { type?: string; key?: string; isAutoRepeat?: boolean }): boolean {
+  if (input.type !== 'keyDown' || input.isAutoRepeat) {
+    return false
+  }
+
+  const key = input.key?.trim() ?? ''
+  return key === 'Enter' || key === 'Backspace' || key === 'Delete' || key.length === 1
+}
+
+function hasRecentPendingWebInput(panel: ManagedWebPanel): boolean {
+  return (
+    panel.pendingConversationUnlock &&
+    panel.lastMeaningfulInputAt !== null &&
+    Date.now() - panel.lastMeaningfulInputAt <= WEB_PENDING_INPUT_GRACE_MS
+  )
 }
 
 export class WebPanelManager {
@@ -259,7 +282,7 @@ export class WebPanelManager {
         canGoForward: false,
         isLoading: false,
         enabled: false,
-        lastError: 'Reserved for later rollout'
+        lastError: 'Disabled until enabled'
       }
     }
 
@@ -441,6 +464,11 @@ export class WebPanelManager {
       transcriptArtifactId: null,
       messagesArtifactId: null,
       captureContextLabel: null,
+      captureUnlocked: false,
+      pendingConversationUnlock: false,
+      pendingUserMessageBaseline: 0,
+      lastObservedUserMessageCount: 0,
+      lastMeaningfulInputAt: null,
       captureTimer: null,
       captureInterval: null,
       snapshot: {
@@ -522,7 +550,22 @@ export class WebPanelManager {
       this.publish(panel.snapshot)
     })
 
+    view.webContents.on('before-input-event', (_event, input) => {
+      if (!isMeaningfulWebInput(input)) {
+        return
+      }
+
+      panel.pendingConversationUnlock = true
+      panel.pendingUserMessageBaseline = panel.lastObservedUserMessageCount
+      panel.lastMeaningfulInputAt = Date.now()
+      this.scheduleContextCapture(panel, 900)
+    })
+
     view.webContents.on('did-navigate', (_event, url) => {
+      if (!hasRecentPendingWebInput(panel)) {
+        this.resetConversationCapture(panel)
+      }
+
       panel.snapshot = {
         ...panel.snapshot,
         currentUrl: url,
@@ -534,6 +577,10 @@ export class WebPanelManager {
     })
 
     view.webContents.on('did-navigate-in-page', (_event, url) => {
+      if (!hasRecentPendingWebInput(panel)) {
+        this.resetConversationCapture(panel)
+      }
+
       panel.snapshot = {
         ...panel.snapshot,
         currentUrl: url,
@@ -648,6 +695,17 @@ export class WebPanelManager {
     }, delay)
   }
 
+  private resetConversationCapture(panel: ManagedWebPanel): void {
+    panel.transcriptArtifactId = null
+    panel.messagesArtifactId = null
+    panel.captureContextLabel = null
+    panel.captureUnlocked = false
+    panel.pendingConversationUnlock = false
+    panel.pendingUserMessageBaseline = 0
+    panel.lastObservedUserMessageCount = 0
+    panel.lastMeaningfulInputAt = null
+  }
+
   private async captureCurrentContext(panel: ManagedWebPanel): Promise<void> {
     if (!this.persistWebContext || this.activePanelId !== panel.snapshot.panelId || panel.snapshot.isLoading) {
       return
@@ -678,8 +736,17 @@ export class WebPanelManager {
       const title = result?.title?.trim() || panel.snapshot.title
       const rawText = [result?.heading?.trim(), result?.bodyText?.trim()].filter(Boolean).join('\n\n').trim()
       const messages = normalizeCapturedMessages(result?.messages)
+      const userMessages = messages.filter((message) => message.role === 'user')
 
-      if (!url || (rawText.length < 40 && messages.length === 0)) {
+      if (panel.pendingConversationUnlock && userMessages.length > panel.pendingUserMessageBaseline) {
+        panel.captureUnlocked = true
+        panel.pendingConversationUnlock = false
+        panel.pendingUserMessageBaseline = userMessages.length
+      }
+
+      panel.lastObservedUserMessageCount = userMessages.length
+
+      if (!url || !panel.captureUnlocked || userMessages.length === 0) {
         return
       }
 

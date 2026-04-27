@@ -106,12 +106,17 @@ function App(): JSX.Element {
     const count = settings.customWebPanels.filter((panel) => panel.sectionId === sectionId).length + 1
     const id = `custom-web-${Date.now().toString(36)}`
     const section = localizeSection(sections.find((item) => item.id === sectionId) ?? sections[0], locale)
-    const requestedUrl = window.prompt(ui.customWebUrlPrompt, 'https://example.com/')?.trim()
-    if (requestedUrl === '') {
+    const requestedUrl = window.prompt(ui.customWebUrlPrompt, 'https://example.com/')
+    if (requestedUrl === null) {
       return
     }
 
-    const homeUrl = normalizeCustomWebUrl(requestedUrl || 'https://example.com/')
+    const trimmedUrl = requestedUrl.trim()
+    if (!trimmedUrl) {
+      return
+    }
+
+    const homeUrl = normalizeCustomWebUrl(trimmedUrl)
     const titleFromUrl = deriveCustomWebTitle(homeUrl)
     const title = titleFromUrl || (locale === 'zh-CN' ? `${section.title}${ui.customWebTitle}${count}` : `${section.title} ${ui.customWebTitle} ${count}`)
 
@@ -392,11 +397,13 @@ function App(): JSX.Element {
 }
 
 function normalizeCustomWebUrl(rawUrl: string): string {
-  if (/^https?:\/\//i.test(rawUrl)) {
-    return rawUrl
+  const normalized = rawUrl.trim()
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized
   }
 
-  return `https://${rawUrl}`
+  return `https://${normalized}`
 }
 
 function deriveCustomWebTitle(url: string): string {

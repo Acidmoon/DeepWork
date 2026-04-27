@@ -118,17 +118,26 @@ function WebPanel({ panel, locale }: { panel: ManagedPanel; locale: ReturnType<t
   }, [panel.definition.id, syncWebPanelState])
 
   const persistConfig = async (enabled: boolean): Promise<void> => {
+    const normalizedHomeUrl = toNavigableUrl(state.homeUrl)
+    if (!normalizedHomeUrl) {
+      return
+    }
+
+    const normalizedPartition = state.partition.trim() || `persist:${panel.definition.id}`
+    const normalizedCurrentUrl = enabled ? toNavigableUrl(state.currentUrl) || normalizedHomeUrl : normalizedHomeUrl
+
     updatePanelViewState(panel.definition.id, {
       ...state,
       enabled,
-      homeUrl: toNavigableUrl(state.homeUrl),
-      currentUrl: enabled ? state.currentUrl : toNavigableUrl(state.homeUrl),
-      partition: state.partition.trim() || `persist:${panel.definition.id}`
+      homeUrl: normalizedHomeUrl,
+      currentUrl: normalizedCurrentUrl,
+      partition: normalizedPartition,
+      sessionPersisted: normalizedPartition.startsWith('persist:')
     })
 
     const snapshot = await window.workbenchShell.webPanels.updateConfig(panel.definition.id, {
-      homeUrl: toNavigableUrl(state.homeUrl),
-      partition: state.partition.trim() || `persist:${panel.definition.id}`,
+      homeUrl: normalizedHomeUrl,
+      partition: normalizedPartition,
       enabled
     })
 
@@ -1596,11 +1605,16 @@ function getElementBounds(element: HTMLElement) {
 }
 
 function toNavigableUrl(rawUrl: string): string {
-  if (/^https?:\/\//i.test(rawUrl)) {
-    return rawUrl
+  const normalized = rawUrl.trim()
+  if (!normalized) {
+    return ''
   }
 
-  return `https://${rawUrl}`
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized
+  }
+
+  return `https://${normalized}`
 }
 
 function normalizeWorkspaceSearchQuery(value: string): string {

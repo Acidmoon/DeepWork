@@ -94,11 +94,13 @@ app.whenReady().then(() => {
         return null
       }
 
-      webPanelManager?.syncCustomPanels(settingsSnapshot.customWebPanels)
-      const nextConfig =
-        settingsSnapshot.webPanels[panelId] ??
-        settingsSnapshot.customWebPanels.find((panel) => panel.id === panelId)
+      const customConfig = settingsSnapshot.customWebPanels.find((panel) => panel.id === panelId)
+      if (customConfig) {
+        webPanelManager?.syncCustomPanels(settingsSnapshot.customWebPanels)
+        return webPanelManager?.getSnapshot(panelId) ?? null
+      }
 
+      const nextConfig = settingsSnapshot.webPanels[panelId]
       return nextConfig ? (webPanelManager?.updateConfig(panelId, nextConfig) ?? null) : null
     }
   )

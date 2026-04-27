@@ -1,16 +1,4 @@
-# desktop-workbench-panels Specification
-
-## Purpose
-TBD - created by archiving change establish-mvp-baseline-specs. Update Purpose after archive.
-## Requirements
-### Requirement: DeepWork desktop shell
-The system SHALL launch a single DeepWork desktop window that hosts the renderer shell through the preload bridge and prevents arbitrary secondary window creation from both the main window and managed web panels.
-
-#### Scenario: Main window boot
-- **WHEN** the Electron app becomes ready
-- **THEN** it creates a DeepWork browser window with the preload bridge attached
-- **THEN** it loads the renderer entry point from the dev server or packaged renderer file
-- **THEN** `window.open` style requests are denied from the main window
+## MODIFIED Requirements
 
 ### Requirement: Navigation and panel visibility model
 The renderer SHALL organize the workbench into stable navigation sections and panel definitions, keep a pinned home panel available, hydrate persisted user-defined panels into navigation state, and manage active/open state without deleting panel definitions when a non-pinned panel is hidden.
@@ -54,17 +42,3 @@ Enabled built-in and user-defined web panels SHALL run as main-process-managed `
 - **WHEN** a panel tries to navigate to a non-HTTP or non-HTTPS target
 - **THEN** the navigation is blocked
 - **THEN** the panel snapshot records the blocked-navigation error
-
-### Requirement: Managed terminal panel lifecycle
-Built-in CLI panels SHALL run as PTY-backed terminal sessions owned by the main process, expose attach/start/restart/write/resize/clear operations through preload IPC, and preserve session continuity across renderer panel switches.
-
-#### Scenario: Attach to an existing terminal session
-- **WHEN** the renderer attaches to a terminal panel that already has buffered output
-- **THEN** the preload bridge returns both the terminal snapshot and current buffer
-- **THEN** the renderer rehydrates the visible terminal without creating a duplicate PTY
-
-#### Scenario: Start or restart a terminal session
-- **WHEN** the renderer starts or restarts a terminal panel
-- **THEN** the main process creates or recreates the PTY session with the configured shell, arguments, and startup command
-- **THEN** session state and terminal output are streamed back through IPC
-

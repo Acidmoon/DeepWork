@@ -23,7 +23,7 @@ import {
   type WorkspacePanelViewState,
   type WorkspaceStateUpdate
 } from '@ai-workbench/core/desktop/panels'
-import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
+import type { AppSettingsSnapshot, CustomWebPanelSettings } from '@ai-workbench/core/desktop/settings'
 import { getLanguageLabel, getUiText, resolveLocale } from './i18n'
 
 interface WorkbenchState {
@@ -184,6 +184,28 @@ function relocalizePanels(panels: Record<string, ManagedPanel>): Record<string, 
   )
 }
 
+function syncCustomWebPanelViewState(existingPanel: ManagedPanel | undefined, config: CustomWebPanelSettings): WebPanelViewState {
+  if (!existingPanel || existingPanel.viewState.kind !== 'web') {
+    return createCustomWebPanelViewState(config)
+  }
+
+  return {
+    ...existingPanel.viewState,
+    homeUrl: config.homeUrl,
+    currentUrl: config.enabled ? existingPanel.viewState.currentUrl : config.homeUrl,
+    partition: config.partition,
+    title: config.title,
+    enabled: config.enabled,
+    sessionPersisted: config.partition.startsWith('persist:'),
+    lastError:
+      config.enabled && existingPanel.viewState.lastError === 'Disabled until enabled'
+        ? null
+        : config.enabled
+          ? existingPanel.viewState.lastError
+          : 'Disabled until enabled'
+  }
+}
+
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   sections: navigationSections,
   panelOrder: panelRegistry.map((panel) => panel.id),
@@ -332,7 +354,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         nextPanels[customConfig.id] = {
           ...statusBase,
           definition,
-          viewState: createCustomWebPanelViewState(customConfig)
+          viewState: syncCustomWebPanelViewState(existingPanel, customConfig)
         }
 
         if (!nextPanelOrder.includes(customConfig.id)) {
@@ -400,6 +422,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         canGoForward: snapshot.canGoForward,
         isLoading: snapshot.isLoading,
         enabled: snapshot.enabled,
+        sessionPersisted: snapshot.partition.startsWith('persist:'),
         showDetails: activePanel.viewState.showDetails,
         lastError: snapshot.lastError
       }

@@ -178,7 +178,7 @@ export const panelRegistry: PanelDefinition[] = [
     sectionId: 'web',
     group: 'Web Apps',
     kind: 'web',
-    state: 'planned',
+    state: 'scaffolded',
     summary: '保留为配置驱动的预留网页入口，当前版本不创建真实浏览器实例。',
     nextStep: '后续只需把配置切到 enabled，即可挂载真实 Web Panel。',
     delivery: '保留扩展位。',
@@ -299,6 +299,7 @@ export const navigationSections: NavigationSection[] = [
 
 const DEFAULT_TERMINAL_COLS = 120
 const DEFAULT_TERMINAL_ROWS = 32
+const DISABLED_WEB_PANEL_ERROR = 'Disabled until enabled'
 
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
   {
@@ -345,7 +346,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         enabled: config?.enabled ?? false,
         sessionPersisted: (config?.partition ?? '').startsWith('persist:'),
         showDetails: false,
-        lastError: config?.enabled === false ? 'Reserved for later rollout' : null
+        lastError: config?.enabled === false ? DISABLED_WEB_PANEL_ERROR : null
       }
     }
     case 'terminal': {
@@ -449,11 +450,11 @@ export function createCustomWebPanelDefinition(
     sectionId: config.sectionId,
     group: section?.title ?? config.sectionId,
     kind: 'web',
-    state: config.enabled ? 'validated' : 'planned',
-    summary: 'User-defined web panel.',
-    nextStep: 'Configure the target URL, partition, and enabled state directly from the panel.',
-    delivery: 'Custom web panel configuration.',
-    signal: 'Custom web',
+    state: config.enabled ? 'validated' : 'scaffolded',
+    summary: 'User-defined web page that can be opened and managed inside the workbench.',
+    nextStep: 'Edit the target URL, partition, and enabled state directly from the panel.',
+    delivery: 'Custom web page configuration.',
+    signal: 'Custom webpage',
     userDefined: true
   }
 }
@@ -492,7 +493,7 @@ export function createCustomWebPanelViewState(config: CustomWebPanelSettings): W
     enabled: config.enabled,
     sessionPersisted: config.partition.startsWith('persist:'),
     showDetails: false,
-    lastError: config.enabled ? null : 'Reserved for later rollout'
+    lastError: config.enabled ? null : DISABLED_WEB_PANEL_ERROR
   }
 }
 

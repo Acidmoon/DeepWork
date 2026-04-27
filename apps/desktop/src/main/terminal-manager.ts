@@ -45,6 +45,7 @@ interface ManagedTerminalSession {
   captureTimer: NodeJS.Timeout | null
   logPath: string
   hasReceivedData: boolean
+  hasMeaningfulUserInput: boolean
   sessionToken: number
   captureArtifactId: string | null
   contextLabel: string | null
@@ -69,6 +70,15 @@ function trimBuffer(buffer: string): string {
 
 function appendLog(logPath: string, chunk: string): void {
   appendFileSync(logPath, chunk, 'utf8')
+}
+
+function hasMeaningfulTerminalInput(data: string): boolean {
+  return (
+    data
+      .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+      .replace(/[\x00-\x1F\x7F]/g, '')
+      .trim().length > 0
+  )
 }
 
 function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath: string): TerminalPanelSnapshot {
@@ -170,6 +180,7 @@ export class TerminalManager {
         useConpty: true
       })
       session.hasReceivedData = false
+      session.hasMeaningfulUserInput = false
       session.buffer = ''
       session.captureBuffer = ''
       session.sessionToken = sessionToken
@@ -242,6 +253,15 @@ export class TerminalManager {
     const session = this.sessions.get(panelId)
     if (!session?.ptyProcess) {
       return
+    }
+
+    if (hasMeaningfulTerminalInput(data)) {
+      if (!session.hasMeaningfulUserInput) {
+        session.captureBuffer = ''
+        session.captureArtifactId = null
+      }
+
+      session.hasMeaningfulUserInput = true
     }
 
     session.ptyProcess.write(data)
@@ -490,6 +510,7 @@ export class TerminalManager {
         captureTimer: null,
         logPath,
         hasReceivedData: false,
+        hasMeaningfulUserInput: false,
         sessionToken: 0,
         captureArtifactId: null,
         contextLabel: null
@@ -524,7 +545,12 @@ export class TerminalManager {
   }
 
   private flushTranscript(session: ManagedTerminalSession): void {
-    if (!this.persistTerminalTranscript || !session.contextLabel || session.captureBuffer.length === 0) {
+    if (
+      !this.persistTerminalTranscript ||
+      !session.contextLabel ||
+      !session.hasMeaningfulUserInput ||
+      session.captureBuffer.length === 0
+    ) {
       return
     }
 

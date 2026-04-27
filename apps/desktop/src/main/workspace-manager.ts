@@ -410,16 +410,6 @@ function hasSubstantiveTerminalContent(artifact: ArtifactRecord): boolean {
   return meaningfulLines.length >= 3 || meaningfulText.length >= 80
 }
 
-function hasSubstantiveTextCapture(artifact: ArtifactRecord): boolean {
-  const content = readArtifactText(artifact)
-  if (!content) {
-    return false
-  }
-
-  const meaningfulText = collectMeaningfulLines(content).join(' ')
-  return meaningfulText.length >= 80
-}
-
 function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
   const captureMode = String(artifact.metadata?.captureMode ?? '')
   const messageCount = Number(artifact.metadata?.messageCount ?? 0)
@@ -433,7 +423,7 @@ function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
   }
 
   if (captureMode === 'auto-web-context') {
-    return messageCount > 0 || hasSubstantiveTextCapture(artifact)
+    return messageCount > 0
   }
 
   if (captureMode === 'auto-terminal-transcript') {

@@ -29,10 +29,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     'minimax-web': {
       title: 'MiniMax Web',
       group: 'Web Apps',
-      summary: '保留为配置驱动的预留网页入口，当前版本不创建真实浏览器实例。',
-      nextStep: '后续只需把配置切到 enabled，即可挂载真实 Web Panel。',
-      delivery: '保留扩展位。',
-      signal: 'Reserved config'
+      summary: '作为可选预设网页目标保留，并沿用与自定义网页相同的配置驱动打开能力。',
+      nextStep: '需要固定入口时可直接启用，或者在 Web Apps 中新增任意自定义网页。',
+      delivery: '可选网页预设。',
+      signal: 'Optional preset'
     },
     'codex-cli': {
       title: 'Codex CLI',
@@ -103,10 +103,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     'minimax-web': {
       title: 'MiniMax Web',
       group: 'Web Apps',
-      summary: 'Kept as a configuration-driven reserved web entry and does not create a live browser instance yet.',
-      nextStep: 'Later we can enable the config and mount a real web panel.',
-      delivery: 'Reserved extension slot.',
-      signal: 'Reserved config'
+      summary: 'Kept as an optional preset target and opened through the same configuration-driven flow as custom web pages.',
+      nextStep: 'Enable it when you want a fixed MiniMax entry, or add any custom webpage from Web Apps.',
+      delivery: 'Optional web preset.',
+      signal: 'Optional preset'
     },
     'codex-cli': {
       title: 'Codex CLI',
@@ -167,7 +167,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     web: {
       title: 'Web Apps',
-      caption: 'DeepSeek 已正式接入，MiniMax 仍按配置保留为后续扩展位。'
+      caption: '内置站点与自定义网页共用同一套 Web Panel 生命周期，可按需新增、启用和保活。'
     },
     agents: {
       title: 'CLI Agents',
@@ -193,7 +193,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     web: {
       title: 'Web Apps',
-      caption: 'DeepSeek is live, while MiniMax remains a configuration-based reserved slot.'
+      caption: 'Built-in sites and custom webpages share one managed web-panel lifecycle for add, enable, and restore flows.'
     },
     agents: {
       title: 'CLI Agents',
@@ -271,7 +271,7 @@ const uiText = {
     addWeb: '添加网页',
     addCli: '添加 CLI',
     customWebTitle: '网页',
-    customWebUrlPrompt: '输入要打开的网址',
+    customWebUrlPrompt: '输入要打开的网址（支持 HTTP/HTTPS）',
     customCliTitle: 'CLI',
     rename: '重命名',
     delete: '删除',
@@ -303,8 +303,8 @@ const uiText = {
     ephemeral: '临时会话',
     loadingCurrentPage: '正在加载当前页面...',
     liveSessionAttached: '实时会话已挂载',
-    reservedWebPanel: '预留网页面板',
-    reservedWebMessage: '当前版本只保留配置，不创建真实浏览器实例。',
+    reservedWebPanel: '未启用网页面板',
+    reservedWebMessage: '当前未挂载真实浏览器实例。配置会保留，启用后即可重新打开。',
     reserved: '预留',
     navigation: '导航',
     historyReady: '历史可用',
@@ -474,7 +474,7 @@ const uiText = {
     addWeb: 'Add Web',
     addCli: 'Add CLI',
     customWebTitle: 'Web',
-    customWebUrlPrompt: 'Enter the URL to open',
+    customWebUrlPrompt: 'Enter the URL to open (HTTP/HTTPS supported)',
     customCliTitle: 'CLI',
     rename: 'Rename',
     delete: 'Delete',
@@ -506,8 +506,8 @@ const uiText = {
     ephemeral: 'Ephemeral Session',
     loadingCurrentPage: 'Loading current page...',
     liveSessionAttached: 'Live session attached',
-    reservedWebPanel: 'Reserved Web Panel',
-    reservedWebMessage: 'This build keeps the configuration only and does not create a live browser instance.',
+    reservedWebPanel: 'Disabled Web Panel',
+    reservedWebMessage: 'No live browser is mounted right now. The configuration is kept and can be reopened by enabling the panel.',
     reserved: 'Reserved',
     navigation: 'Navigation',
     historyReady: 'History Ready',
@@ -693,14 +693,14 @@ export function localizePanelDefinition(definition: PanelDefinition, locale: Sup
         ).title,
         summary:
           locale === 'zh-CN'
-            ? '用户自定义网页面板，可自行配置目标地址、分区和启用状态。'
-            : 'User-defined web panel. Configure the target URL, partition, and enabled state as needed.',
+            ? '用户自定义网页面板，可在工作台内打开任意 HTTP/HTTPS 页面并持续保存配置。'
+            : 'User-defined web panel for opening any HTTP/HTTPS page inside the workbench with persisted configuration.',
         nextStep:
           locale === 'zh-CN'
-            ? '直接在面板中修改地址并决定是否启用为真实网页实例。'
-            : 'Edit the address directly in the panel and decide whether to enable it as a live web instance.',
-        delivery: locale === 'zh-CN' ? '自定义网页配置。' : 'Custom web configuration.',
-        signal: locale === 'zh-CN' ? '自定义网页' : 'Custom web'
+            ? '直接在面板中修改地址、分区和启用状态，决定是否挂载为真实网页实例。'
+            : 'Edit the address, partition, and enabled state directly in the panel to control the live web instance.',
+        delivery: locale === 'zh-CN' ? '自定义网页配置。' : 'Custom webpage configuration.',
+        signal: locale === 'zh-CN' ? '自定义网页' : 'Custom webpage'
       }
     }
 

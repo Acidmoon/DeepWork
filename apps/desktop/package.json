@@ -10,7 +10,8 @@
     "preview": "electron-vite preview",
     "rebuild:native": "electron-rebuild -f -w node-pty",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "validate:workspace-regression": "node validation/workspace-regression/run-workspace-regression.mjs"
+    "validate:workspace-regression": "node validation/workspace-regression/run-workspace-regression.mjs",
+    "validate:custom-web-panels": "node validation/custom-web-panels/run-custom-web-panels-validation.mjs"
   },
   "dependencies": {
     "@ai-workbench/core": "0.1.0",
