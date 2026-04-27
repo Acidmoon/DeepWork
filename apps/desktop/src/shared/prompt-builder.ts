@@ -1,4 +1,4 @@
-import type { ArtifactRecord } from './workspace'
+import type { ArtifactRecord } from '@ai-workbench/core/desktop/workspace'
 
 export interface PromptBuildInput {
   workspaceRoot: string

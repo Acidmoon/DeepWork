@@ -22,8 +22,8 @@ import {
   asWorkspaceViewState,
   useWorkbenchStore
 } from './store'
-import type { ManagedPanel, SettingsPanelViewState } from './types'
-import type { ArtifactRecord, ContextIndexEntry } from '../../shared/workspace'
+import type { ManagedPanel, SettingsPanelViewState } from '@ai-workbench/core/desktop/panels'
+import { getArtifactScopeId, type ArtifactRecord, type ContextIndexEntry } from '@ai-workbench/core/desktop/workspace'
 
 export function PanelContent({ panel }: { panel: ManagedPanel }): JSX.Element {
   const locale = useWorkbenchStore((state) =>
@@ -1669,16 +1669,6 @@ function normalizeSearchValue(value: unknown): string[] {
 
 function supportsTextArtifactPreview(type: ArtifactRecord['type']): boolean {
   return ['markdown', 'text', 'json', 'log', 'code', 'review', 'html'].includes(type)
-}
-
-function getArtifactScopeId(artifact: { origin: string; metadata?: Record<string, unknown> }): string {
-  const origin = artifact.origin.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-')
-  const rawContextLabel = typeof artifact.metadata?.contextLabel === 'string' ? artifact.metadata.contextLabel : ''
-  const contextLabel = rawContextLabel.trim()
-    ? rawContextLabel.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-')
-    : 'default-context'
-
-  return `${origin}__${contextLabel}`
 }
 
 function getWorkspaceFolderName(workspaceRoot: string): string {

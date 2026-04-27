@@ -5,10 +5,10 @@ import { TerminalManager } from './terminal-manager'
 import { WebPanelManager } from './web-panel-manager'
 import { WorkspaceManager } from './workspace-manager'
 import { SettingsManager } from './settings-manager'
-import type { PanelBounds, WebPanelConfig, WebPanelNavigationAction } from '../shared/web-panels'
-import type { TerminalResizePayload } from '../shared/terminal-panels'
-import type { AppSettingsUpdate } from '../shared/settings'
-import type { SaveClipboardOptions } from '../shared/workspace'
+import type { PanelBounds, WebPanelConfig, WebPanelNavigationAction } from '@ai-workbench/core/desktop/web-panels'
+import type { TerminalResizePayload } from '@ai-workbench/core/desktop/terminal-panels'
+import type { AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
+import type { SaveClipboardOptions } from '@ai-workbench/core/desktop/workspace'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | null = null

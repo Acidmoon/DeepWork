@@ -1,9 +1,9 @@
 import { startTransition, useEffect, useState, type MouseEvent } from 'react'
 import { getStateLabel, getUiText, localizePanelDefinition, localizeSection, resolveLocale } from './i18n'
 import { PanelContent } from './panel-content'
-import { asTerminalViewState, asWebViewState, asWorkspaceViewState, getSectionPanels, useWorkbenchStore } from './store'
-import type { ManagedPanel, NavigationSection, PanelState } from './types'
-import type { AppSettingsSnapshot } from '../../shared/settings'
+import { getSectionPanels, type ManagedPanel, type NavigationSection, type PanelState } from '@ai-workbench/core/desktop/panels'
+import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
+import { asTerminalViewState, asWebViewState, asWorkspaceViewState, useWorkbenchStore } from './store'
 
 function App(): JSX.Element {
   const sections = useWorkbenchStore((state) => state.sections)

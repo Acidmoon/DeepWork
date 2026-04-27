@@ -1,5 +1,7 @@
 import { BrowserWindow, WebContentsView } from 'electron'
 import type { Event } from 'electron'
+import { deriveWebContextLabel, normalizeCapturedMessages } from '@ai-workbench/core/desktop/capture'
+import type { CustomWebPanelSettings } from '@ai-workbench/core/desktop/settings'
 import {
   getWebPanelConfig,
   webPanelConfigs,
@@ -7,8 +9,7 @@ import {
   type WebPanelConfig,
   type WebPanelNavigationAction,
   type WebPanelSnapshot
-} from '../shared/web-panels'
-import type { CustomWebPanelSettings } from '../shared/settings'
+} from '@ai-workbench/core/desktop/web-panels'
 
 const WEB_CAPTURE_DEBOUNCE_MS = 1_800
 const WEB_CAPTURE_INTERVAL_MS = 15_000
@@ -676,7 +677,7 @@ export class WebPanelManager {
       const url = result?.url?.trim() || panel.snapshot.currentUrl
       const title = result?.title?.trim() || panel.snapshot.title
       const rawText = [result?.heading?.trim(), result?.bodyText?.trim()].filter(Boolean).join('\n\n').trim()
-      const messages = normalizeMessages(result?.messages)
+      const messages = normalizeCapturedMessages(result?.messages)
 
       if (!url || (rawText.length < 40 && messages.length === 0)) {
         return
@@ -740,87 +741,5 @@ export class WebPanelManager {
     if (snapshot) {
       this.publish(snapshot)
     }
-  }
-}
-
-function normalizeMessages(
-  messages:
-    | Array<{
-        id?: string
-        role?: string
-        text?: string
-      }>
-    | undefined
-): Array<{
-  id: string
-  role: string
-  text: string
-}> {
-  if (!messages) {
-    return []
-  }
-
-  return messages
-    .map((message, index) => ({
-      id: message.id?.trim() || `message-${String(index + 1).padStart(3, '0')}`,
-      role: message.role?.trim() || 'unknown',
-      text: message.text?.trim() || ''
-    }))
-    .filter((message) => message.text.length >= 12)
-}
-
-function deriveWebContextLabel(
-  url: string,
-  title: string,
-  messages: Array<{
-    id: string
-    role: string
-    text: string
-  }>
-): string {
-  const meaningfulMessage = messages.find((message) => message.role === 'user' || message.role === 'assistant')
-  if (meaningfulMessage) {
-    const seed = meaningfulMessage.text
-      .toLowerCase()
-      .split(/[^a-z0-9]+/g)
-      .filter(Boolean)
-      .slice(0, 5)
-
-    if (seed.length > 0) {
-      return seed.join('-')
-    }
-  }
-
-  try {
-    const parsed = new URL(url)
-    const pathSegments = `${parsed.pathname} ${parsed.hash}`
-      .toLowerCase()
-      .split(/[^a-z0-9]+/g)
-      .filter(Boolean)
-      .slice(0, 5)
-
-    if (pathSegments.length > 0) {
-      return pathSegments.join('-')
-    }
-
-    const titleSegments = title
-      .toLowerCase()
-      .split(/[^a-z0-9]+/g)
-      .filter(Boolean)
-      .slice(0, 5)
-
-    if (titleSegments.length > 0) {
-      return titleSegments.join('-')
-    }
-
-    return parsed.hostname.replace(/[^a-z0-9]+/g, '-')
-  } catch {
-    const fallback = title
-      .toLowerCase()
-      .split(/[^a-z0-9]+/g)
-      .filter(Boolean)
-      .slice(0, 5)
-
-    return fallback.length > 0 ? fallback.join('-') : 'default-context'
   }
 }

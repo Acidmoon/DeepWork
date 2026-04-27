@@ -1,23 +1,30 @@
 import { create } from 'zustand'
+import {
+  createCustomTerminalPanelDefinition,
+  createCustomTerminalPanelViewState,
+  createCustomWebPanelDefinition,
+  createCustomWebPanelViewState,
+  createInitialPanels,
+  createManagedPanel,
+  getManagedPanel,
+  getSectionPanels,
+  navigationSections,
+  nextActivePanelId,
+  panelRegistry,
+  type ManagedPanel,
+  type PanelKind,
+  type PanelViewState,
+  type SettingsPanelViewState,
+  type TerminalPanelStateUpdate,
+  type TerminalPanelViewState,
+  type ToolPanelViewState,
+  type WebPanelStateUpdate,
+  type WebPanelViewState,
+  type WorkspacePanelViewState,
+  type WorkspaceStateUpdate
+} from '@ai-workbench/core/desktop/panels'
+import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
 import { getLanguageLabel, getUiText, resolveLocale } from './i18n'
-import { getTerminalPanelConfig } from '../../shared/terminal-panels'
-import type { AppSettingsSnapshot, CustomTerminalPanelSettings, CustomWebPanelSettings } from '../../shared/settings'
-import { getWebPanelConfig } from '../../shared/web-panels'
-import { navigationSections, panelRegistry } from './navigation'
-import type {
-  ManagedPanel,
-  PanelDefinition,
-  PanelKind,
-  PanelViewState,
-  SettingsPanelViewState,
-  TerminalPanelStateUpdate,
-  TerminalPanelViewState,
-  ToolPanelViewState,
-  WebPanelStateUpdate,
-  WebPanelViewState,
-  WorkspaceStateUpdate,
-  WorkspacePanelViewState
-} from './types'
 
 interface WorkbenchState {
   sections: typeof navigationSections
@@ -57,225 +64,6 @@ function getCurrentLocale(panels: Record<string, ManagedPanel>): ReturnType<type
   }
 
   return resolveLocale('system')
-}
-
-function createDefaultViewState(panel: PanelDefinition): PanelViewState {
-  switch (panel.kind) {
-    case 'home':
-      return {
-        kind: 'home',
-        focusArea: 'Terminal Manager',
-        checklist: ['Electron shell live', 'Web panel manager live', 'Terminal manager live']
-      }
-    case 'web': {
-      const config = getWebPanelConfig(panel.id)
-      const homeUrl = config?.homeUrl ?? 'https://example.com/'
-
-      return {
-        kind: 'web',
-        homeUrl,
-        currentUrl: homeUrl,
-        partition: config?.partition ?? `persist:${panel.id}`,
-        title: panel.title,
-        canGoBack: false,
-        canGoForward: false,
-        isLoading: false,
-        enabled: config?.enabled ?? false,
-        sessionPersisted: (config?.partition ?? '').startsWith('persist:'),
-        showDetails: false,
-        lastError: config?.enabled === false ? 'Reserved for later rollout' : null
-      }
-    }
-    case 'terminal':
-      const config = getTerminalPanelConfig(panel.id)
-      return {
-        kind: 'terminal',
-        shell: config?.shell ?? 'powershell.exe',
-        cwd: '.',
-        startupCommand: config?.startupCommand ?? (panel.id === 'codex-cli' ? 'codex' : 'claude'),
-        launchCount: 0,
-        status: 'idle',
-        hasSession: false,
-        isRunning: false,
-        pid: null,
-        cols: 120,
-        rows: 32,
-        bufferSize: 0,
-        logPath: '',
-        showDetails: false,
-        lastExitCode: null,
-        lastExitSignal: null,
-        lastError: null
-      }
-    case 'workspace':
-      return {
-        kind: 'workspace',
-        selectedBucket: panel.id === 'artifacts' ? 'artifacts/' : 'logs/',
-        selectedOrigin: 'all',
-        searchQuery: '',
-        draftContextLabel: '',
-        selectedArtifactIds: [],
-        previewArtifactId: null,
-        promptTargetPanelId: 'codex-cli',
-        promptDraft: '',
-        projectId: 'default',
-        workspaceRoot: '',
-        manifestPath: '',
-        contextIndexPath: '',
-        originManifestsPath: '',
-        rulesPath: '',
-        initialized: false,
-        artifactCount: 0,
-        bucketCounts: {
-          'artifacts/': 0,
-          'outputs/': 0,
-          'logs/': 0
-        },
-        contextEntries: [],
-        artifacts: [],
-        recentArtifacts: [],
-        lastSavedArtifactId: null,
-        lastError: null
-      }
-    case 'tool':
-      return {
-        kind: 'tool',
-        outputFormat: 'pdf',
-        lastArtifact: 'sample-render-input.html',
-        notes: ''
-      }
-    case 'settings':
-      return {
-        kind: 'settings',
-        language: 'system',
-        theme: 'system',
-        terminalPreludeText: 'proxy_on',
-        placeholders: [
-          {
-            id: 'cli-prompt-template',
-            label: 'CLI Prompt Template',
-            description: '后续允许为 Codex / Claude 配置默认启动提示词与发送模板。',
-            status: 'planned'
-          },
-          {
-            id: 'default-workspace',
-            label: 'Default Workspace',
-            description: '后续允许指定默认项目目录、Artifact 桶和启动时加载的工作区。',
-            status: 'placeholder'
-          },
-          {
-            id: 'terminal-behavior',
-            label: 'Terminal Behavior',
-            description: '后续允许自定义 shell、启动命令、复制策略和终端交互偏好。',
-            status: 'placeholder'
-          }
-        ],
-        notes: 'Settings panel scaffolded for future preferences.'
-      }
-  }
-}
-
-function createManagedPanel(panel: PanelDefinition): ManagedPanel {
-  const timestamp = nowLabel()
-
-  return {
-    definition: panel,
-    isVisible: panel.defaultVisible ?? false,
-    hasBeenOpened: panel.defaultVisible ?? false,
-    activationCount: panel.defaultVisible ? 1 : 0,
-    lastActivatedAt: panel.defaultVisible ? timestamp : 'Not opened yet',
-    lastStatusCheckAt: panel.defaultVisible ? timestamp : 'Not checked yet',
-    statusText: panel.defaultVisible ? 'Workbench ready' : 'Registered and waiting',
-    viewState: createDefaultViewState(panel)
-  }
-}
-
-function createInitialPanels(): Record<string, ManagedPanel> {
-  return Object.fromEntries(panelRegistry.map((panel) => [panel.id, createManagedPanel(panel)]))
-}
-
-function createCustomPanelDefinition(config: CustomWebPanelSettings): PanelDefinition {
-  const section = navigationSections.find((item) => item.id === config.sectionId)
-
-  return {
-    id: config.id,
-    title: config.title,
-    sectionId: config.sectionId,
-    group: section?.title ?? config.sectionId,
-    kind: 'web',
-    state: config.enabled ? 'validated' : 'planned',
-    summary: 'User-defined web panel.',
-    nextStep: 'Configure the target URL, partition, and enabled state directly from the panel.',
-    delivery: 'Custom web panel configuration.',
-    signal: 'Custom web',
-    userDefined: true
-  }
-}
-
-function createCustomTerminalPanelDefinition(config: CustomTerminalPanelSettings): PanelDefinition {
-  const section = navigationSections.find((item) => item.id === config.sectionId)
-
-  return {
-    id: config.id,
-    title: config.title,
-    sectionId: config.sectionId,
-    group: section?.title ?? config.sectionId,
-    kind: 'terminal',
-    state: 'validated',
-    summary: 'User-defined terminal panel.',
-    nextStep: 'Open the terminal and run the target CLI or workflow directly from the shell session.',
-    delivery: 'Custom terminal configuration.',
-    signal: 'Custom CLI',
-    userDefined: true
-  }
-}
-
-function createCustomWebViewState(config: CustomWebPanelSettings): WebPanelViewState {
-  return {
-    kind: 'web',
-    homeUrl: config.homeUrl,
-    currentUrl: config.homeUrl,
-    partition: config.partition,
-    title: config.title,
-    canGoBack: false,
-    canGoForward: false,
-    isLoading: false,
-    enabled: config.enabled,
-    sessionPersisted: config.partition.startsWith('persist:'),
-    showDetails: false,
-    lastError: config.enabled ? null : 'Reserved for later rollout'
-  }
-}
-
-function createCustomTerminalViewState(config: CustomTerminalPanelSettings): TerminalPanelViewState {
-  return {
-    kind: 'terminal',
-    shell: config.shell,
-    cwd: config.cwd ?? '.',
-    startupCommand: config.startupCommand,
-    launchCount: 0,
-    status: 'idle',
-    hasSession: false,
-    isRunning: false,
-    pid: null,
-    cols: 120,
-    rows: 32,
-    bufferSize: 0,
-    logPath: '',
-    showDetails: false,
-    lastExitCode: null,
-    lastExitSignal: null,
-    lastError: null
-  }
-}
-
-function nextActivePanelId(panels: Record<string, ManagedPanel>, preferredPanelId?: string): string {
-  if (preferredPanelId && panels[preferredPanelId]?.isVisible) {
-    return preferredPanelId
-  }
-
-  const visiblePanel = Object.values(panels).find((panel) => panel.isVisible)
-  return visiblePanel?.definition.id ?? 'home'
 }
 
 function statusTextForPanel(kind: PanelKind, timestamp: string, locale: ReturnType<typeof resolveLocale>): string {
@@ -399,7 +187,7 @@ function relocalizePanels(panels: Record<string, ManagedPanel>): Record<string, 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   sections: navigationSections,
   panelOrder: panelRegistry.map((panel) => panel.id),
-  panels: relocalizePanels(createInitialPanels()),
+  panels: relocalizePanels(createInitialPanels(nowLabel())),
   activePanelId: 'home',
   openPanel: (panelId) => {
     set((state) => {
@@ -538,14 +326,13 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
 
       for (const customConfig of snapshot.customWebPanels) {
         const existingPanel = state.panels[customConfig.id]
-        const definition = createCustomPanelDefinition(customConfig)
-        const statusBase = existingPanel ?? createManagedPanel(definition)
+        const definition = createCustomWebPanelDefinition(customConfig)
+        const statusBase = existingPanel ?? createManagedPanel(definition, nowLabel())
 
         nextPanels[customConfig.id] = {
           ...statusBase,
           definition,
-          viewState: createCustomWebViewState(customConfig)
-          
+          viewState: createCustomWebPanelViewState(customConfig)
         }
 
         if (!nextPanelOrder.includes(customConfig.id)) {
@@ -556,7 +343,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       for (const customConfig of snapshot.customTerminalPanels) {
         const existingPanel = state.panels[customConfig.id]
         const definition = createCustomTerminalPanelDefinition(customConfig)
-        const statusBase = existingPanel ?? createManagedPanel(definition)
+        const statusBase = existingPanel ?? createManagedPanel(definition, nowLabel())
 
         nextPanels[customConfig.id] = {
           ...statusBase,
@@ -568,7 +355,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
               cwd: customConfig.cwd ?? existingPanel.viewState.cwd,
                 startupCommand: customConfig.startupCommand
               }
-            : createCustomTerminalViewState(customConfig)
+            : createCustomTerminalPanelViewState(customConfig)
         }
 
         if (!nextPanelOrder.includes(customConfig.id)) {
@@ -732,17 +519,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   }
 }))
 
-export function getPanel(panelId: string, panels: Record<string, ManagedPanel>): ManagedPanel | undefined {
-  return panels[panelId]
-}
-
-export function getSectionPanels(
-  sectionId: string,
-  panels: Record<string, ManagedPanel>,
-  panelOrder: string[] = Object.keys(panels)
-): ManagedPanel[] {
-  return panelOrder.map((panelId) => panels[panelId]).filter((panel) => panel?.definition.sectionId === sectionId)
-}
+export { getManagedPanel as getPanel, getSectionPanels }
 
 export function asWebViewState(viewState: PanelViewState): WebPanelViewState {
   return viewState as WebPanelViewState

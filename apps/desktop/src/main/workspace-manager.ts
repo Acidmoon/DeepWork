@@ -5,17 +5,21 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import {
   artifactDirectories,
   artifactExtensions,
+  bucketCounts,
+  buildContextEntries,
+  getArtifactScopeId,
+  sanitizeContextLabel,
+  sanitizeOrigin,
   type ArtifactManifest,
   type ArtifactRecord,
   type ArtifactType,
-  type ContextIndexEntry,
   type ContextIndexManifest,
   type OriginArtifactManifest,
   type ArtifactContentPayload,
   type SaveClipboardOptions,
   type SaveClipboardResult,
   type WorkspaceSnapshot
-} from '../shared/workspace'
+} from '@ai-workbench/core/desktop/workspace'
 
 const WORKSPACE_PROTOCOL = `# Workspace Protocol
 
@@ -316,30 +320,6 @@ function hashContent(content: string): string {
   return `sha256:${createHash('sha256').update(content).digest('hex')}`
 }
 
-function bucketCounts(artifacts: ArtifactRecord[]): Record<string, number> {
-  const outputsCount = artifacts.filter((artifact) => artifact.path.startsWith('outputs/')).length
-  const logsCount = artifacts.filter((artifact) => artifact.path.startsWith('logs/')).length
-
-  return {
-    'artifacts/': artifacts.length - outputsCount - logsCount,
-    'outputs/': outputsCount,
-    'logs/': logsCount
-  }
-}
-
-function sanitizeOrigin(origin: string): string {
-  return origin.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-')
-}
-
-function sanitizeContextLabel(contextLabel: string | undefined): string {
-  const normalized = (contextLabel ?? '').trim()
-  if (!normalized) {
-    return 'default-context'
-  }
-
-  return normalized.toLowerCase().replace(/[^a-z0-9-_]+/g, '-')
-}
-
 const GENERIC_NOISE_PATTERNS = [
   /^开启新对话$/i,
   /^今天$/i,
@@ -461,46 +441,6 @@ function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
   }
 
   return artifact.size >= 80
-}
-
-function isSubstantiveScope(artifacts: ArtifactRecord[]): boolean {
-  if (artifacts.length === 0) {
-    return false
-  }
-
-  return artifacts.some((artifact) => isSubstantiveArtifact(artifact))
-}
-
-function buildContextEntries(artifacts: ArtifactRecord[]): ContextIndexEntry[] {
-  const groups = new Map<string, ArtifactRecord[]>()
-
-  for (const artifact of artifacts) {
-    const key = sanitizeOrigin(artifact.origin || 'manual')
-    const contextLabel = sanitizeContextLabel(String(artifact.metadata?.contextLabel ?? ''))
-    const scopeId = `${key}__${contextLabel}`
-    const scoped = groups.get(scopeId) ?? []
-    scoped.push(artifact)
-    groups.set(scopeId, scoped)
-  }
-
-  return [...groups.entries()]
-    .filter(([, items]) => isSubstantiveScope(items))
-    .map(([scopeId, items]) => {
-      const sorted = [...items].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-      const first = sorted[0]
-      const origin = sanitizeOrigin(first?.origin || 'manual')
-      const contextLabel = sanitizeContextLabel(String(first?.metadata?.contextLabel ?? ''))
-      return {
-        origin,
-        contextLabel,
-        scopeId,
-        artifactCount: items.length,
-        artifactIds: sorted.map((artifact) => artifact.id),
-        latestArtifactId: sorted[0]?.id ?? null,
-        latestUpdatedAt: sorted[0]?.updatedAt ?? null
-      } satisfies ContextIndexEntry
-    })
-    .sort((left, right) => (right.latestUpdatedAt ?? '').localeCompare(left.latestUpdatedAt ?? ''))
 }
 
 function safeReadContextIndex(path: string, workspaceRoot: string): ContextIndexManifest {
@@ -944,7 +884,9 @@ export class WorkspaceManager {
     const nextIndex: ContextIndexManifest = {
       version: '1.0',
       workspaceRoot: this.workspaceRoot,
-      origins: buildContextEntries(artifacts)
+      origins: buildContextEntries(artifacts, {
+        isArtifactSubstantive: isSubstantiveArtifact
+      })
     }
 
     writeFileSync(this.contextIndexPath, JSON.stringify(nextIndex, null, 2), 'utf8')
@@ -970,10 +912,4 @@ export class WorkspaceManager {
       writeFileSync(join(this.originManifestsPath, `${entry.scopeId}.json`), JSON.stringify(originManifest, null, 2), 'utf8')
     }
   }
-}
-
-function getArtifactScopeId(artifact: ArtifactRecord): string {
-  const origin = sanitizeOrigin(artifact.origin || 'manual')
-  const contextLabel = sanitizeContextLabel(String(artifact.metadata?.contextLabel ?? ''))
-  return `${origin}__${contextLabel}`
 }

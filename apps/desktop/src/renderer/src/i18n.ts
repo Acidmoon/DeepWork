@@ -1,6 +1,6 @@
-import type { NavigationSection, PanelDefinition, PanelKind, PanelState, SettingsOptionPlaceholder } from './types'
-import type { TerminalPanelStatus } from '../../shared/terminal-panels'
-import type { ThemePreference } from '../../shared/settings'
+import type { NavigationSection, PanelDefinition, PanelKind, PanelState, SettingsOptionPlaceholder } from '@ai-workbench/core/desktop/panels'
+import type { TerminalPanelStatus } from '@ai-workbench/core/desktop/terminal-panels'
+import type { ThemePreference } from '@ai-workbench/core/desktop/settings'
 
 export type SupportedLocale = 'zh-CN' | 'en-US'
 export type LanguagePreference = 'system' | SupportedLocale

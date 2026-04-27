@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
 import * as pty from 'node-pty'
-import type { CustomTerminalPanelSettings } from '../shared/settings'
+import type { CustomTerminalPanelSettings } from '@ai-workbench/core/desktop/settings'
 import {
   createCustomTerminalPanelConfig,
   getTerminalPanelConfig,
@@ -13,7 +13,7 @@ import {
   type TerminalPanelConfig,
   type TerminalPanelSnapshot,
   type TerminalResizePayload
-} from '../shared/terminal-panels'
+} from '@ai-workbench/core/desktop/terminal-panels'
 
 const DEFAULT_COLS = 120
 const DEFAULT_ROWS = 32

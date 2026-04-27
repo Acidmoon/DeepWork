@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { WebPanelConfig } from '../shared/web-panels'
-import type { AppSettingsSnapshot, AppSettingsUpdate } from '../shared/settings'
-import { defaultAppSettings } from '../shared/settings'
+import type { WebPanelConfig } from '@ai-workbench/core/desktop/web-panels'
+import type { AppSettingsSnapshot, AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
+import { defaultAppSettings } from '@ai-workbench/core/desktop/settings'
 
 export class SettingsManager {
   private readonly filePath: string

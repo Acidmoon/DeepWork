@@ -1,12 +1,12 @@
-import type { PanelBounds, WebPanelConfig, WebPanelNavigationAction, WebPanelSnapshot } from '../../shared/web-panels'
-import type { AppSettingsSnapshot, AppSettingsUpdate } from '../../shared/settings'
+import type { PanelBounds, WebPanelConfig, WebPanelNavigationAction, WebPanelSnapshot } from '@ai-workbench/core/desktop/web-panels'
+import type { AppSettingsSnapshot, AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
 import type {
   TerminalOutputEvent,
   TerminalPanelAttachPayload,
   TerminalResizePayload,
   TerminalPanelSnapshot
-} from '../../shared/terminal-panels'
-import type { ArtifactContentPayload, SaveClipboardOptions, SaveClipboardResult, WorkspaceSnapshot } from '../../shared/workspace'
+} from '@ai-workbench/core/desktop/terminal-panels'
+import type { ArtifactContentPayload, SaveClipboardOptions, SaveClipboardResult, WorkspaceSnapshot } from '@ai-workbench/core/desktop/workspace'
 
 interface WorkbenchShellApi {
   platform: string

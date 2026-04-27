@@ -12,5 +12,6 @@ tech-validation/.npm-cache/
 tech-validation/node_modules/
 tech-validation/*-validation-result.json
 tech-validation/sample-render-output.pdf
+apps/desktop/.playwright-cli/
 
 Dev/
