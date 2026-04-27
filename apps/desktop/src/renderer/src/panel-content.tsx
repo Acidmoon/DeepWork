@@ -13,7 +13,6 @@ import {
   localizeSettingsPlaceholder,
   resolveLocale
 } from './i18n'
-import { buildAgentPrompt } from '../../shared/prompt-builder'
 import {
   asSettingsViewState,
   asTerminalViewState,
@@ -657,7 +656,6 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
   const state = asWorkspaceViewState(panel.viewState)
   const ui = getUiText(locale)
   const definition = localizePanelDefinition(panel.definition, locale)
-  const allPanels = useWorkbenchStore((store) => store.panels)
   const [sessionMessages, setSessionMessages] = useState<Array<{ id: string; role: string; text: string }>>([])
   const [sessionLogExcerpt, setSessionLogExcerpt] = useState<string>('')
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable' | 'unsupported'>('idle')
@@ -701,9 +699,6 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
   const selectedPreviewArtifact = state.previewArtifactId
     ? state.artifacts.find((artifact) => artifact.id === state.previewArtifactId) ?? null
     : null
-  const terminalTargets = Object.values(allPanels)
-    .filter((item) => item.definition.kind === 'terminal')
-    .map((item) => item.definition)
 
   const toggleArtifactSelection = (artifactId: string): void => {
     useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
@@ -719,50 +714,6 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
       ...state,
       previewArtifactId: artifactId
     })
-  }
-
-  const generatePromptDraft = (): void => {
-    if (selectedArtifacts.length === 0) {
-      useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
-        ...state,
-        promptDraft: ui.selectionRequired
-      })
-      return
-    }
-
-    useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
-      ...state,
-      promptDraft: buildAgentPrompt({
-        workspaceRoot: state.workspaceRoot,
-        rulesPath: state.rulesPath,
-        contextIndexPath: state.contextIndexPath,
-        origin: state.selectedOrigin === 'all' ? 'mixed-selection' : state.selectedOrigin,
-        artifacts: selectedArtifacts,
-        targetPanelId: state.promptTargetPanelId
-      })
-    })
-  }
-
-  const sendPromptToCli = async (): Promise<void> => {
-    const prompt = state.promptDraft.trim()
-    if (!prompt) {
-      generatePromptDraft()
-      return
-    }
-
-    const targetId = state.promptTargetPanelId
-    const targetState = await window.workbenchShell.terminals.getState(targetId)
-
-    if (!targetState || (!targetState.isRunning && targetState.status !== 'starting')) {
-      await window.workbenchShell.terminals.start(targetId)
-      window.setTimeout(() => {
-        void window.workbenchShell.terminals.write(targetId, `${prompt}\r`)
-      }, 1800)
-    } else {
-      await window.workbenchShell.terminals.write(targetId, `${prompt}\r`)
-    }
-
-    useWorkbenchStore.getState().openPanel(targetId)
   }
 
   const selectedScope = state.selectedOrigin === 'all'
@@ -1202,7 +1153,7 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
               <span>{selectedArtifacts.length} {ui.selectedCount}</span>
             </div>
             {selectedArtifacts.length === 0 ? (
-              <p className="section-empty">{ui.selectionRequired}</p>
+              <p className="section-empty">{ui.selectedArtifactsEmpty}</p>
             ) : (
               <div className="artifact-list">
                 {selectedArtifacts.map((artifact) => (
@@ -1228,54 +1179,6 @@ function WorkspacePanel({ panel, locale }: { panel: ManagedPanel; locale: Return
                 ))}
               </div>
             )}
-          </div>
-
-          <div className="panel-section">
-            <div className="section-line">
-              <strong>{ui.promptBuilder}</strong>
-              <span>{ui.promptPreview}</span>
-            </div>
-            <div className="detail-columns">
-              <label className="field">
-                <span>{ui.promptTarget}</span>
-                <select
-                  value={state.promptTargetPanelId}
-                  onChange={(event) =>
-                    useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
-                      ...state,
-                      promptTargetPanelId: event.target.value
-                    })
-                  }
-                >
-                  {terminalTargets.map((target) => (
-                    <option key={target.id} value={target.id}>
-                      {localizePanelDefinition(target, locale).title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="action-row action-row--end">
-                <button type="button" className="action-button action-button--ghost" onClick={generatePromptDraft}>
-                  {ui.generatePrompt}
-                </button>
-                <button type="button" className="action-button" onClick={() => void sendPromptToCli()}>
-                  {ui.sendPrompt}
-                </button>
-              </div>
-            </div>
-            <label className="field">
-              <span>{ui.promptPreview}</span>
-              <textarea
-                rows={12}
-                value={state.promptDraft}
-                onChange={(event) =>
-                  useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, {
-                    ...state,
-                    promptDraft: event.target.value
-                  })
-                }
-              />
-            </label>
           </div>
 
           <div className="panel-section">

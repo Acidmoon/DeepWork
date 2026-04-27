@@ -1,16 +1,4 @@
-# agent-session-handoff Specification
-
-## Purpose
-Define how managed CLI sessions bootstrap into the workspace, let users talk to the model in ordinary language, and persist transcripts so later workspace retrieval stays possible without manual handoff packaging.
-## Requirements
-### Requirement: Workspace-aware terminal bootstrap
-Managed CLI sessions SHALL bootstrap into the current workspace context before running their configured startup commands.
-
-#### Scenario: Start a built-in CLI panel
-- **WHEN** the main process starts a built-in terminal panel
-- **THEN** it sets the workspace-root environment variable for the session
-- **THEN** it changes the shell working directory to the configured session directory or current workspace root
-- **THEN** it loads the workspace helper PowerShell commands before executing prelude commands and the startup command
+## MODIFIED Requirements
 
 ### Requirement: Natural-language-first CLI interaction
 Managed CLI sessions SHALL treat ordinary user messages as the primary interaction mode and SHALL rely on workspace retrieval instead of manual context handoff prompts when earlier context matters.
@@ -42,15 +30,3 @@ The system MAY still expose manual artifact or scope inspection surfaces for ope
 - **WHEN** the operator is reviewing saved workspace context from the renderer
 - **THEN** the inspection surface does not need prompt preview, target-panel selection, or send-to-CLI controls to remain useful
 - **THEN** any manual review stays separate from the managed CLI retrieval path
-
-### Requirement: Terminal transcript capture for later retrieval
-Managed terminal sessions SHALL flush buffered transcript content back into the workspace as scope-grouped artifacts.
-
-#### Scenario: Receive terminal output
-- **WHEN** a managed terminal session emits output data
-- **THEN** the main process appends the data to the in-memory terminal buffer and log file
-- **THEN** it schedules transcript persistence into the workspace using the session-specific context label
-
-#### Scenario: Terminal session exits or is disposed
-- **WHEN** a managed terminal session exits or is disposed
-- **THEN** any buffered transcript content is flushed into the workspace before the session is fully torn down

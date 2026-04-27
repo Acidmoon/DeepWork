@@ -81,8 +81,6 @@ export interface WorkspacePanelViewState {
   draftContextLabel: string
   selectedArtifactIds: string[]
   previewArtifactId: string | null
-  promptTargetPanelId: string
-  promptDraft: string
   projectId: string
   workspaceRoot: string
   manifestPath: string
@@ -381,8 +379,6 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         draftContextLabel: '',
         selectedArtifactIds: [],
         previewArtifactId: null,
-        promptTargetPanelId: 'codex-cli',
-        promptDraft: '',
         projectId: 'default',
         workspaceRoot: '',
         manifestPath: '',
