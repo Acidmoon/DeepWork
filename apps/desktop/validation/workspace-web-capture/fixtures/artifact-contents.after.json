@@ -1,0 +1,4 @@
+{
+  "markdown_2001": "# Workspace sync regression chat\n- URL: https://chat.deepseek.com/a/chat/s/sync-regression-chat\n- Captured At: 2026-04-28T09:13:25.000Z\n## Visible Content\nUser: Summarize the latest workspace sync fix.\nAssistant: Workspace Sync now triggers workspace:resync and persists the refreshed web context.",
+  "json_2002": "{\n  \"version\": \"1.0\",\n  \"panelId\": \"deepseek-web\",\n  \"title\": \"Workspace sync regression chat\",\n  \"contextLabel\": \"sync-regression-chat\",\n  \"messageCount\": 2,\n  \"messages\": [\n    {\n      \"id\": \"message-001\",\n      \"role\": \"user\",\n      \"text\": \"Summarize the latest workspace sync fix.\"\n    },\n    {\n      \"id\": \"message-002\",\n      \"role\": \"assistant\",\n      \"text\": \"Workspace Sync now triggers workspace:resync and persists the refreshed web context.\"\n    }\n  ]\n}"
+}

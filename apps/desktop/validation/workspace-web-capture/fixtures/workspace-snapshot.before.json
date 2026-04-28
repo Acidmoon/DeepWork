@@ -1,0 +1,20 @@
+{
+  "projectId": "default",
+  "workspaceRoot": "C:/Users/17740/Documents/AI-Workspace/projects/default",
+  "manifestPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/artifacts.json",
+  "contextIndexPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/context-index.json",
+  "originManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/origins",
+  "rulesPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/rules",
+  "initialized": true,
+  "artifactCount": 0,
+  "bucketCounts": {
+    "artifacts/": 0,
+    "outputs/": 0,
+    "logs/": 0
+  },
+  "contextEntries": [],
+  "artifacts": [],
+  "recentArtifacts": [],
+  "lastSavedArtifactId": null,
+  "lastError": null
+}

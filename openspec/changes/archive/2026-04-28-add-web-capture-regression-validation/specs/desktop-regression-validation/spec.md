@@ -1,15 +1,4 @@
-# desktop-regression-validation Specification
-
-## Purpose
-TBD - created by archiving change add-regression-validation. Update Purpose after archive.
-## Requirements
-### Requirement: Repeatable workspace regression validation assets
-The repository SHALL provide repeatable validation assets for the desktop renderer workspace flow without requiring a live user workspace or manual inline scripting.
-
-#### Scenario: Load deterministic workspace fixtures
-- **WHEN** a developer runs the workspace regression validation flow
-- **THEN** the validation uses repo-owned fixture data for workspace snapshot metadata and artifact contents
-- **THEN** the flow does not depend on the operator's current local workspace records under `Documents`
+## MODIFIED Requirements
 
 ### Requirement: Scripted verification of critical workspace interactions
 The repository SHALL provide a scripted validation path for the critical workspace interactions introduced in the desktop application, including renderer-side workspace browsing and the managed web capture plus Workspace Sync flow.
@@ -34,4 +23,3 @@ The repository SHALL document how to execute the workspace regression validation
 - **THEN** the workflow includes renderer typechecking as a required precheck
 - **THEN** the workflow includes the exact command path needed to execute the browser-driven validation
 - **THEN** the workflow distinguishes the existing workspace browsing validation from the managed web capture resync validation when they run as separate scripts
-

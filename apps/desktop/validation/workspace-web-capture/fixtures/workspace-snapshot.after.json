@@ -1,0 +1,182 @@
+{
+  "projectId": "default",
+  "workspaceRoot": "C:/Users/17740/Documents/AI-Workspace/projects/default",
+  "manifestPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/artifacts.json",
+  "contextIndexPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/context-index.json",
+  "originManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/origins",
+  "rulesPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/rules",
+  "initialized": true,
+  "artifactCount": 2,
+  "bucketCounts": {
+    "artifacts/": 2,
+    "outputs/": 0,
+    "logs/": 0
+  },
+  "contextEntries": [
+    {
+      "origin": "deepseek-web",
+      "contextLabel": "sync-regression-chat",
+      "scopeId": "deepseek-web__sync-regression-chat",
+      "artifactCount": 2,
+      "artifactIds": [
+        "json_2002",
+        "markdown_2001"
+      ],
+      "latestArtifactId": "json_2002",
+      "latestUpdatedAt": "2026-04-28T09:13:26.000Z",
+      "retrieval": {
+        "normalizedOrigin": "deepseek-web",
+        "normalizedContextLabel": "sync-regression-chat",
+        "latestArtifactSummary": "Structured message index for Workspace sync regression chat.",
+        "latestArtifactType": "json",
+        "artifactTypes": [
+          "json",
+          "markdown"
+        ],
+        "tags": [
+          "auto-capture",
+          "context",
+          "deepseek-web",
+          "json",
+          "markdown",
+          "messages",
+          "session-index",
+          "web"
+        ],
+        "searchTerms": [
+          "deepseek-web",
+          "sync-regression-chat",
+          "workspace",
+          "sync",
+          "regression",
+          "json",
+          "markdown",
+          "messages",
+          "session-index",
+          "auto-capture",
+          "context",
+          "web"
+        ],
+        "scopeSummary": "Structured message index for Workspace sync regression chat. | Auto-captured web session from Workspace sync regression chat with 2 structured messages. Preview: Workspace Sync now triggers workspace:resync and persists the refreshed web context."
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "markdown_2001",
+      "name": "markdown_2001.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_2001.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_2001.md",
+      "origin": "deepseek-web",
+      "summary": "Auto-captured web session from Workspace sync regression chat with 2 structured messages. Preview: Workspace Sync now triggers workspace:resync and persists the refreshed web context.",
+      "tags": [
+        "markdown",
+        "deepseek-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-28T09:13:25.000Z",
+      "updatedAt": "2026-04-28T09:13:25.000Z",
+      "size": 556,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
+        "pageTitle": "Workspace sync regression chat",
+        "messageCount": 2,
+        "contextLabel": "sync-regression-chat"
+      }
+    },
+    {
+      "id": "json_2002",
+      "name": "json_2002.json",
+      "type": "json",
+      "path": "artifacts/json/json_2002.json",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/json/json_2002.json",
+      "origin": "deepseek-web",
+      "summary": "Structured message index for Workspace sync regression chat.",
+      "tags": [
+        "json",
+        "deepseek-web",
+        "web",
+        "messages",
+        "session-index"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-28T09:13:26.000Z",
+      "updatedAt": "2026-04-28T09:13:26.000Z",
+      "size": 712,
+      "metadata": {
+        "captureMode": "auto-web-messages",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
+        "pageTitle": "Workspace sync regression chat",
+        "messageCount": 2,
+        "contextLabel": "sync-regression-chat"
+      }
+    }
+  ],
+  "recentArtifacts": [
+    {
+      "id": "markdown_2001",
+      "name": "markdown_2001.md",
+      "type": "markdown",
+      "path": "artifacts/markdown/markdown_2001.md",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/markdown/markdown_2001.md",
+      "origin": "deepseek-web",
+      "summary": "Auto-captured web session from Workspace sync regression chat with 2 structured messages. Preview: Workspace Sync now triggers workspace:resync and persists the refreshed web context.",
+      "tags": [
+        "markdown",
+        "deepseek-web",
+        "web",
+        "context",
+        "auto-capture"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-28T09:13:25.000Z",
+      "updatedAt": "2026-04-28T09:13:25.000Z",
+      "size": 556,
+      "metadata": {
+        "captureMode": "auto-web-context",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
+        "pageTitle": "Workspace sync regression chat",
+        "messageCount": 2,
+        "contextLabel": "sync-regression-chat"
+      }
+    },
+    {
+      "id": "json_2002",
+      "name": "json_2002.json",
+      "type": "json",
+      "path": "artifacts/json/json_2002.json",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/json/json_2002.json",
+      "origin": "deepseek-web",
+      "summary": "Structured message index for Workspace sync regression chat.",
+      "tags": [
+        "json",
+        "deepseek-web",
+        "web",
+        "messages",
+        "session-index"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-28T09:13:26.000Z",
+      "updatedAt": "2026-04-28T09:13:26.000Z",
+      "size": 712,
+      "metadata": {
+        "captureMode": "auto-web-messages",
+        "panelId": "deepseek-web",
+        "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
+        "pageTitle": "Workspace sync regression chat",
+        "messageCount": 2,
+        "contextLabel": "sync-regression-chat"
+      }
+    }
+  ],
+  "lastSavedArtifactId": null,
+  "lastError": null
+}

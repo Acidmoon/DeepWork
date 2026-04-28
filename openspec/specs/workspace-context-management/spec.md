@@ -108,12 +108,17 @@ The workspace panel SHALL let users preview a selected artifact by loading its c
 - **THEN** the workspace panel shows an explicit loading, unavailable, or fallback preview state instead of silently failing
 
 ### Requirement: Validation-backed workspace search and preview flow
-The workspace search and artifact preview flow SHALL be backed by a repeatable regression-validation path for its critical renderer interactions.
+The workspace search, artifact preview, and managed web-context resync flow SHALL be backed by a repeatable regression-validation path for their critical interactions.
 
 #### Scenario: Revalidate workspace retrieval interactions after renderer changes
 - **WHEN** the workspace renderer implementation changes in ways that could affect search, filtering, selection, or preview behavior
 - **THEN** developers can rerun a repeatable validation flow covering those interactions
 - **THEN** regressions in the critical workspace retrieval path can be detected without reconstructing manual validation steps from scratch
+
+#### Scenario: Revalidate managed web-context persistence after sync-path changes
+- **WHEN** main-process, preload, or renderer changes could affect managed web capture or manual workspace resync
+- **THEN** developers can rerun a repeatable validation flow that exercises web-context persistence into the workspace
+- **THEN** the validation confirms that manual workspace resync refreshes workspace-managed records instead of only updating local renderer status
 
 ### Requirement: Scope-ranked retrieval metadata
 The system SHALL persist scope-level retrieval metadata in `context-index.json` using indexed artifact fields so workspace lookups can rank candidate sessions without reading raw artifact content.
@@ -141,3 +146,4 @@ The system SHALL persist completed managed-CLI retrieval audit evidence as works
 - **WHEN** a retrieval lookup is still pending selection and only the temporary pending-state file exists
 - **THEN** the workspace does not expose that pending-state file as a completed retrieval audit record
 - **THEN** only the resolved audit evidence becomes inspectable through normal workspace artifact flows
+

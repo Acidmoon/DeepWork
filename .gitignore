@@ -15,3 +15,5 @@ tech-validation/sample-render-output.pdf
 apps/desktop/.playwright-cli/
 
 Dev/
+.claude/
+.codex/
