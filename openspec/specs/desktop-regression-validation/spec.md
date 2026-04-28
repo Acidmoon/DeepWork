@@ -1,7 +1,7 @@
 # desktop-regression-validation Specification
 
 ## Purpose
-TBD - created by archiving change add-regression-validation. Update Purpose after archive.
+Define the repeatable validation assets, scripted regression flows, and execution guidance that protect critical desktop workspace browsing and web-capture sync behavior from regressions.
 ## Requirements
 ### Requirement: Repeatable workspace regression validation assets
 The repository SHALL provide repeatable validation assets for the desktop renderer workspace flow without requiring a live user workspace or manual inline scripting.
@@ -34,4 +34,3 @@ The repository SHALL document how to execute the workspace regression validation
 - **THEN** the workflow includes renderer typechecking as a required precheck
 - **THEN** the workflow includes the exact command path needed to execute the browser-driven validation
 - **THEN** the workflow distinguishes the existing workspace browsing validation from the managed web capture resync validation when they run as separate scripts
-

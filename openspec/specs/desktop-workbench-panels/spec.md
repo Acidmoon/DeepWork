@@ -1,7 +1,7 @@
 # desktop-workbench-panels Specification
 
 ## Purpose
-TBD - created by archiving change establish-mvp-baseline-specs. Update Purpose after archive.
+Define the desktop workbench shell, navigation model, and managed web or terminal panel lifecycle that let the Electron app host stable built-in and user-defined work surfaces.
 ## Requirements
 ### Requirement: DeepWork desktop shell
 The system SHALL launch a single DeepWork desktop window that hosts the renderer shell through the preload bridge and prevents arbitrary secondary window creation from both the main window and managed web panels.

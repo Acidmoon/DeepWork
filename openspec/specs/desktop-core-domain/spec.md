@@ -1,7 +1,7 @@
 # desktop-core-domain Specification
 
 ## Purpose
-TBD - created by archiving change extract-core-domain-from-desktop. Update Purpose after archive.
+Define the runtime-independent desktop core domain that owns shared models and pure rules while keeping Electron, filesystem, and PTY side effects inside the desktop application shell.
 
 ## Requirements
 ### Requirement: Runtime-independent desktop core entrypoints
