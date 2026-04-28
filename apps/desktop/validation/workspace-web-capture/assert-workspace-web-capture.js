@@ -21,9 +21,15 @@ async page => {
   const sessionVisible = await sessionButton.count()
   const resultsVisible = await page.getByText('1 搜索结果').count()
 
-  if (syncedState.snapshot.contextEntries.length !== 1 || sessionVisible !== 1 || resultsVisible < 1) {
+  if (
+    syncedState.snapshot.contextEntries.length !== 1 ||
+    syncedState.snapshot.threads.length !== 1 ||
+    syncedState.snapshot.activeThreadTitle !== 'Workspace Sync Thread' ||
+    sessionVisible !== 1 ||
+    resultsVisible < 1
+  ) {
     throw new Error(
-      `Workspace resync did not expose the captured web context. contexts=${syncedState.snapshot.contextEntries.length}, sessionVisible=${sessionVisible}, resultsVisible=${resultsVisible}`
+      `Workspace resync did not expose the captured web context and thread state. contexts=${syncedState.snapshot.contextEntries.length}, threads=${syncedState.snapshot.threads.length}, activeThread=${syncedState.snapshot.activeThreadTitle}, sessionVisible=${sessionVisible}, resultsVisible=${resultsVisible}`
     )
   }
 
@@ -51,17 +57,27 @@ async page => {
     throw new Error(`Transcript preview did not render after selecting the persisted artifact. count=${transcriptPreviewVisible}`)
   }
 
+  await page.locator('.nav-item__button').filter({ hasText: 'DeepSeek Web' }).click()
+  await page.waitForTimeout(400)
+  const webThreadBadgeVisible = await page.getByText('当前线程: Workspace Sync Thread').count()
+  if (webThreadBadgeVisible < 1) {
+    throw new Error(`Web surface did not reflect the active thread after resync. count=${webThreadBadgeVisible}`)
+  }
+
   await page.screenshot({ path: screenshotPath, fullPage: true })
   console.log(
     JSON.stringify({
       resyncCount: syncedState.resyncCount,
       artifactCount: syncedState.snapshot.artifactCount,
       contextCount: syncedState.snapshot.contextEntries.length,
+      threadCount: syncedState.snapshot.threads.length,
+      activeThreadTitle: syncedState.snapshot.activeThreadTitle,
       sessionVisible,
       userMessageVisible,
       assistantMessageVisible,
       searchedSessionVisible,
-      transcriptPreviewVisible
+      transcriptPreviewVisible,
+      webThreadBadgeVisible
     })
   )
 }

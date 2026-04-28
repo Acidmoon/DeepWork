@@ -38,6 +38,8 @@ export function WorkspacePanel({
   const [sessionLogExcerpt, setSessionLogExcerpt] = useState<string>('')
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable' | 'unsupported'>('idle')
   const [previewContent, setPreviewContent] = useState('')
+  const [threadFilterMode, setThreadFilterMode] = useState<'active' | 'all'>('active')
+  const [scopeThreadTargetId, setScopeThreadTargetId] = useState('')
 
   useEffect(() => {
     void window.workbenchShell.workspace.getState().then((snapshot) => {
@@ -48,7 +50,17 @@ export function WorkspacePanel({
   }, [syncWorkspaceState])
 
   const normalizedQuery = normalizeWorkspaceSearchQuery(state.searchQuery)
-  const sessionSummaries = state.contextEntries.map((entry) => {
+  const activeThread = state.threads.find((thread) => thread.threadId === state.activeThreadId) ?? null
+  const visibleThreadId = threadFilterMode === 'active' ? state.activeThreadId : null
+  const visibleContextEntries = visibleThreadId
+    ? state.contextEntries.filter((entry) => entry.threadId === visibleThreadId)
+    : state.contextEntries
+  const effectiveSelectedOrigin =
+    state.selectedOrigin === 'all' || visibleContextEntries.some((entry) => entry.scopeId === state.selectedOrigin)
+      ? state.selectedOrigin
+      : 'all'
+  const scopeThreadMap = new Map(state.contextEntries.map((entry) => [entry.scopeId, entry.threadId] as const))
+  const sessionSummaries = visibleContextEntries.map((entry) => {
     const scopedArtifacts = state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === entry.scopeId)
     const bucketArtifacts = scopedArtifacts.filter((artifact) => matchesWorkspaceBucket(artifact, state.selectedBucket))
     const matchingArtifacts = normalizedQuery
@@ -58,7 +70,7 @@ export function WorkspacePanel({
 
     return {
       ...buildSessionSummary(entry, state.artifacts, locale),
-      matchesOrigin: state.selectedOrigin === 'all' || entry.scopeId === state.selectedOrigin,
+      matchesOrigin: effectiveSelectedOrigin === 'all' || entry.scopeId === effectiveSelectedOrigin,
       matchesQuery: !normalizedQuery || searchableSession.includes(normalizedQuery) || matchingArtifacts.length > 0,
       availableArtifactCount: bucketArtifacts.length
     }
@@ -67,19 +79,21 @@ export function WorkspacePanel({
     (session) => session.matchesOrigin && session.availableArtifactCount > 0 && session.matchesQuery
   )
   const filteredArtifacts = state.artifacts.filter((artifact) => {
-    const matchesOrigin = state.selectedOrigin === 'all' || getArtifactScopeId(artifact) === state.selectedOrigin
+    const scopeId = getArtifactScopeId(artifact)
+    const matchesThread = !visibleThreadId || scopeThreadMap.get(scopeId) === visibleThreadId
+    const matchesOrigin = effectiveSelectedOrigin === 'all' || scopeId === effectiveSelectedOrigin
     const matchesBucket = matchesWorkspaceBucket(artifact, state.selectedBucket)
     const matchesQuery = !normalizedQuery || matchesWorkspaceArtifactQuery(artifact, normalizedQuery)
 
-    return matchesOrigin && matchesBucket && matchesQuery
+    return matchesThread && matchesOrigin && matchesBucket && matchesQuery
   })
   const selectedArtifacts = state.artifacts.filter((artifact) => state.selectedArtifactIds.includes(artifact.id))
   const selectedPreviewArtifact = state.previewArtifactId
     ? state.artifacts.find((artifact) => artifact.id === state.previewArtifactId) ?? null
     : null
-  const selectedScope = state.selectedOrigin === 'all'
+  const selectedScope = effectiveSelectedOrigin === 'all'
     ? null
-    : state.contextEntries.find((entry) => entry.scopeId === state.selectedOrigin) ?? null
+    : visibleContextEntries.find((entry) => entry.scopeId === effectiveSelectedOrigin) ?? null
   const workspaceFolderName = getWorkspaceFolderName(state.workspaceRoot)
   const selectedScopeArtifacts = selectedScope
     ? state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === selectedScope.scopeId)
@@ -107,6 +121,57 @@ export function WorkspacePanel({
       ...state,
       previewArtifactId: artifactId
     })
+  }
+
+  useEffect(() => {
+    if (!selectedScope) {
+      setScopeThreadTargetId('')
+      return
+    }
+
+    setScopeThreadTargetId(selectedScope.threadId)
+  }, [selectedScope?.scopeId, selectedScope?.threadId])
+
+  const syncSnapshot = (snapshot: Awaited<ReturnType<typeof window.workbenchShell.workspace.selectThread>>): void => {
+    if (snapshot) {
+      syncWorkspaceState(snapshot)
+    }
+  }
+
+  const createThread = async (): Promise<void> => {
+    const requestedTitle = window.prompt(ui.threadCreatePrompt, activeThread?.title ?? '')
+    if (requestedTitle === null) {
+      return
+    }
+
+    setThreadFilterMode('active')
+    syncSnapshot(await window.workbenchShell.workspace.createThread(requestedTitle.trim() || null))
+  }
+
+  const continueThread = async (threadId: string): Promise<void> => {
+    setThreadFilterMode('active')
+    syncSnapshot(await window.workbenchShell.workspace.selectThread(threadId))
+  }
+
+  const renameActiveThread = async (): Promise<void> => {
+    if (!activeThread) {
+      return
+    }
+
+    const requestedTitle = window.prompt(ui.threadRenamePrompt, activeThread.title)
+    if (!requestedTitle || requestedTitle.trim() === activeThread.title) {
+      return
+    }
+
+    syncSnapshot(await window.workbenchShell.workspace.renameThread(activeThread.threadId, requestedTitle.trim()))
+  }
+
+  const reassignSelectedScope = async (): Promise<void> => {
+    if (!selectedScope || !scopeThreadTargetId || scopeThreadTargetId === selectedScope.threadId) {
+      return
+    }
+
+    syncSnapshot(await window.workbenchShell.workspace.reassignScopeThread(selectedScope.scopeId, scopeThreadTargetId))
   }
 
   const deleteSelectedScope = async (): Promise<void> => {
@@ -238,6 +303,70 @@ export function WorkspacePanel({
 
       <div className="panel-section">
         <div className="section-line">
+          <strong>{ui.threadContinuity}</strong>
+          <span>{activeThread?.title ?? ui.noActiveThread}</span>
+        </div>
+
+        <div className="action-row">
+          <button type="button" className="action-button" onClick={() => void createThread()}>
+            {ui.threadCreate}
+          </button>
+          <button
+            type="button"
+            className="action-button action-button--ghost"
+            disabled={!activeThread}
+            onClick={() => void renameActiveThread()}
+          >
+            {ui.threadRename}
+          </button>
+          <button
+            type="button"
+            className="action-button action-button--ghost"
+            onClick={() => setThreadFilterMode(threadFilterMode === 'active' ? 'all' : 'active')}
+          >
+            {threadFilterMode === 'active' ? ui.threadShowAll : ui.activeThread}
+          </button>
+        </div>
+
+        {state.threads.length === 0 ? (
+          <p className="section-empty">{ui.threadEmptyHint}</p>
+        ) : (
+          <div className="artifact-list">
+            {state.threads.map((thread) => (
+              <article
+                key={thread.threadId}
+                className={`artifact-row artifact-row--thread${state.activeThreadId === thread.threadId ? ' artifact-row--active' : ''}`}
+              >
+                <div className="artifact-row__body">
+                  <strong>{thread.title}</strong>
+                  <p>{thread.summary || thread.threadId}</p>
+                  <div className="session-badges">
+                    <span className="session-badge">{thread.scopeCount} {ui.threadScopeCount}</span>
+                    <span className="session-badge">{thread.artifactCount} {ui.threadArtifactCount}</span>
+                    <span className="session-badge">{thread.derived ? ui.threadDerived : ui.threadExplicit}</span>
+                  </div>
+                </div>
+                <div className="artifact-row__meta">
+                  <span>{thread.threadId}</span>
+                  <small>{thread.latestUpdatedAt ? formatTimestamp(thread.latestUpdatedAt, locale) : '-'}</small>
+                </div>
+                <div className="artifact-row__actions">
+                  <button
+                    type="button"
+                    className="action-button action-button--ghost action-button--compact"
+                    onClick={() => void continueThread(thread.threadId)}
+                  >
+                    {ui.threadContinue}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel-section">
+        <div className="section-line">
           <strong>{ui.workspaceHowItWorks}</strong>
         </div>
         <div className="workspace-guide">
@@ -259,7 +388,13 @@ export function WorkspacePanel({
       <div className="panel-section">
         <div className="section-line">
           <strong>{ui.findContext}</strong>
-          <span>{selectedScope ? formatContextEntryLabel(selectedScope) : ui.allSources}</span>
+          <span>
+            {selectedScope
+              ? formatContextEntryLabel(selectedScope)
+              : visibleThreadId
+                ? activeThread?.title ?? ui.activeThread
+                : ui.allSources}
+          </span>
         </div>
         <div className="detail-columns">
           <label className="field">
@@ -281,7 +416,7 @@ export function WorkspacePanel({
           <label className="field">
             <span>{ui.selectedOrigin}</span>
             <select
-              value={state.selectedOrigin}
+              value={effectiveSelectedOrigin}
               onChange={(event) =>
                 updateWorkspaceViewState({
                   ...state,
@@ -318,13 +453,33 @@ export function WorkspacePanel({
               <strong>{ui.currentSelection}</strong>
               <span>{formatContextEntryDescription(selectedScope, locale)}</span>
             </div>
-            <button
-              type="button"
-              className="action-button action-button--ghost action-button--danger"
-              onClick={() => void deleteSelectedScope()}
-            >
-              {ui.deleteSession}
-            </button>
+            <div className="workspace-inline-note__actions">
+              <label className="field field--compact">
+                <span>{ui.targetThread}</span>
+                <select value={scopeThreadTargetId} onChange={(event) => setScopeThreadTargetId(event.target.value)}>
+                  {state.threads.map((thread) => (
+                    <option key={thread.threadId} value={thread.threadId}>
+                      {thread.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="action-button action-button--ghost"
+                disabled={!scopeThreadTargetId || scopeThreadTargetId === selectedScope.threadId}
+                onClick={() => void reassignSelectedScope()}
+              >
+                {ui.reassignScopeThread}
+              </button>
+              <button
+                type="button"
+                className="action-button action-button--ghost action-button--danger"
+                onClick={() => void deleteSelectedScope()}
+              >
+                {ui.deleteSession}
+              </button>
+            </div>
           </div>
         ) : (
           <p className="section-empty">{ui.findContextHint}</p>
@@ -528,6 +683,14 @@ export function WorkspacePanel({
                 <span>`aw-artifact &lt;id&gt;`</span>
                 <strong>{ui.cliCommandArtifact}</strong>
               </div>
+              <div className="detail-list__item">
+                <span>`aw-threads`</span>
+                <strong>{ui.cliCommandThreads}</strong>
+              </div>
+              <div className="detail-list__item">
+                <span>`aw-thread &lt;threadId&gt;`</span>
+                <strong>{ui.cliCommandThread}</strong>
+              </div>
             </div>
           </div>
 
@@ -583,6 +746,16 @@ export function WorkspacePanel({
               <label className="field">
                 <span>{ui.contextIndex}</span>
                 <input value={state.contextIndexPath || ui.workspaceInitializationPending} readOnly />
+              </label>
+              <label className="field">
+                <span>{ui.threadIndex}</span>
+                <input value={state.threadIndexPath || ui.workspaceInitializationPending} readOnly />
+              </label>
+            </div>
+            <div className="detail-columns">
+              <label className="field">
+                <span>{ui.threadManifests}</span>
+                <input value={state.threadManifestsPath || ui.workspaceInitializationPending} readOnly />
               </label>
               <label className="field">
                 <span>{ui.rules}</span>

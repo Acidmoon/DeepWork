@@ -72,10 +72,15 @@ export const WORKBENCH_TOOLS = `function aw-workspace {
   Write-Host "Workspace Root: $env:AI_WORKBENCH_WORKSPACE_ROOT"
   Write-Host "Artifacts Manifest: $(Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'manifests\\artifacts.json')"
   Write-Host "Context Index: $(Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'manifests\\context-index.json')"
+  Write-Host "Thread Index: $(Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'manifests\\thread-index.json')"
   Write-Host "Origin Manifests: $(Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'manifests\\origins')"
+  Write-Host "Thread Manifests: $(Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'manifests\\threads')"
   Write-Host "Retrieval Logs: $(Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'logs\\retrieval')"
   if ($env:AI_WORKBENCH_SESSION_SCOPE_ID) {
     Write-Host "Session Scope: $env:AI_WORKBENCH_SESSION_SCOPE_ID"
+  }
+  if ($env:AI_WORKBENCH_THREAD_ID) {
+    Write-Host "Active Thread: $env:AI_WORKBENCH_THREAD_ID"
   }
 }
 
@@ -98,7 +103,29 @@ function Get-AwSessionMetadata {
     launchCount = if ($env:AI_WORKBENCH_SESSION_LAUNCH_COUNT) { [int]$env:AI_WORKBENCH_SESSION_LAUNCH_COUNT } else { $null }
     contextLabel = $env:AI_WORKBENCH_SESSION_CONTEXT_LABEL
     sessionScopeId = $env:AI_WORKBENCH_SESSION_SCOPE_ID
+    threadId = $env:AI_WORKBENCH_THREAD_ID
+    threadTitle = $env:AI_WORKBENCH_THREAD_TITLE
   }
+}
+
+function Get-AwThreadIndexPath {
+  return Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT 'manifests\\thread-index.json'
+}
+
+function aw-threads {
+  $path = Get-AwThreadIndexPath
+  if (-not (Test-Path -LiteralPath $path)) { Write-Error "thread-index.json not found"; return }
+  $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+  $json.threads |
+    Select-Object threadId, title, scopeCount, artifactCount, latestUpdatedAt, summary |
+    Format-Table -AutoSize
+}
+
+function aw-thread {
+  param([Parameter(Mandatory=$true)][string]$ThreadId)
+  $path = Join-Path $env:AI_WORKBENCH_WORKSPACE_ROOT ("manifests\\threads\\{0}.json" -f $ThreadId)
+  if (-not (Test-Path -LiteralPath $path)) { Write-Error "thread manifest not found: $ThreadId"; return }
+  Get-Content -LiteralPath $path -Raw
 }
 
 function Get-AwRetrievalAuditPath {
@@ -157,7 +184,8 @@ function Write-AwRetrievalAuditEntry {
     [object[]]$Candidates = @(),
     [string]$SelectedScopeId,
     [Parameter(Mandatory=$true)][string]$Outcome,
-    [string]$Reason
+    [string]$Reason,
+    [string]$RetrievalMode
   )
 
   $auditPath = Get-AwRetrievalAuditPath
@@ -180,6 +208,7 @@ function Write-AwRetrievalAuditEntry {
       }
     })
     selectedScopeId = if ([string]::IsNullOrWhiteSpace($SelectedScopeId)) { $null } else { $SelectedScopeId }
+    retrievalMode = if ([string]::IsNullOrWhiteSpace($RetrievalMode)) { $null } else { $RetrievalMode }
     outcome = $Outcome
     reason = if ([string]::IsNullOrWhiteSpace($Reason)) { $null } else { $Reason }
   }
@@ -191,7 +220,8 @@ function Complete-AwPendingLookup {
   param(
     [string]$SelectedScopeId,
     [Parameter(Mandatory=$true)][string]$Outcome,
-    [string]$Reason
+    [string]$Reason,
+    [string]$RetrievalMode
   )
 
   $pending = Read-AwPendingLookup
@@ -199,7 +229,9 @@ function Complete-AwPendingLookup {
     return
   }
 
-  Write-AwRetrievalAuditEntry -Query $pending.query -Candidates @($pending.candidates) -SelectedScopeId $SelectedScopeId -Outcome $Outcome -Reason $Reason
+  $resolvedRetrievalMode =
+    if ([string]::IsNullOrWhiteSpace($RetrievalMode)) { [string]$pending.retrievalMode } else { $RetrievalMode }
+  Write-AwRetrievalAuditEntry -Query $pending.query -Candidates @($pending.candidates) -SelectedScopeId $SelectedScopeId -Outcome $Outcome -Reason $Reason -RetrievalMode $resolvedRetrievalMode
   Clear-AwPendingLookup
 }
 
@@ -259,6 +291,15 @@ function aw-suggest {
   $terms = @(Get-AwSuggestionTerms -Query $trimmedQuery)
   $normalizedQuery = $trimmedQuery.ToLowerInvariant()
   $contextIndex = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+  $threadIndexPath = Get-AwThreadIndexPath
+  $threadIndex = if (Test-Path -LiteralPath $threadIndexPath) { Get-Content -LiteralPath $threadIndexPath -Raw | ConvertFrom-Json } else { $null }
+  $activeThreadId = if (-not [string]::IsNullOrWhiteSpace($env:AI_WORKBENCH_THREAD_ID)) {
+    $env:AI_WORKBENCH_THREAD_ID
+  } elseif ($threadIndex) {
+    [string]$threadIndex.activeThreadId
+  } else {
+    ''
+  }
 
   $results = foreach ($entry in $contextIndex.origins) {
     $searchTerms = @($entry.retrieval.searchTerms | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
@@ -307,6 +348,7 @@ function aw-suggest {
       [pscustomobject]@{
         score = $score
         scopeId = $entry.scopeId
+        threadId = $entry.threadId
         origin = $entry.origin
         contextLabel = $entry.contextLabel
         artifactCount = $entry.artifactCount
@@ -322,20 +364,41 @@ function aw-suggest {
     }
   }
 
+  $allResults = @($results)
+  $threadScopedResults = @()
+  if (-not [string]::IsNullOrWhiteSpace($activeThreadId)) {
+    $threadScopedResults = @($allResults | Where-Object { [string]$_.threadId -eq [string]$activeThreadId })
+  }
+  $hasThreadScopedResults = $threadScopedResults.Length -gt 0
+  $candidatePool =
+    if ($hasThreadScopedResults) {
+      $threadScopedResults
+    } else {
+      $allResults
+    }
+  $retrievalMode =
+    if ($hasThreadScopedResults) {
+      'thread_local'
+    } elseif (-not [string]::IsNullOrWhiteSpace($activeThreadId)) {
+      'global_fallback'
+    } else {
+      'global'
+    }
   $rankedResults = @(
-    $results |
+    $candidatePool |
       Sort-Object -Property @{ Expression = 'score'; Descending = $true }, @{ Expression = 'latestUpdatedAt'; Descending = $true }, @{ Expression = 'artifactCount'; Descending = $true }, scopeId |
       Select-Object -First $Top
   )
 
   if ($rankedResults.Count -eq 0) {
-    Write-AwRetrievalAuditEntry -Query $trimmedQuery -Candidates @() -SelectedScopeId $null -Outcome 'no_match' -Reason 'no_candidates'
+    Write-AwRetrievalAuditEntry -Query $trimmedQuery -Candidates @() -SelectedScopeId $null -Outcome 'no_match' -Reason 'no_candidates' -RetrievalMode $retrievalMode
 
     if ($Json) {
       [pscustomobject]@{
         query = $trimmedQuery
         outcome = 'no_match'
         reason = 'no_candidates'
+        retrievalMode = $retrievalMode
         candidates = @()
       } | ConvertTo-Json -Depth 8
       return
@@ -348,12 +411,14 @@ function aw-suggest {
   Save-AwPendingLookup -PendingLookup ([pscustomobject]@{
     query = $trimmedQuery
     candidates = $rankedResults
+    retrievalMode = $retrievalMode
   })
 
   if ($Json) {
     [pscustomobject]@{
       query = $trimmedQuery
       outcome = 'candidates_found'
+      retrievalMode = $retrievalMode
       candidates = $rankedResults
     } | ConvertTo-Json -Depth 8
     return

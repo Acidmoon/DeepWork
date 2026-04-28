@@ -2,8 +2,10 @@ import { basename, join } from 'node:path'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import {
   getArtifactScopeId,
+  sanitizeOrigin,
   type ArtifactContentPayload,
   type ArtifactManifest,
+  type ContextThreadSummary,
   type SaveClipboardOptions,
   type SaveClipboardResult,
   type WorkspaceSnapshot
@@ -17,7 +19,15 @@ import {
   WORKSPACE_PROTOCOL,
   syncManagedInstructionFile
 } from './workspace-manager/managed-workspace-content'
-import { detectClipboardPayload, ensureDirectory, nowIso, safeReadManifest } from './workspace-manager/workspace-artifact-helpers'
+import {
+  createThreadId,
+  deriveThreadTitleFromSeed,
+  detectClipboardPayload,
+  ensureDirectory,
+  nowIso,
+  safeReadManifest,
+  safeReadThreadIndex
+} from './workspace-manager/workspace-artifact-helpers'
 import { syncRetrievalAuditArtifactsFromLogs } from './workspace-manager/retrieval-audit-sync'
 import { saveTextArtifactToWorkspace } from './workspace-manager/workspace-artifact-store'
 import { type WorkspaceManifestContext, type WorkspaceSnapshotContext } from './workspace-manager/workspace-context'
@@ -29,6 +39,8 @@ interface SaveWebContextOptions {
   messagesArtifactId?: string | null
   panelId: string
   title: string
+  threadId?: string | null
+  threadTitle?: string | null
   url: string
   contextLabel: string
   content: string
@@ -47,6 +59,8 @@ export class WorkspaceManager {
   private manifestPath: string
   private contextIndexPath: string
   private originManifestsPath: string
+  private threadIndexPath: string
+  private threadManifestsPath: string
   private rulesPath: string
   private lastSavedArtifactId: string | null = null
   private lastError: string | null = null
@@ -61,6 +75,8 @@ export class WorkspaceManager {
     this.manifestPath = join(this.workspaceRoot, 'manifests', 'artifacts.json')
     this.contextIndexPath = join(this.workspaceRoot, 'manifests', 'context-index.json')
     this.originManifestsPath = join(this.workspaceRoot, 'manifests', 'origins')
+    this.threadIndexPath = join(this.workspaceRoot, 'manifests', 'thread-index.json')
+    this.threadManifestsPath = join(this.workspaceRoot, 'manifests', 'threads')
     this.rulesPath = join(this.workspaceRoot, 'rules')
     this.setWorkspaceRoot(configuredRoot)
   }
@@ -78,6 +94,8 @@ export class WorkspaceManager {
     this.manifestPath = join(this.workspaceRoot, 'manifests', 'artifacts.json')
     this.contextIndexPath = join(this.workspaceRoot, 'manifests', 'context-index.json')
     this.originManifestsPath = join(this.workspaceRoot, 'manifests', 'origins')
+    this.threadIndexPath = join(this.workspaceRoot, 'manifests', 'thread-index.json')
+    this.threadManifestsPath = join(this.workspaceRoot, 'manifests', 'threads')
     this.rulesPath = join(this.workspaceRoot, 'rules')
     this.ensureInitialized()
     this.lastError = null
@@ -98,6 +116,9 @@ export class WorkspaceManager {
       }
     }
 
+    const thread = options.threadId?.trim()
+      ? this.ensureThreadSelection(options.threadId, options.contextLabel || options.origin || 'manual')
+      : this.ensureActiveThread(options.contextLabel || options.origin || 'manual')
     const result = saveTextArtifactToWorkspace(this.getManifestContext(), {
       type: payload.type,
       content: payload.content,
@@ -105,6 +126,7 @@ export class WorkspaceManager {
       summary: payload.summary,
       tags: [payload.type],
       contextLabel: options.contextLabel,
+      threadId: thread.threadId,
       metadata: {
         clipboardFormats: payload.formats
       }
@@ -132,6 +154,144 @@ export class WorkspaceManager {
     return {
       artifact,
       content: readFileSync(artifact.absolutePath, 'utf8')
+    }
+  }
+
+  createThread(title?: string | null, activate = true): WorkspaceSnapshot {
+    this.ensureInitialized()
+
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+    const nextTitle = deriveThreadTitleFromSeed(
+      title,
+      `${this.projectId}-${String(threadIndex.threads.length + 1).padStart(2, '0')}`
+    )
+    const threadId = createThreadId(nextTitle)
+
+    writeFileSync(
+      this.threadIndexPath,
+      JSON.stringify(
+        {
+          ...threadIndex,
+          workspaceRoot: this.workspaceRoot,
+          activeThreadId: activate ? threadId : threadIndex.activeThreadId,
+          threads: [
+            {
+              threadId,
+              title: nextTitle,
+              derived: false,
+              scopeIds: [],
+              artifactIds: [],
+              scopeCount: 0,
+              artifactCount: 0,
+              latestArtifactId: null,
+              latestUpdatedAt: null,
+              originHints: [],
+              searchTerms: [],
+              summary: ''
+            },
+            ...threadIndex.threads
+          ]
+        },
+        null,
+        2
+      ),
+      'utf8'
+    )
+
+    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: activate ? threadId : threadIndex.activeThreadId })
+    this.lastError = null
+    const snapshot = this.getSnapshot()
+    this.emitSnapshot(snapshot)
+    return snapshot
+  }
+
+  selectThread(threadId: string | null): WorkspaceSnapshot {
+    this.ensureInitialized()
+
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: threadId?.trim() ? sanitizeOrigin(threadId) : null })
+    this.lastError = null
+    const snapshot = this.getSnapshot()
+    this.emitSnapshot(snapshot)
+    return snapshot
+  }
+
+  renameThread(threadId: string, title: string): WorkspaceSnapshot {
+    this.ensureInitialized()
+
+    const normalizedThreadId = sanitizeOrigin(threadId)
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+    const nextTitle = deriveThreadTitleFromSeed(title, normalizedThreadId)
+    const nextThreads = threadIndex.threads.map((thread) =>
+      thread.threadId === normalizedThreadId
+        ? {
+            ...thread,
+            title: nextTitle,
+            derived: false
+          }
+        : thread
+    )
+
+    writeFileSync(
+      this.threadIndexPath,
+      JSON.stringify(
+        {
+          ...threadIndex,
+          workspaceRoot: this.workspaceRoot,
+          threads: nextThreads
+        },
+        null,
+        2
+      ),
+      'utf8'
+    )
+
+    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: threadIndex.activeThreadId })
+    this.lastError = null
+    const snapshot = this.getSnapshot()
+    this.emitSnapshot(snapshot)
+    return snapshot
+  }
+
+  reassignScopeToThread(scopeId: string, threadId: string): WorkspaceSnapshot {
+    this.ensureInitialized()
+
+    const normalizedThreadId = sanitizeOrigin(threadId)
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    const nextArtifacts = manifest.artifacts.map((artifact) =>
+      getArtifactScopeId(artifact) === scopeId
+        ? {
+            ...artifact,
+            metadata: {
+              ...(artifact.metadata ?? {}),
+              threadId: normalizedThreadId
+            }
+          }
+        : artifact
+    )
+    const nextManifest: ArtifactManifest = {
+      ...manifest,
+      workspaceRoot: this.workspaceRoot,
+      projectId: this.projectId,
+      artifacts: nextArtifacts
+    }
+
+    writeFileSync(this.manifestPath, JSON.stringify(nextManifest, null, 2), 'utf8')
+    writeContextIndexFiles(this.getManifestContext(), nextManifest.artifacts, { activeThreadId: normalizedThreadId })
+    this.lastError = null
+    const snapshot = this.getSnapshot()
+    this.emitSnapshot(snapshot)
+    return snapshot
+  }
+
+  ensureThreadForSession(panelId: string, title: string): { threadId: string; title: string } {
+    this.ensureInitialized()
+    const thread = this.ensureActiveThread(title || panelId)
+    return {
+      threadId: thread.threadId,
+      title: thread.title
     }
   }
 
@@ -174,8 +334,12 @@ export class WorkspaceManager {
     title: string
     launchCount: number
     contextLabel: string
+    threadId?: string | null
     content: string
   }): string | null {
+    const thread = input.threadId?.trim()
+      ? this.ensureThreadSelection(input.threadId, input.title)
+      : this.ensureActiveThread(input.title)
     const result = saveTextArtifactToWorkspace(this.getManifestContext(), {
       artifactId: input.artifactId,
       type: 'log',
@@ -184,11 +348,13 @@ export class WorkspaceManager {
       summary: `${input.title} transcript captured from session ${input.launchCount}.`,
       tags: ['terminal', 'session', input.panelId],
       contextLabel: input.contextLabel,
+      threadId: thread.threadId,
       metadata: {
         captureMode: 'auto-terminal-transcript',
         panelId: input.panelId,
         launchCount: input.launchCount,
-        contextLabel: input.contextLabel
+        contextLabel: input.contextLabel,
+        threadId: thread.threadId
       }
     })
     this.lastSavedArtifactId = result.lastSavedArtifactId
@@ -199,6 +365,9 @@ export class WorkspaceManager {
   }
 
   upsertWebContext(input: SaveWebContextOptions): { transcriptArtifactId: string | null; messagesArtifactId: string | null } {
+    const thread = input.threadId?.trim()
+      ? this.ensureThreadSelection(input.threadId, input.threadTitle || input.title || input.url)
+      : this.ensureActiveThread(input.threadTitle || input.title || input.url)
     const messagePreview = input.messages?.find((message) => message.role === 'user' || message.role === 'assistant')?.text
       ?.replace(/\s+/g, ' ')
       .slice(0, 120)
@@ -212,6 +381,7 @@ export class WorkspaceManager {
           : `Auto-captured web context from ${input.title || input.url}.`,
       tags: ['web', 'context', 'auto-capture', input.panelId],
       contextLabel: input.contextLabel,
+      threadId: thread.threadId,
       content: [
         `# ${input.title || input.url}`,
         '',
@@ -231,7 +401,8 @@ export class WorkspaceManager {
         sourceUrl: input.url,
         pageTitle: input.title,
         messageCount: input.messages?.length ?? 0,
-        contextLabel: input.contextLabel
+        contextLabel: input.contextLabel,
+        threadId: thread.threadId
       }
     })
     this.lastSavedArtifactId = transcriptArtifact.lastSavedArtifactId
@@ -247,6 +418,7 @@ export class WorkspaceManager {
             summary: `Structured message index for ${input.title || input.url}.${messagePreview ? ` Preview: ${messagePreview}` : ''}`,
             tags: ['web', 'messages', 'session-index', input.panelId],
             contextLabel: input.contextLabel,
+            threadId: thread.threadId,
             content: JSON.stringify(
               {
                 version: '1.0',
@@ -254,6 +426,7 @@ export class WorkspaceManager {
                 title: input.title,
                 url: input.url,
                 contextLabel: input.contextLabel,
+                threadId: thread.threadId,
                 capturedAt: nowIso(),
                 messageCount: input.messages.length,
                 messages: input.messages
@@ -267,7 +440,8 @@ export class WorkspaceManager {
               sourceUrl: input.url,
               pageTitle: input.title,
               messageCount: input.messages.length,
-              contextLabel: input.contextLabel
+              contextLabel: input.contextLabel,
+              threadId: thread.threadId
             }
           })
         : null
@@ -324,6 +498,7 @@ export class WorkspaceManager {
       'outputs/renderer',
       'manifests',
       'manifests/origins',
+      'manifests/threads',
       'rules',
       'logs',
       'logs/retrieval'
@@ -354,6 +529,19 @@ export class WorkspaceManager {
             version: '1.0',
             workspaceRoot: this.workspaceRoot,
             origins: []
+          },
+          null,
+          2
+        )
+      ],
+      [
+        this.threadIndexPath,
+        JSON.stringify(
+          {
+            version: '1.0',
+            workspaceRoot: this.workspaceRoot,
+            activeThreadId: null,
+            threads: []
           },
           null,
           2
@@ -401,7 +589,9 @@ export class WorkspaceManager {
       workspaceRoot: this.workspaceRoot,
       manifestPath: this.manifestPath,
       contextIndexPath: this.contextIndexPath,
-      originManifestsPath: this.originManifestsPath
+      originManifestsPath: this.originManifestsPath,
+      threadIndexPath: this.threadIndexPath,
+      threadManifestsPath: this.threadManifestsPath
     }
   }
 
@@ -409,6 +599,83 @@ export class WorkspaceManager {
     return {
       ...this.getManifestContext(),
       rulesPath: this.rulesPath
+    }
+  }
+
+  private ensureActiveThread(seed: string): ContextThreadSummary {
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+    const activeThread = threadIndex.threads.find((thread) => thread.threadId === threadIndex.activeThreadId)
+    if (activeThread) {
+      return activeThread
+    }
+
+    const snapshot = this.createThread(seed, true)
+    const createdThread = snapshot.threads.find((thread) => thread.threadId === snapshot.activeThreadId)
+    if (!createdThread) {
+      throw new Error('Failed to initialize an active workspace thread.')
+    }
+
+    return createdThread
+  }
+
+  private ensureThreadSelection(threadId: string, fallbackTitle: string): ContextThreadSummary {
+    const normalizedThreadId = sanitizeOrigin(threadId)
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+    const existingThread = threadIndex.threads.find((thread) => thread.threadId === normalizedThreadId)
+    if (existingThread) {
+      if (threadIndex.activeThreadId !== normalizedThreadId) {
+        this.selectThread(normalizedThreadId)
+      }
+      return existingThread
+    }
+
+    const nextTitle = deriveThreadTitleFromSeed(fallbackTitle, normalizedThreadId)
+    writeFileSync(
+      this.threadIndexPath,
+      JSON.stringify(
+        {
+          ...threadIndex,
+          workspaceRoot: this.workspaceRoot,
+          activeThreadId: normalizedThreadId,
+          threads: [
+            ...threadIndex.threads,
+            {
+              threadId: normalizedThreadId,
+              title: nextTitle,
+              derived: false,
+              scopeIds: [],
+              artifactIds: [],
+              scopeCount: 0,
+              artifactCount: 0,
+              latestArtifactId: null,
+              latestUpdatedAt: null,
+              originHints: [],
+              searchTerms: [],
+              summary: ''
+            }
+          ]
+        },
+        null,
+        2
+      ),
+      'utf8'
+    )
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: normalizedThreadId })
+
+    return {
+      threadId: normalizedThreadId,
+      title: nextTitle,
+      derived: false,
+      scopeIds: [],
+      artifactIds: [],
+      scopeCount: 0,
+      artifactCount: 0,
+      latestArtifactId: null,
+      latestUpdatedAt: null,
+      originHints: [],
+      searchTerms: [],
+      summary: ''
     }
   }
 }

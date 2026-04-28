@@ -43,6 +43,10 @@ interface WorkbenchShellApi {
     getState: () => Promise<WorkspaceSnapshot | null>
     readArtifact: (artifactId: string) => Promise<ArtifactContentPayload | null>
     deleteScope: (scopeId: string) => Promise<WorkspaceSnapshot | null>
+    createThread: (title?: string | null) => Promise<WorkspaceSnapshot | null>
+    selectThread: (threadId: string | null) => Promise<WorkspaceSnapshot | null>
+    renameThread: (threadId: string, title: string) => Promise<WorkspaceSnapshot | null>
+    reassignScopeThread: (scopeId: string, threadId: string) => Promise<WorkspaceSnapshot | null>
     resync: (panelId?: string) => Promise<WorkspaceSnapshot | null>
     chooseRoot: () => Promise<WorkspaceSnapshot | null>
     saveClipboard: (options: SaveClipboardOptions) => Promise<SaveClipboardResult | null>

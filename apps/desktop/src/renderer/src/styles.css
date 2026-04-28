@@ -529,6 +529,23 @@ select {
   gap: 10px;
 }
 
+.thread-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.thread-select {
+  min-width: 180px;
+  max-width: 260px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--input-bg);
+  color: var(--panel-strong);
+}
+
 .toolbar-panel-meta {
   display: flex;
   min-width: 0;
@@ -733,6 +750,10 @@ select {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.field--compact {
+  min-width: 220px;
 }
 
 .field-inline {
@@ -964,6 +985,14 @@ select {
   gap: 4px;
 }
 
+.workspace-inline-note__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .workspace-inline-note span {
   color: var(--panel-muted);
 }
@@ -1022,6 +1051,10 @@ select {
 .artifact-row--session {
   padding-top: 16px;
   padding-bottom: 16px;
+}
+
+.artifact-row--thread {
+  align-items: center;
 }
 
 .artifact-row--active {
@@ -1303,6 +1336,12 @@ select {
     flex-wrap: wrap;
   }
 
+  .toolbar-meta,
+  .thread-toolbar {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
   .hero-card,
   .canvas__body,
   .panel-header {
@@ -1310,6 +1349,11 @@ select {
   }
 
   .immersive-panel__controls {
+    justify-content: flex-start;
+  }
+
+  .workspace-inline-note__actions {
+    width: 100%;
     justify-content: flex-start;
   }
 }

@@ -2,8 +2,10 @@ import { dirname, join, relative } from 'node:path'
 import { statSync, writeFileSync } from 'node:fs'
 import {
   artifactDirectories,
+  getArtifactScopeId,
   sanitizeContextLabel,
   sanitizeOrigin,
+  sanitizeThreadId,
   type ArtifactRecord,
   type ArtifactType
 } from '@ai-workbench/core/desktop/workspace'
@@ -18,6 +20,7 @@ export interface SaveTextArtifactOptions {
   summary: string
   tags?: string[]
   contextLabel?: string
+  threadId?: string | null
   metadata?: Record<string, unknown>
   artifactId?: string | null
   fileName?: string
@@ -42,6 +45,13 @@ export function saveTextArtifactToWorkspace(
   const updatedAt = new Date().toISOString()
   const origin = sanitizeOrigin(options.origin || existingArtifact?.origin || 'manual')
   const contextLabel = sanitizeContextLabel(options.contextLabel ?? String(existingArtifact?.metadata?.contextLabel ?? ''))
+  const scopeId = `${origin}__${contextLabel}`
+  const threadId =
+    options.threadId?.trim()
+      ? sanitizeThreadId(options.threadId, scopeId)
+      : existingArtifact?.metadata?.threadId
+        ? sanitizeThreadId(String(existingArtifact.metadata.threadId), scopeId)
+        : null
 
   ensureDirectory(dirname(absolutePath))
   ensureDirectory(join(context.workspaceRoot, 'outputs', origin))
@@ -65,17 +75,33 @@ export function saveTextArtifactToWorkspace(
     metadata: {
       ...(existingArtifact?.metadata ?? {}),
       ...(options.metadata ?? {}),
-      contextLabel
+      contextLabel,
+      ...(threadId ? { threadId } : {})
     }
   }
 
+  const baseArtifacts = existingArtifact
+    ? manifest.artifacts.map((item) => (item.id === artifact.id ? artifact : item))
+    : [...manifest.artifacts, artifact]
+  const nextArtifacts = threadId
+    ? baseArtifacts.map((item) =>
+        getArtifactScopeId(item) === scopeId
+          ? {
+              ...item,
+              metadata: {
+                ...(item.metadata ?? {}),
+                contextLabel: sanitizeContextLabel(String(item.metadata?.contextLabel ?? contextLabel)),
+                threadId
+              }
+            }
+          : item
+      )
+    : baseArtifacts
   const nextManifest = {
     ...manifest,
     workspaceRoot: context.workspaceRoot,
     projectId: context.projectId,
-    artifacts: existingArtifact
-      ? manifest.artifacts.map((item) => (item.id === artifact.id ? artifact : item))
-      : [...manifest.artifacts, artifact]
+    artifacts: nextArtifacts
   }
 
   writeFileSync(context.manifestPath, JSON.stringify(nextManifest, null, 2), 'utf8')

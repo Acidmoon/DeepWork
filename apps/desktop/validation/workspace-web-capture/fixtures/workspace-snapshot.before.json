@@ -16,5 +16,10 @@
   "artifacts": [],
   "recentArtifacts": [],
   "lastSavedArtifactId": null,
-  "lastError": null
+  "lastError": null,
+  "threadIndexPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/thread-index.json",
+  "threadManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/threads",
+  "threads": [],
+  "activeThreadId": null,
+  "activeThreadTitle": null
 }

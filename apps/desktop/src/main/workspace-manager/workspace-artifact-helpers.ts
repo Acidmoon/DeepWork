@@ -6,7 +6,9 @@ import {
   type ArtifactRecord,
   type ArtifactType,
   type ContextIndexManifest,
+  type ThreadIndexManifest,
   artifactExtensions,
+  buildDerivedThreadId,
   sanitizeContextLabel,
   sanitizeOrigin
 } from '@ai-workbench/core/desktop/workspace'
@@ -271,10 +273,13 @@ export function toRetrievalAuditMetadata(
     panelId: sanitizeOrigin(String(entry.session?.panelId ?? 'manual')),
     launchCount: entry.session?.launchCount ?? null,
     contextLabel: sanitizeContextLabel(String(entry.session?.contextLabel ?? '')),
+    threadId: entry.session?.threadId ? sanitizeOrigin(String(entry.session.threadId)) : null,
+    threadTitle: entry.session?.threadTitle ?? null,
     sessionScopeId,
     retrievalQuery: entry.query,
     retrievalOutcome: entry.outcome,
     retrievalReason: entry.reason ?? null,
+    retrievalMode: entry.retrievalMode ?? null,
     selectedScopeId: entry.selectedScopeId ?? null,
     candidateScopeIds: entry.candidateScopeIds ?? [],
     latestAuditTimestamp: entry.timestamp,
@@ -300,4 +305,47 @@ export function safeReadContextIndex(path: string, workspaceRoot: string): Conte
       origins: []
     }
   }
+}
+
+export function safeReadThreadIndex(path: string, workspaceRoot: string): ThreadIndexManifest {
+  if (!existsSync(path)) {
+    return {
+      version: '1.0',
+      workspaceRoot,
+      activeThreadId: null,
+      threads: []
+    }
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as ThreadIndexManifest
+    return {
+      version: parsed.version ?? '1.0',
+      workspaceRoot,
+      activeThreadId: parsed.activeThreadId ? sanitizeOrigin(parsed.activeThreadId) : null,
+      threads: Array.isArray(parsed.threads) ? parsed.threads : []
+    }
+  } catch {
+    return {
+      version: '1.0',
+      workspaceRoot,
+      activeThreadId: null,
+      threads: []
+    }
+  }
+}
+
+export function createThreadId(seed: string): string {
+  const normalized = sanitizeOrigin(seed).slice(0, 48)
+  const suffix = Date.now().toString(36)
+  return normalized ? `thread-${normalized}-${suffix}` : `thread-${suffix}`
+}
+
+export function deriveThreadTitleFromSeed(seed: string | null | undefined, fallbackScopeId: string): string {
+  const trimmed = String(seed ?? '').replace(/\s+/g, ' ').trim()
+  if (trimmed) {
+    return trimmed.slice(0, 96)
+  }
+
+  return buildDerivedThreadId(fallbackScopeId).replace(/^thread-/, '').slice(0, 96)
 }

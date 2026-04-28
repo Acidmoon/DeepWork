@@ -72,7 +72,8 @@ app.whenReady().then(() => {
     (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
     (sessionScopeId) => {
       workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
-    }
+    },
+    (panelId, title) => workspaceManager?.ensureThreadForSession(panelId, title) ?? null
   )
   terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
 
@@ -121,6 +122,13 @@ app.whenReady().then(() => {
   ipcMain.handle('workspace:get-state', () => workspaceManager?.getSnapshot() ?? null)
   ipcMain.handle('workspace:read-artifact', (_event, artifactId: string) => workspaceManager?.readArtifactContent(artifactId) ?? null)
   ipcMain.handle('workspace:delete-scope', (_event, scopeId: string) => workspaceManager?.deleteScope(scopeId) ?? null)
+  ipcMain.handle('workspace:create-thread', (_event, title?: string | null) => workspaceManager?.createThread(title ?? null, true) ?? null)
+  ipcMain.handle('workspace:select-thread', (_event, threadId: string | null) => workspaceManager?.selectThread(threadId) ?? null)
+  ipcMain.handle('workspace:rename-thread', (_event, threadId: string, title: string) => workspaceManager?.renameThread(threadId, title) ?? null)
+  ipcMain.handle(
+    'workspace:reassign-scope-thread',
+    (_event, scopeId: string, threadId: string) => workspaceManager?.reassignScopeToThread(scopeId, threadId) ?? null
+  )
   ipcMain.handle('workspace:resync', async (_event, panelId?: string) => {
     await webPanelManager?.capturePersistedContexts(panelId)
     return workspaceManager?.getSnapshot() ?? null
@@ -199,7 +207,8 @@ app.whenReady().then(() => {
         (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
         (sessionScopeId) => {
           workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
-        }
+        },
+        (panelId, title) => workspaceManager?.ensureThreadForSession(panelId, title) ?? null
       )
       terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
     }

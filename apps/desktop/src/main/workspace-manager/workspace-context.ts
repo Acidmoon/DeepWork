@@ -4,6 +4,8 @@ export interface WorkspaceManifestContext {
   manifestPath: string
   contextIndexPath: string
   originManifestsPath: string
+  threadIndexPath: string
+  threadManifestsPath: string
 }
 
 export interface WorkspaceSnapshotContext extends WorkspaceManifestContext {

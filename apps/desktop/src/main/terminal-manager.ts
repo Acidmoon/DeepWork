@@ -32,6 +32,8 @@ interface ManagedSessionIdentity {
   launchCount: number
   contextLabel: string
   sessionScopeId: string
+  threadId: string | null
+  threadTitle: string | null
   retrievalAuditPath: string
   retrievalStatePath: string
 }
@@ -41,7 +43,8 @@ function createManagedSessionIdentity(
   panelId: string,
   title: string,
   launchCount: number,
-  contextLabel: string
+  contextLabel: string,
+  threadIdentity: { threadId: string; title: string } | null = null
 ): ManagedSessionIdentity {
   const sessionScopeId = `${sanitizeOrigin(panelId)}__${sanitizeContextLabel(contextLabel)}`
   const retrievalDirectory = join(workspaceRoot, 'logs', 'retrieval')
@@ -52,6 +55,8 @@ function createManagedSessionIdentity(
     launchCount,
     contextLabel,
     sessionScopeId,
+    threadId: threadIdentity?.threadId ?? null,
+    threadTitle: threadIdentity?.title ?? null,
     retrievalAuditPath: join(retrievalDirectory, `${sessionScopeId}.jsonl`),
     retrievalStatePath: join(retrievalDirectory, `${sessionScopeId}.pending.json`)
   }
@@ -71,6 +76,8 @@ function createWorkspaceBootstrap(
     AI_WORKBENCH_SESSION_LAUNCH_COUNT: sessionIdentity ? String(sessionIdentity.launchCount) : '',
     AI_WORKBENCH_SESSION_CONTEXT_LABEL: sessionIdentity?.contextLabel ?? '',
     AI_WORKBENCH_SESSION_SCOPE_ID: sessionIdentity?.sessionScopeId ?? '',
+    AI_WORKBENCH_THREAD_ID: sessionIdentity?.threadId ?? '',
+    AI_WORKBENCH_THREAD_TITLE: sessionIdentity?.threadTitle ?? '',
     AI_WORKBENCH_RETRIEVAL_AUDIT_PATH: sessionIdentity?.retrievalAuditPath ?? '',
     AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity?.retrievalStatePath ?? ''
   }
@@ -98,6 +105,8 @@ interface ManagedTerminalSession {
   captureArtifactId: string | null
   contextLabel: string | null
   sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
   retrievalAuditPath: string | null
   retrievalStatePath: string | null
 }
@@ -108,6 +117,7 @@ interface PersistTerminalTranscriptPayload {
   title: string
   launchCount: number
   contextLabel: string
+  threadId?: string | null
   content: string
 }
 
@@ -168,7 +178,8 @@ export class TerminalManager {
     customPanels: CustomTerminalPanelSettings[] = [],
     startupPreludeCommands: string[] = [],
     private readonly persistTerminalTranscript?: (payload: PersistTerminalTranscriptPayload) => string | null,
-    private readonly syncRetrievalAuditArtifacts?: (sessionScopeId?: string | null) => void
+    private readonly syncRetrievalAuditArtifacts?: (sessionScopeId?: string | null) => void,
+    private readonly resolveSessionThread?: (panelId: string, title: string) => { threadId: string; title: string } | null
   ) {
     this.workspaceRoot = defaultCwd
     this.globalStartupPreludeCommands = startupPreludeCommands
@@ -217,12 +228,14 @@ export class TerminalManager {
       const sessionToken = session.sessionToken + 1
       const nextLaunchCount = session.snapshot.launchCount + 1
       const contextLabel = `session-${String(nextLaunchCount).padStart(4, '0')}`
+      const threadIdentity = this.resolveSessionThread?.(session.config.id, session.config.title) ?? null
       const sessionIdentity = createManagedSessionIdentity(
         this.workspaceRoot,
         session.config.id,
         session.config.title,
         nextLaunchCount,
-        contextLabel
+        contextLabel,
+        threadIdentity
       )
       const env = {
         ...process.env,
@@ -233,6 +246,8 @@ export class TerminalManager {
         AI_WORKBENCH_SESSION_LAUNCH_COUNT: String(sessionIdentity.launchCount),
         AI_WORKBENCH_SESSION_CONTEXT_LABEL: sessionIdentity.contextLabel,
         AI_WORKBENCH_SESSION_SCOPE_ID: sessionIdentity.sessionScopeId,
+        AI_WORKBENCH_THREAD_ID: sessionIdentity.threadId ?? '',
+        AI_WORKBENCH_THREAD_TITLE: sessionIdentity.threadTitle ?? '',
         AI_WORKBENCH_RETRIEVAL_AUDIT_PATH: sessionIdentity.retrievalAuditPath,
         AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity.retrievalStatePath,
         ...session.config.env
@@ -254,6 +269,8 @@ export class TerminalManager {
       session.captureArtifactId = null
       session.contextLabel = contextLabel
       session.sessionScopeId = sessionIdentity.sessionScopeId
+      session.threadId = sessionIdentity.threadId
+      session.threadTitle = sessionIdentity.threadTitle
       session.retrievalAuditPath = sessionIdentity.retrievalAuditPath
       session.retrievalStatePath = sessionIdentity.retrievalStatePath
 
@@ -425,9 +442,23 @@ export class TerminalManager {
       if (session.ptyProcess) {
         const sessionCwd = session.config.cwd ?? workspaceRoot
         const sessionIdentity = session.contextLabel
-          ? createManagedSessionIdentity(workspaceRoot, session.config.id, session.config.title, session.snapshot.launchCount, session.contextLabel)
+          ? createManagedSessionIdentity(
+              workspaceRoot,
+              session.config.id,
+              session.config.title,
+              session.snapshot.launchCount,
+              session.contextLabel,
+              session.threadId && session.threadTitle
+                ? {
+                    threadId: session.threadId,
+                    title: session.threadTitle
+                  }
+                : null
+            )
           : null
         session.sessionScopeId = sessionIdentity?.sessionScopeId ?? null
+        session.threadId = sessionIdentity?.threadId ?? session.threadId
+        session.threadTitle = sessionIdentity?.threadTitle ?? session.threadTitle
         session.retrievalAuditPath = sessionIdentity?.retrievalAuditPath ?? null
         session.retrievalStatePath = sessionIdentity?.retrievalStatePath ?? null
         session.ptyProcess.write(`${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity)}\r`)
@@ -602,6 +633,8 @@ export class TerminalManager {
         captureArtifactId: null,
         contextLabel: null,
         sessionScopeId: null,
+        threadId: null,
+        threadTitle: null,
         retrievalAuditPath: null,
         retrievalStatePath: null
       })
@@ -670,6 +703,7 @@ export class TerminalManager {
         title: session.config.title,
         launchCount: session.snapshot.launchCount,
         contextLabel: session.contextLabel,
+        threadId: session.threadId,
         content: session.captureBuffer
       }) ?? session.captureArtifactId
   }

@@ -76,6 +76,12 @@ contextBridge.exposeInMainWorld('workbenchShell', {
     getState: () => ipcRenderer.invoke('workspace:get-state') as Promise<WorkspaceSnapshot | null>,
     readArtifact: (artifactId: string) => ipcRenderer.invoke('workspace:read-artifact', artifactId) as Promise<ArtifactContentPayload | null>,
     deleteScope: (scopeId: string) => ipcRenderer.invoke('workspace:delete-scope', scopeId) as Promise<WorkspaceSnapshot | null>,
+    createThread: (title?: string | null) => ipcRenderer.invoke('workspace:create-thread', title) as Promise<WorkspaceSnapshot | null>,
+    selectThread: (threadId: string | null) => ipcRenderer.invoke('workspace:select-thread', threadId) as Promise<WorkspaceSnapshot | null>,
+    renameThread: (threadId: string, title: string) =>
+      ipcRenderer.invoke('workspace:rename-thread', threadId, title) as Promise<WorkspaceSnapshot | null>,
+    reassignScopeThread: (scopeId: string, threadId: string) =>
+      ipcRenderer.invoke('workspace:reassign-scope-thread', scopeId, threadId) as Promise<WorkspaceSnapshot | null>,
     resync: (panelId?: string) => ipcRenderer.invoke('workspace:resync', panelId) as Promise<WorkspaceSnapshot | null>,
     chooseRoot: () => ipcRenderer.invoke('workspace:choose-root') as Promise<WorkspaceSnapshot | null>,
     saveClipboard: (options: SaveClipboardOptions) =>

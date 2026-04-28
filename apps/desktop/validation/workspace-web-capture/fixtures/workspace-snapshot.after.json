@@ -58,7 +58,8 @@
           "web"
         ],
         "scopeSummary": "Structured message index for Workspace sync regression chat. | Auto-captured web session from Workspace sync regression chat with 2 structured messages. Preview: Workspace Sync now triggers workspace:resync and persists the refreshed web context."
-      }
+      },
+      "threadId": "thread-workspace-sync"
     }
   ],
   "artifacts": [
@@ -87,7 +88,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
         "pageTitle": "Workspace sync regression chat",
         "messageCount": 2,
-        "contextLabel": "sync-regression-chat"
+        "contextLabel": "sync-regression-chat",
+        "threadId": "thread-workspace-sync"
       }
     },
     {
@@ -115,7 +117,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
         "pageTitle": "Workspace sync regression chat",
         "messageCount": 2,
-        "contextLabel": "sync-regression-chat"
+        "contextLabel": "sync-regression-chat",
+        "threadId": "thread-workspace-sync"
       }
     }
   ],
@@ -145,7 +148,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
         "pageTitle": "Workspace sync regression chat",
         "messageCount": 2,
-        "contextLabel": "sync-regression-chat"
+        "contextLabel": "sync-regression-chat",
+        "threadId": "thread-workspace-sync"
       }
     },
     {
@@ -173,10 +177,42 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/sync-regression-chat",
         "pageTitle": "Workspace sync regression chat",
         "messageCount": 2,
-        "contextLabel": "sync-regression-chat"
+        "contextLabel": "sync-regression-chat",
+        "threadId": "thread-workspace-sync"
       }
     }
   ],
   "lastSavedArtifactId": null,
-  "lastError": null
+  "lastError": null,
+  "threadIndexPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/thread-index.json",
+  "threadManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/threads",
+  "activeThreadId": "thread-workspace-sync",
+  "activeThreadTitle": "Workspace Sync Thread",
+  "threads": [
+    {
+      "threadId": "thread-workspace-sync",
+      "title": "Workspace Sync Thread",
+      "derived": false,
+      "scopeIds": [
+        "deepseek-web__sync-regression-chat"
+      ],
+      "artifactIds": [
+        "json_2002",
+        "markdown_2001"
+      ],
+      "scopeCount": 1,
+      "artifactCount": 2,
+      "latestArtifactId": "json_2002",
+      "latestUpdatedAt": "2026-04-28T09:13:26.000Z",
+      "originHints": [
+        "deepseek-web"
+      ],
+      "searchTerms": [
+        "thread-workspace-sync",
+        "workspace sync thread",
+        "deepseek-web__sync-regression-chat"
+      ],
+      "summary": "Structured message index for Workspace sync regression chat. | Auto-captured web session from Workspace sync regression chat with 2 structured messages."
+    }
+  ]
 }

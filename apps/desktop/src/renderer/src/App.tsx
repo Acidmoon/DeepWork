@@ -1,7 +1,13 @@
 import { startTransition, useEffect, useState, type MouseEvent } from 'react'
 import { getStateLabel, getUiText, localizePanelDefinition, localizeSection, resolveLocale } from './i18n'
 import { PanelContent } from './panel-content'
-import { getSectionPanels, type ManagedPanel, type NavigationSection, type PanelState } from '@ai-workbench/core/desktop/panels'
+import {
+  getSectionPanels,
+  type ManagedPanel,
+  type NavigationSection,
+  type PanelState,
+  type WorkspacePanelViewState
+} from '@ai-workbench/core/desktop/panels'
 import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
 import { asTerminalViewState, asWebViewState, asWorkspaceViewState, useWorkbenchStore } from './store'
 import { getWebPanelUrlValidationMessage, validateWebPanelUrl } from './web-panel-url'
@@ -19,6 +25,10 @@ function App(): JSX.Element {
   const syncTerminalPanelState = useWorkbenchStore((state) => state.syncTerminalPanelState)
   const syncWorkspaceState = useWorkbenchStore((state) => state.syncWorkspaceState)
   const syncSettingsState = useWorkbenchStore((state) => state.syncSettingsState)
+  const sharedWorkspaceState = useWorkbenchStore((state) => {
+    const workspacePanel = state.panels.artifacts
+    return workspacePanel?.viewState.kind === 'workspace' ? workspacePanel.viewState : null
+  })
   const themePreference = useWorkbenchStore((state) =>
     state.panels.settings?.viewState.kind === 'settings' ? state.panels.settings.viewState.theme : 'system'
   )
@@ -336,6 +346,9 @@ function App(): JSX.Element {
                 )}
                 <div className="toolbar-meta">
                   {activeWorkspaceState ? <WorkspacePanelActions panel={activePanel} locale={locale} /> : null}
+                  {activeWebState || activeTerminalState ? (
+                    <ThreadToolbarControls locale={locale} workspaceState={sharedWorkspaceState} />
+                  ) : null}
                   {!activeWebState && !activeTerminalState ? (
                     <button
                       type="button"
@@ -755,6 +768,65 @@ function WorkspacePanelActions({
         {ui.saveClipboard}
       </button>
     </>
+  )
+}
+
+function ThreadToolbarControls({
+  locale,
+  workspaceState
+}: {
+  locale: ReturnType<typeof resolveLocale>
+  workspaceState: WorkspacePanelViewState | null
+}): JSX.Element | null {
+  const ui = getUiText(locale)
+
+  if (!workspaceState) {
+    return null
+  }
+
+  const activeThread = workspaceState.threads.find((thread) => thread.threadId === workspaceState.activeThreadId) ?? null
+
+  const syncSnapshot = (snapshot: Awaited<ReturnType<typeof window.workbenchShell.workspace.selectThread>>): void => {
+    if (snapshot) {
+      useWorkbenchStore.getState().syncWorkspaceState(snapshot)
+    }
+  }
+
+  return (
+    <div className="thread-toolbar">
+      <span className="mini-pill">
+        {ui.activeThread}: {activeThread?.title ?? ui.noActiveThread}
+      </span>
+      <select
+        className="thread-select"
+        aria-label={ui.activeThread}
+        value={workspaceState.activeThreadId ?? ''}
+        onChange={async (event) => {
+          syncSnapshot(await window.workbenchShell.workspace.selectThread(event.target.value || null))
+        }}
+      >
+        <option value="">{ui.noActiveThread}</option>
+        {workspaceState.threads.map((thread) => (
+          <option key={thread.threadId} value={thread.threadId}>
+            {thread.title}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="action-button action-button--ghost action-button--compact"
+        onClick={async () => {
+          const requestedTitle = window.prompt(ui.threadCreatePrompt, activeThread?.title ?? '')
+          if (requestedTitle === null) {
+            return
+          }
+
+          syncSnapshot(await window.workbenchShell.workspace.createThread(requestedTitle.trim() || null))
+        }}
+      >
+        {ui.threadCreate}
+      </button>
+    </div>
   )
 }
 

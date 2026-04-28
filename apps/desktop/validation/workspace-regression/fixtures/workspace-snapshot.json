@@ -50,7 +50,8 @@
           "captured"
         ],
         "scopeSummary": "Codex CLI transcript captured from session 1."
-      }
+      },
+      "threadId": "thread-release-planning"
     },
     {
       "origin": "deepseek-web",
@@ -101,7 +102,8 @@
           "用户询问数字111含义"
         ],
         "scopeSummary": "Structured message index for 用户询问数字111含义 - DeepSeek. | Auto-captured web session from 用户询问数字111含义 - DeepSeek with 1 structured messages."
-      }
+      },
+      "threadId": "thread-release-planning"
     },
     {
       "origin": "minimax-web",
@@ -142,7 +144,8 @@
           "无限可能"
         ],
         "scopeSummary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能."
-      }
+      },
+      "threadId": "thread-side-research"
     }
   ],
   "artifacts": [
@@ -171,7 +174,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
         "pageTitle": "用户询问数字111含义 - DeepSeek",
         "messageCount": 1,
-        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+        "contextLabel": "a-chat-s-9b9f89a2-ceff",
+        "threadId": "thread-release-planning"
       }
     },
     {
@@ -199,7 +203,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
         "pageTitle": "用户询问数字111含义 - DeepSeek",
         "messageCount": 1,
-        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+        "contextLabel": "a-chat-s-9b9f89a2-ceff",
+        "threadId": "thread-release-planning"
       }
     },
     {
@@ -224,7 +229,8 @@
         "captureMode": "auto-terminal-transcript",
         "panelId": "codex-cli",
         "launchCount": 1,
-        "contextLabel": "session-0001"
+        "contextLabel": "session-0001",
+        "threadId": "thread-release-planning"
       }
     },
     {
@@ -252,7 +258,8 @@
         "sourceUrl": "https://agent.minimaxi.com/",
         "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
         "messageCount": 0,
-        "contextLabel": "minimax-agent"
+        "contextLabel": "minimax-agent",
+        "threadId": "thread-side-research"
       }
     },
     {
@@ -280,7 +287,8 @@
         "sourceUrl": "https://agent.minimaxi.com/",
         "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
         "messageCount": 0,
-        "contextLabel": "minimax-agent"
+        "contextLabel": "minimax-agent",
+        "threadId": "thread-side-research"
       }
     }
   ],
@@ -310,7 +318,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
         "pageTitle": "用户询问数字111含义 - DeepSeek",
         "messageCount": 1,
-        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+        "contextLabel": "a-chat-s-9b9f89a2-ceff",
+        "threadId": "thread-release-planning"
       }
     },
     {
@@ -338,7 +347,8 @@
         "sourceUrl": "https://chat.deepseek.com/a/chat/s/9b9f89a2-ceff-4ee4-a4be-5a7c8984af0d",
         "pageTitle": "用户询问数字111含义 - DeepSeek",
         "messageCount": 1,
-        "contextLabel": "a-chat-s-9b9f89a2-ceff"
+        "contextLabel": "a-chat-s-9b9f89a2-ceff",
+        "threadId": "thread-release-planning"
       }
     },
     {
@@ -363,7 +373,8 @@
         "captureMode": "auto-terminal-transcript",
         "panelId": "codex-cli",
         "launchCount": 1,
-        "contextLabel": "session-0001"
+        "contextLabel": "session-0001",
+        "threadId": "thread-release-planning"
       }
     },
     {
@@ -391,7 +402,8 @@
         "sourceUrl": "https://agent.minimaxi.com/",
         "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
         "messageCount": 0,
-        "contextLabel": "minimax-agent"
+        "contextLabel": "minimax-agent",
+        "threadId": "thread-side-research"
       }
     },
     {
@@ -419,10 +431,71 @@
         "sourceUrl": "https://agent.minimaxi.com/",
         "pageTitle": "MiniMax Agent: 简单指令, 无限可能",
         "messageCount": 0,
-        "contextLabel": "minimax-agent"
+        "contextLabel": "minimax-agent",
+        "threadId": "thread-side-research"
       }
     }
   ],
   "lastSavedArtifactId": null,
-  "lastError": null
+  "lastError": null,
+  "threadIndexPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/thread-index.json",
+  "threadManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/threads",
+  "activeThreadId": "thread-release-planning",
+  "activeThreadTitle": "Release Planning Thread",
+  "threads": [
+    {
+      "threadId": "thread-release-planning",
+      "title": "Release Planning Thread",
+      "derived": false,
+      "scopeIds": [
+        "codex-cli__session-0001",
+        "deepseek-web__a-chat-s-9b9f89a2-ceff"
+      ],
+      "artifactIds": [
+        "log_0010",
+        "json_0006",
+        "markdown_0016"
+      ],
+      "scopeCount": 2,
+      "artifactCount": 3,
+      "latestArtifactId": "log_0010",
+      "latestUpdatedAt": "2026-04-26T12:54:01.511Z",
+      "originHints": [
+        "codex-cli",
+        "deepseek-web"
+      ],
+      "searchTerms": [
+        "thread-release-planning",
+        "release planning thread",
+        "codex-cli__session-0001",
+        "deepseek-web__a-chat-s-9b9f89a2-ceff"
+      ],
+      "summary": "Codex CLI transcript captured from session 1. | Structured message index for 用户询问数字111含义 - DeepSeek."
+    },
+    {
+      "threadId": "thread-side-research",
+      "title": "Side Research Thread",
+      "derived": false,
+      "scopeIds": [
+        "minimax-web__minimax-agent"
+      ],
+      "artifactIds": [
+        "markdown_0015",
+        "markdown_0014"
+      ],
+      "scopeCount": 1,
+      "artifactCount": 2,
+      "latestArtifactId": "markdown_0015",
+      "latestUpdatedAt": "2026-04-26T12:52:45.168Z",
+      "originHints": [
+        "minimax-web"
+      ],
+      "searchTerms": [
+        "thread-side-research",
+        "side research thread",
+        "minimax-web__minimax-agent"
+      ],
+      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能."
+    }
+  ]
 }

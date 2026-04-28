@@ -71,7 +71,138 @@ function buildBootstrapScript(payload) {
   const payload = ${serialized}
   await page.setViewportSize({ width: 1440, height: 1200 })
   await page.addInitScript((injected) => {
+    const clone = value => JSON.parse(JSON.stringify(value))
     const workspaceRoot = injected.workspaceRoot
+    let currentSnapshot = clone(injected.snapshot)
+    let currentContents = clone(injected.contents)
+    const workspaceListeners = new Set()
+    const promptQueue = []
+    let threadCounter = (currentSnapshot.threads ?? []).length
+    const threadRegistry = new Map((currentSnapshot.threads ?? []).map(thread => [
+      thread.threadId,
+      {
+        title: thread.title,
+        derived: Boolean(thread.derived)
+      }
+    ]))
+
+    const sanitize = value => String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-')
+    const sanitizeContextLabel = value => {
+      const normalized = String(value ?? '').trim()
+      return normalized ? normalized.toLowerCase().replace(/[^a-z0-9-_]+/g, '-') : 'default-context'
+    }
+    const getArtifactScopeId = artifact => {
+      const origin = sanitize(artifact.origin || 'manual') || 'manual'
+      return \`\${origin}__\${sanitizeContextLabel(artifact.metadata?.contextLabel)}\`
+    }
+    const deriveThreadTitle = threadId => threadId.replace(/^thread-/, '').replace(/[-_]+/g, ' ').trim() || threadId
+
+    const publishWorkspaceSnapshot = () => {
+      const snapshot = clone(currentSnapshot)
+      for (const listener of workspaceListeners) {
+        listener(snapshot)
+      }
+      return snapshot
+    }
+
+    const rebuildThreadState = () => {
+      const scopeArtifacts = new Map()
+      for (const artifact of currentSnapshot.artifacts) {
+        const scopeId = getArtifactScopeId(artifact)
+        const items = scopeArtifacts.get(scopeId) ?? []
+        items.push(artifact)
+        scopeArtifacts.set(scopeId, items)
+      }
+
+      for (const entry of currentSnapshot.contextEntries) {
+        const fallbackThreadId = \`thread-\${sanitize(entry.scopeId)}\`
+        entry.threadId = sanitize(entry.threadId || fallbackThreadId) || fallbackThreadId
+        if (!threadRegistry.has(entry.threadId)) {
+          threadRegistry.set(entry.threadId, {
+            title: deriveThreadTitle(entry.threadId),
+            derived: true
+          })
+        }
+      }
+
+      const scopeThreadMap = new Map(currentSnapshot.contextEntries.map(entry => [entry.scopeId, entry.threadId]))
+      const normalizeArtifactThread = artifact => {
+        const scopeId = getArtifactScopeId(artifact)
+        const threadId = scopeThreadMap.get(scopeId) ?? sanitize(artifact.metadata?.threadId) ?? \`thread-\${sanitize(scopeId)}\`
+        return {
+          ...artifact,
+          metadata: {
+            ...(artifact.metadata ?? {}),
+            threadId
+          }
+        }
+      }
+
+      currentSnapshot.artifacts = currentSnapshot.artifacts.map(normalizeArtifactThread)
+      currentSnapshot.recentArtifacts = currentSnapshot.recentArtifacts.map(normalizeArtifactThread)
+
+      const threadIds = new Set([
+        ...Array.from(threadRegistry.keys()),
+        ...currentSnapshot.contextEntries.map(entry => entry.threadId)
+      ])
+
+      currentSnapshot.threads = Array.from(threadIds).map(threadId => {
+        const scopeIds = currentSnapshot.contextEntries
+          .filter(entry => entry.threadId === threadId)
+          .map(entry => entry.scopeId)
+        const artifacts = currentSnapshot.artifacts
+          .filter(artifact => scopeIds.includes(getArtifactScopeId(artifact)))
+          .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
+        const meta = threadRegistry.get(threadId) ?? {
+          title: deriveThreadTitle(threadId),
+          derived: true
+        }
+
+        return {
+          threadId,
+          title: meta.title,
+          derived: meta.derived,
+          scopeIds,
+          artifactIds: artifacts.map(artifact => artifact.id),
+          scopeCount: scopeIds.length,
+          artifactCount: artifacts.length,
+          latestArtifactId: artifacts[0]?.id ?? null,
+          latestUpdatedAt: artifacts[0]?.updatedAt ?? null,
+          originHints: Array.from(new Set(artifacts.map(artifact => artifact.origin))),
+          searchTerms: Array.from(new Set([threadId, meta.title, ...scopeIds])),
+          summary: artifacts.slice(0, 2).map(artifact => artifact.summary).join(' | ')
+        }
+      }).sort((left, right) => String(right.latestUpdatedAt ?? '').localeCompare(String(left.latestUpdatedAt ?? '')))
+
+      if (!currentSnapshot.threads.some(thread => thread.threadId === currentSnapshot.activeThreadId)) {
+        currentSnapshot.activeThreadId = currentSnapshot.threads[0]?.threadId ?? null
+      }
+      currentSnapshot.activeThreadTitle =
+        currentSnapshot.threads.find(thread => thread.threadId === currentSnapshot.activeThreadId)?.title ?? null
+      currentSnapshot.threadIndexPath = currentSnapshot.threadIndexPath ?? \`\${workspaceRoot}/manifests/thread-index.json\`
+      currentSnapshot.threadManifestsPath = currentSnapshot.threadManifestsPath ?? \`\${workspaceRoot}/manifests/threads\`
+    }
+
+    rebuildThreadState()
+
+    window.__workspaceRegressionValidation = {
+      enqueuePrompts: (...responses) => {
+        promptQueue.push(...responses)
+      },
+      getState: () => clone({
+        snapshot: currentSnapshot,
+        contents: currentContents
+      })
+    }
+
+    window.prompt = (_message, defaultValue = '') => {
+      if (promptQueue.length > 0) {
+        return promptQueue.shift()
+      }
+
+      return defaultValue
+    }
+
     window.workbenchShell = {
       versions: { electron: 'test', chrome: 'test', node: 'test' },
       clipboard: { writeText() {}, readText() { return '' } },
@@ -96,15 +227,78 @@ function buildBootstrapScript(payload) {
         onStateChanged() { return () => {} }
       },
       workspace: {
-        getState: async () => injected.snapshot,
+        getState: async () => clone(currentSnapshot),
         readArtifact: async artifactId => {
-          const artifact = injected.snapshot.artifacts.find(item => item.id === artifactId)
-          return artifact ? { artifact, content: injected.contents[artifactId] ?? '' } : null
+          const artifact = currentSnapshot.artifacts.find(item => item.id === artifactId)
+          return artifact ? { artifact, content: currentContents[artifactId] ?? '' } : null
         },
-        deleteScope: async () => injected.snapshot,
-        chooseRoot: async () => injected.snapshot,
-        saveClipboard: async () => ({ snapshot: injected.snapshot, artifact: null }),
-        onStateChanged() { return () => {} }
+        deleteScope: async scopeId => {
+          currentSnapshot.contextEntries = currentSnapshot.contextEntries.filter(entry => entry.scopeId !== scopeId)
+          currentSnapshot.artifacts = currentSnapshot.artifacts.filter(artifact => getArtifactScopeId(artifact) !== scopeId)
+          currentSnapshot.recentArtifacts = currentSnapshot.recentArtifacts.filter(artifact => getArtifactScopeId(artifact) !== scopeId)
+          currentSnapshot.artifactCount = currentSnapshot.artifacts.length
+          rebuildThreadState()
+          publishWorkspaceSnapshot()
+          return clone(currentSnapshot)
+        },
+        createThread: async title => {
+          threadCounter += 1
+          const threadId = \`thread-validation-\${String(threadCounter).padStart(2, '0')}\`
+          threadRegistry.set(threadId, {
+            title: String(title ?? '').trim() || \`Validation Thread \${threadCounter}\`,
+            derived: false
+          })
+          currentSnapshot.activeThreadId = threadId
+          rebuildThreadState()
+          publishWorkspaceSnapshot()
+          return clone(currentSnapshot)
+        },
+        selectThread: async threadId => {
+          currentSnapshot.activeThreadId = threadId || null
+          rebuildThreadState()
+          publishWorkspaceSnapshot()
+          return clone(currentSnapshot)
+        },
+        renameThread: async (threadId, title) => {
+          const normalizedThreadId = sanitize(threadId)
+          const existing = threadRegistry.get(normalizedThreadId) ?? {
+            title: deriveThreadTitle(normalizedThreadId),
+            derived: false
+          }
+          threadRegistry.set(normalizedThreadId, {
+            ...existing,
+            title: String(title ?? '').trim() || existing.title,
+            derived: false
+          })
+          rebuildThreadState()
+          publishWorkspaceSnapshot()
+          return clone(currentSnapshot)
+        },
+        reassignScopeThread: async (scopeId, threadId) => {
+          const normalizedThreadId = sanitize(threadId)
+          if (!threadRegistry.has(normalizedThreadId)) {
+            threadRegistry.set(normalizedThreadId, {
+              title: deriveThreadTitle(normalizedThreadId),
+              derived: false
+            })
+          }
+          currentSnapshot.contextEntries = currentSnapshot.contextEntries.map(entry =>
+            entry.scopeId === scopeId ? { ...entry, threadId: normalizedThreadId } : entry
+          )
+          currentSnapshot.activeThreadId = normalizedThreadId
+          rebuildThreadState()
+          publishWorkspaceSnapshot()
+          return clone(currentSnapshot)
+        },
+        resync: async () => clone(currentSnapshot),
+        chooseRoot: async () => clone(currentSnapshot),
+        saveClipboard: async () => ({ snapshot: clone(currentSnapshot), artifact: null }),
+        onStateChanged(listener) {
+          workspaceListeners.add(listener)
+          return () => {
+            workspaceListeners.delete(listener)
+          }
+        }
       },
       settings: {
         getState: async () => ({

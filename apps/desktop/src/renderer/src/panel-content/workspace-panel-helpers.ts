@@ -48,6 +48,7 @@ export function buildSessionSearchText(entry: ContextIndexEntry, artifacts: Arti
     entry.origin,
     entry.contextLabel,
     entry.scopeId,
+    entry.threadId,
     entry.retrieval.scopeSummary,
     entry.retrieval.latestArtifactSummary,
     entry.retrieval.latestArtifactType,

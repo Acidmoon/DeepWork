@@ -3,7 +3,7 @@ import { getTerminalPanelConfig } from './terminal-panels'
 import type { TerminalPanelSnapshot, TerminalPanelStatus } from './terminal-panels'
 import { getWebPanelConfig } from './web-panels'
 import type { WebPanelSnapshot } from './web-panels'
-import type { ArtifactRecord, ContextIndexEntry, WorkspaceSnapshot } from './workspace'
+import type { ArtifactRecord, ContextIndexEntry, ContextThreadSummary, WorkspaceSnapshot } from './workspace'
 
 export type PanelKind = 'home' | 'web' | 'terminal' | 'workspace' | 'tool' | 'settings'
 
@@ -86,11 +86,16 @@ export interface WorkspacePanelViewState {
   manifestPath: string
   contextIndexPath: string
   originManifestsPath: string
+  threadIndexPath: string
+  threadManifestsPath: string
   rulesPath: string
   initialized: boolean
   artifactCount: number
   bucketCounts: Record<string, number>
   contextEntries: ContextIndexEntry[]
+  threads: ContextThreadSummary[]
+  activeThreadId: string | null
+  activeThreadTitle: string | null
   artifacts: ArtifactRecord[]
   recentArtifacts: ArtifactRecord[]
   lastSavedArtifactId: string | null
@@ -384,6 +389,8 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         manifestPath: '',
         contextIndexPath: '',
         originManifestsPath: '',
+        threadIndexPath: '',
+        threadManifestsPath: '',
         rulesPath: '',
         initialized: false,
         artifactCount: 0,
@@ -393,6 +400,9 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
           'logs/': 0
         },
         contextEntries: [],
+        threads: [],
+        activeThreadId: null,
+        activeThreadTitle: null,
         artifacts: [],
         recentArtifacts: [],
         lastSavedArtifactId: null,
