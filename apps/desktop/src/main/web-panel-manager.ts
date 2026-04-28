@@ -638,9 +638,13 @@ export class WebPanelManager {
 
     view.webContents.on('page-title-updated', (event, title) => {
       event.preventDefault()
+      const fallbackTitle =
+        this.configs.get(panel.snapshot.panelId)?.title ??
+        getWebPanelConfig(panel.snapshot.panelId)?.title ??
+        panel.snapshot.title
       panel.snapshot = {
         ...panel.snapshot,
-        title: title || config.title
+        title: title || fallbackTitle
       }
       this.scheduleContextCapture(panel)
       this.publish(panel.snapshot)
