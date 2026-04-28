@@ -4,6 +4,7 @@ import { PanelContent } from './panel-content'
 import { getSectionPanels, type ManagedPanel, type NavigationSection, type PanelState } from '@ai-workbench/core/desktop/panels'
 import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
 import { asTerminalViewState, asWebViewState, asWorkspaceViewState, useWorkbenchStore } from './store'
+import { getWebPanelUrlValidationMessage, validateWebPanelUrl } from './web-panel-url'
 
 function App(): JSX.Element {
   const sections = useWorkbenchStore((state) => state.sections)
@@ -113,17 +114,10 @@ function App(): JSX.Element {
     const count = settings.customWebPanels.filter((panel) => panel.sectionId === sectionId).length + 1
     const id = `custom-web-${Date.now().toString(36)}`
     const section = localizeSection(sections.find((item) => item.id === sectionId) ?? sections[0], locale)
-    const requestedUrl = window.prompt(ui.customWebUrlPrompt, 'https://example.com/')
-    if (requestedUrl === null) {
+    const homeUrl = promptForCustomWebHomeUrl(locale)
+    if (!homeUrl) {
       return
     }
-
-    const trimmedUrl = requestedUrl.trim()
-    if (!trimmedUrl) {
-      return
-    }
-
-    const homeUrl = normalizeCustomWebUrl(trimmedUrl)
     const titleFromUrl = deriveCustomWebTitle(homeUrl)
     const title = titleFromUrl || (locale === 'zh-CN' ? `${section.title}${ui.customWebTitle}${count}` : `${section.title} ${ui.customWebTitle} ${count}`)
 
@@ -315,8 +309,9 @@ function App(): JSX.Element {
             <div className="canvas__frame">
               <div className="canvas__toolbar">
                 {activeWebState ? (
-                  <div className="toolbar-nav toolbar-nav--compact">
+                  <div className="toolbar-nav">
                     <WebPanelActions panel={activePanel} />
+                    <WebPanelAddressBar panel={activePanel} locale={locale} updatePanelViewState={updatePanelViewState} />
                     <WebPanelQuickActions
                       panel={activePanel}
                       locale={locale}
@@ -410,16 +405,6 @@ function App(): JSX.Element {
   )
 }
 
-function normalizeCustomWebUrl(rawUrl: string): string {
-  const normalized = rawUrl.trim()
-
-  if (/^https?:\/\//i.test(normalized)) {
-    return normalized
-  }
-
-  return `https://${normalized}`
-}
-
 function deriveCustomWebTitle(url: string): string {
   try {
     const parsed = new URL(url)
@@ -510,6 +495,79 @@ function SidebarSection({
 
 function StatusPill({ state, locale }: { state: PanelState; locale: ReturnType<typeof resolveLocale> }): JSX.Element {
   return <span className={`state-pill state-pill--${state}`}>{getStateLabel(state, locale)}</span>
+}
+
+function WebPanelAddressBar({
+  panel,
+  locale,
+  updatePanelViewState
+}: {
+  panel: ManagedPanel
+  locale: ReturnType<typeof resolveLocale>
+  updatePanelViewState: (panelId: string, viewState: ManagedPanel['viewState']) => void
+}): JSX.Element {
+  const state = asWebViewState(panel.viewState)
+  const ui = getUiText(locale)
+  const [draftUrl, setDraftUrl] = useState(state.currentUrl)
+
+  useEffect(() => {
+    setDraftUrl(state.currentUrl)
+  }, [panel.definition.id, state.currentUrl])
+
+  const navigateToDraftUrl = (): void => {
+    const result = validateWebPanelUrl(draftUrl)
+    if (!result.ok || !result.url) {
+      updatePanelViewState(panel.definition.id, {
+        ...state,
+        lastError: getWebPanelUrlValidationMessage(result.error, locale)
+      })
+      return
+    }
+
+    setDraftUrl(result.url)
+    updatePanelViewState(panel.definition.id, {
+      ...state,
+      lastError: null
+    })
+
+    if (result.url === state.currentUrl) {
+      return
+    }
+
+    void window.workbenchShell.webPanels.navigate(panel.definition.id, 'load-url', result.url)
+  }
+
+  return (
+    <>
+      <div className={`toolbar-address${!state.enabled ? ' toolbar-address--static' : ''}`}>
+        <span className="toolbar-address__origin">{state.enabled ? ui.address : ui.reserved}</span>
+        <input
+          aria-label={ui.address}
+          disabled={!state.enabled}
+          value={draftUrl}
+          onChange={(event) => {
+            setDraftUrl(event.target.value)
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') {
+              return
+            }
+
+            event.preventDefault()
+            navigateToDraftUrl()
+          }}
+        />
+      </div>
+      <button
+        type="button"
+        className="action-button action-button--compact"
+        disabled={!state.enabled}
+        onClick={navigateToDraftUrl}
+      >
+        {ui.go}
+      </button>
+    </>
+  )
 }
 
 function WebPanelActions({ panel }: { panel: ManagedPanel }): JSX.Element {
@@ -710,4 +768,25 @@ function getPanelBadge(title: string): string {
     .join('')
 
   return compact || 'AI'
+}
+
+function promptForCustomWebHomeUrl(locale: ReturnType<typeof resolveLocale>, initialValue = 'https://example.com/'): string | null {
+  const ui = getUiText(locale)
+  let promptLabel: string = ui.customWebUrlPrompt
+  let nextValue: string = initialValue
+
+  while (true) {
+    const requestedUrl = window.prompt(promptLabel, nextValue)
+    if (requestedUrl === null) {
+      return null
+    }
+
+    const result = validateWebPanelUrl(requestedUrl)
+    if (result.ok && result.url) {
+      return result.url
+    }
+
+    promptLabel = `${ui.customWebUrlPrompt}\n\n${getWebPanelUrlValidationMessage(result.error, locale)}`
+    nextValue = requestedUrl.trim() || initialValue
+  }
 }

@@ -32,7 +32,7 @@ The renderer SHALL organize the workbench into stable navigation sections and pa
 - **THEN** the renderer selects another visible panel, preferring `home` when needed
 
 ### Requirement: Managed web panel lifecycle
-Enabled built-in and user-defined web panels SHALL run as main-process-managed `WebContentsView` instances with navigation state synchronization, safe URL restrictions, persisted configuration handoff, and explicit reserved behavior for disabled panels.
+Enabled built-in and user-defined web panels SHALL run as main-process-managed `WebContentsView` instances with navigation state synchronization, safe URL restrictions, persisted configuration handoff, browser-like current-address loading for safe targets, and explicit reserved behavior for disabled panels.
 
 #### Scenario: Show an enabled web panel
 - **WHEN** the renderer opens an enabled web panel
@@ -44,6 +44,12 @@ Enabled built-in and user-defined web panels SHALL run as main-process-managed `
 - **WHEN** a user-defined web panel is restored from persisted settings and selected in navigation
 - **THEN** the main process resolves the stored home URL and partition for that panel
 - **THEN** it mounts a live `WebContentsView` without requiring a built-in provider slot
+- **THEN** the initial current address matches the stored home URL until the user browses elsewhere
+
+#### Scenario: Load a safe arbitrary address in a custom web panel
+- **WHEN** the user enters an HTTP or HTTPS target for a custom web panel and requests navigation
+- **THEN** the main process loads that target without recreating the panel definition
+- **THEN** the panel snapshot updates `currentUrl`, loading state, and back-forward navigation state to reflect the new page
 
 #### Scenario: Access a disabled web panel
 - **WHEN** the renderer requests state for a disabled web panel
@@ -67,4 +73,3 @@ Built-in CLI panels SHALL run as PTY-backed terminal sessions owned by the main 
 - **WHEN** the renderer starts or restarts a terminal panel
 - **THEN** the main process creates or recreates the PTY session with the configured shell, arguments, and startup command
 - **THEN** session state and terminal output are streamed back through IPC
-

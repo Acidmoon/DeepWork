@@ -189,10 +189,15 @@ function syncCustomWebPanelViewState(existingPanel: ManagedPanel | undefined, co
     return createCustomWebPanelViewState(config)
   }
 
+  const shouldAdoptHomeUrlAsCurrent =
+    !config.enabled ||
+    existingPanel.viewState.currentUrl === existingPanel.viewState.homeUrl ||
+    !existingPanel.hasBeenOpened
+
   return {
     ...existingPanel.viewState,
     homeUrl: config.homeUrl,
-    currentUrl: config.enabled ? existingPanel.viewState.currentUrl : config.homeUrl,
+    currentUrl: shouldAdoptHomeUrlAsCurrent ? config.homeUrl : existingPanel.viewState.currentUrl,
     partition: config.partition,
     title: config.title,
     enabled: config.enabled,

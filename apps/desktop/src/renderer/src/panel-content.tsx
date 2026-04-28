@@ -23,6 +23,7 @@ import {
 } from './store'
 import type { ManagedPanel, SettingsPanelViewState } from '@ai-workbench/core/desktop/panels'
 import { getArtifactScopeId, type ArtifactRecord, type ContextIndexEntry } from '@ai-workbench/core/desktop/workspace'
+import { getWebPanelUrlValidationMessage, validateWebPanelUrl } from './web-panel-url'
 
 export function PanelContent({ panel }: { panel: ManagedPanel }): JSX.Element {
   const locale = useWorkbenchStore((state) =>
@@ -117,21 +118,25 @@ function WebPanel({ panel, locale }: { panel: ManagedPanel; locale: ReturnType<t
   }, [panel.definition.id, syncWebPanelState])
 
   const persistConfig = async (enabled: boolean): Promise<void> => {
-    const normalizedHomeUrl = toNavigableUrl(state.homeUrl)
-    if (!normalizedHomeUrl) {
+    const homeUrlResult = validateWebPanelUrl(state.homeUrl)
+    if (!homeUrlResult.ok || !homeUrlResult.url) {
+      updatePanelViewState(panel.definition.id, {
+        ...state,
+        lastError: getWebPanelUrlValidationMessage(homeUrlResult.error, locale)
+      })
       return
     }
 
+    const normalizedHomeUrl = homeUrlResult.url
     const normalizedPartition = state.partition.trim() || `persist:${panel.definition.id}`
-    const normalizedCurrentUrl = enabled ? toNavigableUrl(state.currentUrl) || normalizedHomeUrl : normalizedHomeUrl
 
     updatePanelViewState(panel.definition.id, {
       ...state,
       enabled,
       homeUrl: normalizedHomeUrl,
-      currentUrl: normalizedCurrentUrl,
       partition: normalizedPartition,
-      sessionPersisted: normalizedPartition.startsWith('persist:')
+      sessionPersisted: normalizedPartition.startsWith('persist:'),
+      lastError: enabled ? null : state.lastError
     })
 
     const snapshot = await window.workbenchShell.webPanels.updateConfig(panel.definition.id, {
@@ -294,45 +299,6 @@ function WebPanel({ panel, locale }: { panel: ManagedPanel; locale: ReturnType<t
                     })
                   }
                 />
-              </label>
-              <label className="field field--wide">
-                <span>{ui.address}</span>
-                <div className="field-inline">
-                  <input
-                    value={state.currentUrl}
-                    onChange={(event) =>
-                      updatePanelViewState(panel.definition.id, {
-                        ...state,
-                        currentUrl: event.target.value
-                      })
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter') {
-                        return
-                      }
-
-                      event.preventDefault()
-                      void window.workbenchShell.webPanels.navigate(
-                        panel.definition.id,
-                        'load-url',
-                        toNavigableUrl(state.currentUrl)
-                      )
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="action-button"
-                    onClick={() => {
-                      void window.workbenchShell.webPanels.navigate(
-                        panel.definition.id,
-                        'load-url',
-                        toNavigableUrl(state.currentUrl)
-                      )
-                    }}
-                  >
-                    {ui.go}
-                  </button>
-                </div>
               </label>
               <label className="field">
                 <span>{ui.partition}</span>
@@ -1505,19 +1471,6 @@ function getElementBounds(element: HTMLElement) {
     width: Math.round(rect.width),
     height: Math.round(rect.height)
   }
-}
-
-function toNavigableUrl(rawUrl: string): string {
-  const normalized = rawUrl.trim()
-  if (!normalized) {
-    return ''
-  }
-
-  if (/^https?:\/\//i.test(normalized)) {
-    return normalized
-  }
-
-  return `https://${normalized}`
 }
 
 function normalizeWorkspaceSearchQuery(value: string): string {

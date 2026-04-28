@@ -4,6 +4,7 @@ import { deriveWebContextLabel, normalizeCapturedMessages } from '@ai-workbench/
 import type { CustomWebPanelSettings } from '@ai-workbench/core/desktop/settings'
 import {
   getWebPanelConfig,
+  normalizeWebPanelUrl,
   webPanelConfigs,
   type PanelBounds,
   type WebPanelConfig,
@@ -213,13 +214,9 @@ function toBounds(bounds: PanelBounds): PanelBounds {
   }
 }
 
-function isSafeNavigationTarget(rawUrl: string): boolean {
-  try {
-    const parsed = new URL(rawUrl)
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:'
-  } catch {
-    return false
-  }
+function normalizeSafeNavigationTarget(rawUrl: string): string | null {
+  const result = normalizeWebPanelUrl(rawUrl)
+  return result.ok ? result.url : null
 }
 
 function isMeaningfulWebInput(input: { type?: string; key?: string; isAutoRepeat?: boolean }): boolean {
@@ -321,8 +318,31 @@ export class WebPanelManager {
       ...current,
       ...update
     }
+    const partitionChanged = current.partition !== nextConfig.partition
+    const enabledChanged = current.enabled !== nextConfig.enabled
+    const panel = this.panels.get(panelId)
 
     this.configs.set(panelId, nextConfig)
+
+    if (!partitionChanged && !enabledChanged) {
+      if (panel) {
+        this.updateManagedPanelConfigState(panel, current, nextConfig)
+        this.publish(panel.snapshot)
+        return panel.snapshot
+      }
+
+      if (nextConfig.enabled) {
+        this.panels.set(panelId, this.createManagedPanel(nextConfig))
+      }
+
+      const snapshot = this.getSnapshot(panelId)
+      if (snapshot) {
+        this.publish(snapshot)
+      }
+
+      return snapshot
+    }
+
     this.disposeManagedPanel(panelId)
 
     if (nextConfig.enabled) {
@@ -462,7 +482,7 @@ export class WebPanelManager {
         await webContents.loadURL(panel.snapshot.homeUrl)
         break
       case 'load-url':
-        if (!url || !isSafeNavigationTarget(url)) {
+        if (!url) {
           panel.snapshot = {
             ...panel.snapshot,
             lastError: 'Blocked unsafe URL'
@@ -471,7 +491,19 @@ export class WebPanelManager {
           return panel.snapshot
         }
 
-        await webContents.loadURL(url)
+        {
+          const normalizedUrl = normalizeSafeNavigationTarget(url)
+          if (!normalizedUrl) {
+            panel.snapshot = {
+              ...panel.snapshot,
+              lastError: 'Blocked unsafe URL'
+            }
+            this.publish(panel.snapshot)
+            return panel.snapshot
+          }
+
+          await webContents.loadURL(normalizedUrl)
+        }
         break
     }
 
@@ -483,6 +515,24 @@ export class WebPanelManager {
   dispose(): void {
     for (const panelId of [...this.panels.keys()]) {
       this.disposeManagedPanel(panelId)
+    }
+  }
+
+  private updateManagedPanelConfigState(
+    panel: ManagedWebPanel,
+    previousConfig: WebPanelConfig,
+    nextConfig: WebPanelConfig
+  ): void {
+    const shouldAdoptUpdatedHomeUrl =
+      !panel.hasLoaded || !panel.snapshot.currentUrl || panel.snapshot.currentUrl === previousConfig.homeUrl
+
+    panel.snapshot = {
+      ...panel.snapshot,
+      title: nextConfig.title,
+      homeUrl: nextConfig.homeUrl,
+      currentUrl: shouldAdoptUpdatedHomeUrl ? nextConfig.homeUrl : panel.snapshot.currentUrl,
+      partition: nextConfig.partition,
+      enabled: nextConfig.enabled
     }
   }
 
@@ -673,7 +723,7 @@ export class WebPanelManager {
     })
 
     view.webContents.on('will-navigate', (event, url) => {
-      if (isSafeNavigationTarget(url)) {
+      if (normalizeSafeNavigationTarget(url)) {
         return
       }
 
@@ -882,16 +932,37 @@ export class WebPanelManager {
       enabled: config.enabled
     }
     const previousConfig = this.configs.get(config.id)
-    const hasChanged =
-      !previousConfig ||
-      previousConfig.title !== resolvedConfig.title ||
-      previousConfig.homeUrl !== resolvedConfig.homeUrl ||
-      previousConfig.partition !== resolvedConfig.partition ||
-      previousConfig.enabled !== resolvedConfig.enabled
-
     this.configs.set(config.id, resolvedConfig)
+    if (!previousConfig) {
+      if (resolvedConfig.enabled) {
+        this.panels.set(config.id, this.createManagedPanel(resolvedConfig))
+      }
 
-    if (!hasChanged) {
+      const snapshot = this.getSnapshot(config.id)
+      if (snapshot) {
+        this.publish(snapshot)
+      }
+      return
+    }
+    const enabledChanged = previousConfig.enabled !== resolvedConfig.enabled
+    const partitionChanged = previousConfig.partition !== resolvedConfig.partition
+    const panel = this.panels.get(config.id)
+
+    if (!enabledChanged && !partitionChanged) {
+      if (panel) {
+        this.updateManagedPanelConfigState(panel, previousConfig, resolvedConfig)
+        this.publish(panel.snapshot)
+        return
+      }
+
+      if (resolvedConfig.enabled) {
+        this.panels.set(config.id, this.createManagedPanel(resolvedConfig))
+      }
+
+      const snapshot = this.getSnapshot(config.id)
+      if (snapshot) {
+        this.publish(snapshot)
+      }
       return
     }
 

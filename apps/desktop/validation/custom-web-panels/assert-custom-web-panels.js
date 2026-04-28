@@ -2,7 +2,7 @@ async page => {
   const screenshotPath = '__SCREENSHOT_PATH__'
 
   await page.evaluate(() => {
-    window.__customWebValidation.enqueuePrompts('https://news.ycombinator.com/')
+    window.__customWebValidation.enqueuePrompts('javascript:alert(1)', 'https://news.ycombinator.com/')
   })
   await page.getByRole('button', { name: /Add Web/ }).click()
   await page.waitForTimeout(400)
@@ -21,6 +21,25 @@ async page => {
     throw new Error(`Expected the new custom web panel to appear in navigation, count=${customPanelVisible}`)
   }
 
+  await page.getByLabel('Address').fill('docs.example.com/guides')
+  await page.getByRole('button', { name: 'Go' }).click()
+  await page.waitForTimeout(400)
+
+  const browsedState = await page.evaluate(() => window.__customWebValidation.getState())
+  const browsedPanel = browsedState.snapshots[customPanel.id]
+  if (!browsedPanel || browsedPanel.currentUrl !== 'https://docs.example.com/guides' || browsedState.settings.customWebPanels[0].homeUrl !== 'https://news.ycombinator.com/') {
+    throw new Error(`Address-bar browsing did not preserve runtime/persisted URL separation: ${JSON.stringify({ browsedPanel, saved: browsedState.settings.customWebPanels[0] })}`)
+  }
+
+  await page.getByLabel('Address').fill('javascript:alert(1)')
+  await page.getByRole('button', { name: 'Go' }).click()
+  await page.waitForTimeout(250)
+
+  const rejectedBrowseState = await page.evaluate(() => window.__customWebValidation.getState())
+  if (rejectedBrowseState.snapshots[customPanel.id]?.currentUrl !== 'https://docs.example.com/guides') {
+    throw new Error(`Unsafe address input unexpectedly changed runtime navigation state: ${JSON.stringify(rejectedBrowseState.snapshots[customPanel.id])}`)
+  }
+
   await page.getByRole('button', { name: 'Show Details' }).click()
   await page.getByLabel('Home URL').fill('docs.example.com')
   await page.getByLabel('Partition').fill('temp:docs-portal')
@@ -29,8 +48,12 @@ async page => {
 
   const savedState = await page.evaluate(() => window.__customWebValidation.getState())
   const savedPanel = savedState.settings.customWebPanels[0]
-  if (savedPanel.homeUrl !== 'https://docs.example.com' || savedPanel.partition !== 'temp:docs-portal' || savedPanel.enabled !== true) {
+  const savedSnapshot = savedState.snapshots[customPanel.id]
+  if (savedPanel.homeUrl !== 'https://docs.example.com/' || savedPanel.partition !== 'temp:docs-portal' || savedPanel.enabled !== true) {
     throw new Error(`Config save did not persist the expected values: ${JSON.stringify(savedPanel)}`)
+  }
+  if (!savedSnapshot || savedSnapshot.currentUrl !== 'https://docs.example.com/guides') {
+    throw new Error(`Saving the home URL unexpectedly reset the live browsing address: ${JSON.stringify(savedSnapshot)}`)
   }
 
   const ephemeralVisible = await page.getByText('Ephemeral Session').count()
@@ -60,6 +83,9 @@ async page => {
   const reenabledPanel = reenabledState.settings.customWebPanels[0]
   if (!reenabledPanel || reenabledPanel.enabled !== true) {
     throw new Error(`Custom web panel did not re-enable correctly: ${JSON.stringify(reenabledPanel)}`)
+  }
+  if (reenabledState.snapshots[customPanel.id]?.currentUrl !== 'https://docs.example.com/') {
+    throw new Error(`Re-enabled custom web panel did not restart from the saved home URL: ${JSON.stringify(reenabledState.snapshots[customPanel.id])}`)
   }
 
   await page.evaluate(() => {
@@ -92,6 +118,7 @@ async page => {
   console.log(
     JSON.stringify({
       createdPanelId: customPanel.id,
+      browsedCurrentUrl: browsedPanel.currentUrl,
       savedHomeUrl: savedPanel.homeUrl,
       savedPartition: savedPanel.partition,
       renamedTitle: renamedPanel.title,
