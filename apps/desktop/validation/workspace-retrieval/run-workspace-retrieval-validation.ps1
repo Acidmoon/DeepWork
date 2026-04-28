@@ -112,21 +112,29 @@ function Build-WorkspaceFixture {
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
 $workspaceManagerSourcePath = Join-Path $repoRoot 'apps\desktop\src\main\workspace-manager.ts'
+$managedWorkspaceContentSourcePath = Join-Path $repoRoot 'apps\desktop\src\main\workspace-manager\managed-workspace-content.ts'
+$retrievalAuditSyncSourcePath = Join-Path $repoRoot 'apps\desktop\src\main\workspace-manager\retrieval-audit-sync.ts'
+$workspaceArtifactHelpersSourcePath = Join-Path $repoRoot 'apps\desktop\src\main\workspace-manager\workspace-artifact-helpers.ts'
 $workspaceSnapshotFixturePath = Join-Path $repoRoot 'apps\desktop\validation\workspace-regression\fixtures\workspace-snapshot.json'
 
-$source = Get-Content -LiteralPath $workspaceManagerSourcePath -Raw -Encoding utf8
-$workspaceProtocol = Unescape-TemplateLiteral (Get-TemplateLiteral -Source $source -Name 'WORKSPACE_PROTOCOL')
-$agentsBlock = Unescape-TemplateLiteral (Get-TemplateLiteral -Source $source -Name 'AGENTS_MD_BLOCK')
-$workbenchTools = Unescape-TemplateLiteral (Get-TemplateLiteral -Source $source -Name 'WORKBENCH_TOOLS')
+$workspaceManagerSource = Get-Content -LiteralPath $workspaceManagerSourcePath -Raw -Encoding utf8
+$managedWorkspaceContentSource = Get-Content -LiteralPath $managedWorkspaceContentSourcePath -Raw -Encoding utf8
+$retrievalAuditSyncSource = Get-Content -LiteralPath $retrievalAuditSyncSourcePath -Raw -Encoding utf8
+$workspaceArtifactHelpersSource = Get-Content -LiteralPath $workspaceArtifactHelpersSourcePath -Raw -Encoding utf8
+$workspaceProtocol = Unescape-TemplateLiteral (Get-TemplateLiteral -Source $managedWorkspaceContentSource -Name 'WORKSPACE_PROTOCOL')
+$agentsBlock = Unescape-TemplateLiteral (Get-TemplateLiteral -Source $managedWorkspaceContentSource -Name 'AGENTS_MD_BLOCK')
+$workbenchTools = Unescape-TemplateLiteral (Get-TemplateLiteral -Source $managedWorkspaceContentSource -Name 'WORKBENCH_TOOLS')
 $snapshot = Get-Content -LiteralPath $workspaceSnapshotFixturePath -Raw -Encoding utf8 | ConvertFrom-Json
 
 Assert-Condition -Condition ($workspaceProtocol.Contains('self-contained')) -Message 'Workspace protocol should describe self-contained requests.'
 Assert-Condition -Condition ($workspaceProtocol.Contains('aw-suggest')) -Message 'Workspace protocol should describe aw-suggest retrieval.'
 Assert-Condition -Condition ($workspaceProtocol.Contains('do not broaden into global workspace scanning')) -Message 'Workspace protocol should forbid global workspace scanning.'
 Assert-Condition -Condition ($agentsBlock.Contains('Inspect exactly one candidate scope')) -Message 'Managed AGENTS block should require single-scope inspection.'
-Assert-Condition -Condition ($source.Contains('syncRetrievalAuditArtifacts')) -Message 'Workspace manager should expose retrieval audit synchronization.'
-Assert-Condition -Condition ($source.Contains("captureMode: 'auto-cli-retrieval-audit'")) -Message 'Workspace manager should persist retrieval audits as workspace-managed records.'
-Assert-Condition -Condition ($source.Contains("logs\\retrieval")) -Message 'Workspace manager should scan retrieval audit logs under logs\\retrieval.'
+Assert-Condition -Condition ($workspaceManagerSource.Contains('syncRetrievalAuditArtifacts')) -Message 'Workspace manager should expose retrieval audit synchronization.'
+Assert-Condition -Condition ($workspaceArtifactHelpersSource.Contains("captureMode: 'auto-cli-retrieval-audit'")) -Message 'Workspace manager should persist retrieval audits as workspace-managed records.'
+Assert-Condition -Condition (
+  $retrievalAuditSyncSource.Contains("join(context.workspaceRoot, 'logs', 'retrieval')")
+) -Message 'Workspace manager should scan retrieval audit logs under logs\\retrieval.'
 
 $tempRoot = Join-Path $env:TEMP ('ai-workbench-retrieval-' + [Guid]::NewGuid().ToString('N'))
 $workspaceRoot = Join-Path $tempRoot 'workspace'

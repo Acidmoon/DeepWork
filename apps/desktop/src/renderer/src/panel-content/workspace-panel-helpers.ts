@@ -1,0 +1,345 @@
+import { type ArtifactRecord, type ContextIndexEntry } from '@ai-workbench/core/desktop/workspace'
+import { resolveLocale } from '../i18n'
+
+export function normalizeWorkspaceSearchQuery(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+export function matchesWorkspaceBucket(artifact: { path: string }, selectedBucket: string): boolean {
+  return selectedBucket === 'artifacts/'
+    ? artifact.path.startsWith('artifacts/')
+    : selectedBucket === 'outputs/'
+      ? artifact.path.startsWith('outputs/')
+      : artifact.path.startsWith('logs/')
+}
+
+export function matchesWorkspaceArtifactQuery(artifact: ArtifactRecord, normalizedQuery: string): boolean {
+  if (!normalizedQuery) {
+    return true
+  }
+
+  return buildArtifactSearchText(artifact).includes(normalizedQuery)
+}
+
+export function buildArtifactSearchText(artifact: ArtifactRecord): string {
+  const metadataValues = artifact.metadata
+    ? Object.values(artifact.metadata)
+        .flatMap((value) => normalizeSearchValue(value))
+        .join(' ')
+    : ''
+
+  return [
+    artifact.id,
+    artifact.name,
+    artifact.origin,
+    artifact.summary,
+    artifact.path,
+    artifact.absolutePath,
+    artifact.type,
+    artifact.tags.join(' '),
+    metadataValues
+  ]
+    .join(' ')
+    .toLowerCase()
+}
+
+export function buildSessionSearchText(entry: ContextIndexEntry, artifacts: ArtifactRecord[]): string {
+  return [
+    entry.origin,
+    entry.contextLabel,
+    entry.scopeId,
+    entry.retrieval.scopeSummary,
+    entry.retrieval.latestArtifactSummary,
+    entry.retrieval.latestArtifactType,
+    entry.retrieval.artifactTypes.join(' '),
+    entry.retrieval.tags.join(' '),
+    entry.retrieval.searchTerms.join(' '),
+    ...artifacts.map((artifact) => buildArtifactSearchText(artifact))
+  ]
+    .join(' ')
+    .toLowerCase()
+}
+
+export function normalizeSearchValue(value: unknown): string[] {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return [String(value)]
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizeSearchValue(item))
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap((item) => normalizeSearchValue(item))
+  }
+
+  return []
+}
+
+export function supportsTextArtifactPreview(type: ArtifactRecord['type']): boolean {
+  return ['markdown', 'text', 'json', 'log', 'code', 'review', 'html'].includes(type)
+}
+
+export function getWorkspaceFolderName(workspaceRoot: string): string {
+  if (!workspaceRoot) {
+    return ''
+  }
+
+  const normalized = workspaceRoot.replace(/[\\/]+$/, '')
+  const parts = normalized.split(/[\\/]/)
+  return parts[parts.length - 1] || normalized
+}
+
+export function buildSessionSummary(
+  entry: ContextIndexEntry,
+  artifacts: ArtifactRecord[],
+  locale: ReturnType<typeof resolveLocale>
+): {
+  scopeId: string
+  origin: string
+  contextLabel: string
+  title: string
+  preview: string
+  badges: string[]
+  latestUpdatedAt: string | null
+} {
+  const scopedArtifacts = entry.artifactIds
+    .map((artifactId) => artifacts.find((artifact) => artifact.id === artifactId))
+    .filter((artifact): artifact is ArtifactRecord => Boolean(artifact))
+  const representative =
+    scopedArtifacts.find((artifact) => artifact.type === 'json') ??
+    scopedArtifacts.find((artifact) => artifact.type === 'markdown') ??
+    scopedArtifacts[0]
+  const messageCount = Number(representative?.metadata?.messageCount ?? 0)
+  const transcriptCount = scopedArtifacts.filter((artifact) => artifact.type === 'markdown').length
+  const logCount = scopedArtifacts.filter((artifact) => artifact.type === 'log').length
+  const preview = extractSessionPreview(representative) || entry.retrieval.scopeSummary || formatContextEntryDescription(entry, locale)
+  const title = deriveSessionTitle(entry, representative, locale)
+  const badges = [
+    locale === 'zh-CN' ? `${entry.artifactCount} 条记录` : `${entry.artifactCount} items`,
+    messageCount > 0 ? (locale === 'zh-CN' ? `${messageCount} 条消息` : `${messageCount} messages`) : null,
+    transcriptCount > 0 ? (locale === 'zh-CN' ? `${transcriptCount} 份转录` : `${transcriptCount} transcript${transcriptCount === 1 ? '' : 's'}`) : null,
+    logCount > 0 ? (locale === 'zh-CN' ? `${logCount} 份日志` : `${logCount} log${logCount === 1 ? '' : 's'}`) : null
+  ].filter((badge): badge is string => Boolean(badge))
+
+  return {
+    scopeId: entry.scopeId,
+    origin: entry.origin,
+    contextLabel: entry.contextLabel,
+    title,
+    preview,
+    badges,
+    latestUpdatedAt: entry.latestUpdatedAt
+  }
+}
+
+export function formatContextEntryLabel(entry: { origin: string; contextLabel: string }): string {
+  return `${formatOriginLabel(entry.origin)} / ${entry.contextLabel}`
+}
+
+export function formatContextEntryDescription(
+  entry: { artifactCount: number; latestUpdatedAt: string | null },
+  locale: ReturnType<typeof resolveLocale>
+): string {
+  const countLabel = locale === 'zh-CN'
+    ? `${entry.artifactCount} 条记录`
+    : `${entry.artifactCount} item${entry.artifactCount === 1 ? '' : 's'}`
+  const timeLabel = entry.latestUpdatedAt ? formatTimestamp(entry.latestUpdatedAt, locale) : '-'
+  return locale === 'zh-CN' ? `${countLabel} · 最近更新 ${timeLabel}` : `${countLabel} · updated ${timeLabel}`
+}
+
+export function formatArtifactTitle(
+  artifact: { id: string; type: string; metadata?: Record<string, unknown> },
+  locale: ReturnType<typeof resolveLocale>
+): string {
+  const contextLabel = typeof artifact.metadata?.contextLabel === 'string' && artifact.metadata.contextLabel.trim()
+    ? artifact.metadata.contextLabel
+    : null
+  const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact.type) : humanizeArtifactTypeEn(artifact.type)
+  return contextLabel ? `${typeLabel} · ${contextLabel}` : `${typeLabel} · ${artifact.id}`
+}
+
+export function formatArtifactSummary(artifact: { summary: string }): string {
+  return artifact.summary.replace(/\s+/g, ' ').trim()
+}
+
+export function formatArtifactMeta(
+  artifact: { origin: string; type: string },
+  locale: ReturnType<typeof resolveLocale>
+): string {
+  const originLabel = formatOriginLabel(artifact.origin)
+  const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact.type) : humanizeArtifactTypeEn(artifact.type)
+  return `${originLabel} · ${typeLabel}`
+}
+
+export function formatOriginLabel(origin: string): string {
+  switch (origin) {
+    case 'deepseek-web':
+      return 'DeepSeek Web'
+    case 'minimax-web':
+      return 'MiniMax Web'
+    case 'codex-cli':
+      return 'Codex CLI'
+    case 'claude-code':
+      return 'Claude Code'
+    case 'manual':
+      return 'Manual'
+    default:
+      return origin
+  }
+}
+
+export function humanizeArtifactTypeZh(type: string): string {
+  switch (type) {
+    case 'markdown':
+      return '对话转录'
+    case 'json':
+      return '消息索引'
+    case 'log':
+      return '终端记录'
+    case 'html':
+      return '网页片段'
+    case 'text':
+      return '文本'
+    default:
+      return type
+  }
+}
+
+export function humanizeArtifactTypeEn(type: string): string {
+  switch (type) {
+    case 'markdown':
+      return 'Transcript'
+    case 'json':
+      return 'Message Index'
+    case 'log':
+      return 'Terminal Log'
+    case 'html':
+      return 'Web Clip'
+    case 'text':
+      return 'Text'
+    default:
+      return type
+  }
+}
+
+export function deriveSessionTitle(
+  entry: { origin: string; contextLabel: string },
+  artifact: ArtifactRecord | undefined,
+  locale: ReturnType<typeof resolveLocale>
+): string {
+  const contextLabel = entry.contextLabel.replace(/[-_]+/g, ' ').trim()
+  const pageTitle = typeof artifact?.metadata?.pageTitle === 'string' ? artifact.metadata.pageTitle.trim() : ''
+
+  if (pageTitle) {
+    return pageTitle
+  }
+
+  if (contextLabel && contextLabel !== 'default context') {
+    return contextLabel
+  }
+
+  return locale === 'zh-CN'
+    ? `${formatOriginLabel(entry.origin)} 会话`
+    : `${formatOriginLabel(entry.origin)} Session`
+}
+
+export function extractSessionPreview(artifact: ArtifactRecord | undefined): string {
+  if (!artifact) {
+    return ''
+  }
+
+  const previewMatch = artifact.summary.match(/Preview:\s*(.+)$/i)
+  if (previewMatch?.[1]) {
+    return previewMatch[1].trim()
+  }
+
+  if (typeof artifact.metadata?.sourceUrl === 'string' && artifact.metadata.sourceUrl.trim()) {
+    return artifact.metadata.sourceUrl.trim()
+  }
+
+  return artifact.summary.replace(/\s+/g, ' ').trim()
+}
+
+export function formatTimestamp(value: string, locale: ReturnType<typeof resolveLocale>): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
+export function parseMessageArtifact(content: string): Array<{ id: string; role: string; text: string }> {
+  try {
+    const parsed = JSON.parse(content) as {
+      messages?: Array<{ id?: string; role?: string; text?: string }>
+    }
+
+    return (parsed.messages ?? [])
+      .map((message, index) => ({
+        id: message.id?.trim() || `message-${String(index + 1).padStart(3, '0')}`,
+        role: message.role?.trim() || 'unknown',
+        text: message.text?.trim() || ''
+      }))
+      .filter((message) => message.text.length > 0)
+      .slice(0, 24)
+  } catch {
+    return []
+  }
+}
+
+export function extractLogExcerpt(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0)
+    .slice(-24)
+    .join('\n')
+}
+
+export function normalizeMessageRole(role: string): 'user' | 'assistant' | 'system' | 'unknown' {
+  const normalized = role.trim().toLowerCase()
+  if (normalized === 'user') {
+    return 'user'
+  }
+  if (normalized === 'assistant') {
+    return 'assistant'
+  }
+  if (normalized === 'system') {
+    return 'system'
+  }
+  return 'unknown'
+}
+
+export function formatMessageRole(role: string, locale: ReturnType<typeof resolveLocale>): string {
+  const normalized = normalizeMessageRole(role)
+  if (locale === 'zh-CN') {
+    switch (normalized) {
+      case 'user':
+        return '用户'
+      case 'assistant':
+        return '助手'
+      case 'system':
+        return '系统'
+      default:
+        return '记录'
+    }
+  }
+
+  switch (normalized) {
+    case 'user':
+      return 'User'
+    case 'assistant':
+      return 'Assistant'
+    case 'system':
+      return 'System'
+    default:
+      return 'Record'
+  }
+}

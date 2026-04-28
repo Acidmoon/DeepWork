@@ -11,7 +11,7 @@ const generatedBootstrapPath = join(__dirname, 'bootstrap.generated.js')
 const generatedAssertPath = join(__dirname, 'assert.generated.js')
 const artifactsDir = join(__dirname, 'artifacts')
 const screenshotPath = join(artifactsDir, 'custom-web-panels.png')
-const rendererUrl = 'http://localhost:5173'
+const rendererUrl = process.env.AI_WORKBENCH_VALIDATION_RENDERER_URL || 'http://localhost:5173'
 
 function quoteForCmd(value) {
   if (!/[ \t"]/u.test(value)) {
@@ -48,6 +48,10 @@ function runCli(args) {
 }
 
 async function assertRendererAvailable() {
+  if (rendererUrl.startsWith('file://')) {
+    return
+  }
+
   try {
     const response = await fetch(rendererUrl)
     if (!response.ok) {
