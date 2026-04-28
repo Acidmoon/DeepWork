@@ -69,7 +69,10 @@ app.whenReady().then(() => {
     settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
     settingsManager.getSnapshot().customTerminalPanels,
     settingsManager.getSnapshot().terminalPreludeCommands,
-    (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null
+    (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
+    (sessionScopeId) => {
+      workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
+    }
   )
   terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
 
@@ -189,7 +192,10 @@ app.whenReady().then(() => {
         settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
         settingsManager.getSnapshot().customTerminalPanels,
         settingsManager.getSnapshot().terminalPreludeCommands,
-        (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null
+        (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
+        (sessionScopeId) => {
+          workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
+        }
       )
       terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
     }

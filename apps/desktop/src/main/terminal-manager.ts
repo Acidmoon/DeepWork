@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
@@ -90,12 +90,16 @@ interface ManagedTerminalSession {
   captureBuffer: string
   bootTimer: NodeJS.Timeout | null
   captureTimer: NodeJS.Timeout | null
+  auditSyncTimer: NodeJS.Timeout | null
   logPath: string
   hasReceivedData: boolean
   hasMeaningfulUserInput: boolean
   sessionToken: number
   captureArtifactId: string | null
   contextLabel: string | null
+  sessionScopeId: string | null
+  retrievalAuditPath: string | null
+  retrievalStatePath: string | null
 }
 
 interface PersistTerminalTranscriptPayload {
@@ -163,7 +167,8 @@ export class TerminalManager {
     defaultCwd: string,
     customPanels: CustomTerminalPanelSettings[] = [],
     startupPreludeCommands: string[] = [],
-    private readonly persistTerminalTranscript?: (payload: PersistTerminalTranscriptPayload) => string | null
+    private readonly persistTerminalTranscript?: (payload: PersistTerminalTranscriptPayload) => string | null,
+    private readonly syncRetrievalAuditArtifacts?: (sessionScopeId?: string | null) => void
   ) {
     this.workspaceRoot = defaultCwd
     this.globalStartupPreludeCommands = startupPreludeCommands
@@ -248,6 +253,9 @@ export class TerminalManager {
       session.sessionToken = sessionToken
       session.captureArtifactId = null
       session.contextLabel = contextLabel
+      session.sessionScopeId = sessionIdentity.sessionScopeId
+      session.retrievalAuditPath = sessionIdentity.retrievalAuditPath
+      session.retrievalStatePath = sessionIdentity.retrievalStatePath
 
       session.snapshot = {
         ...session.snapshot,
@@ -419,6 +427,9 @@ export class TerminalManager {
         const sessionIdentity = session.contextLabel
           ? createManagedSessionIdentity(workspaceRoot, session.config.id, session.config.title, session.snapshot.launchCount, session.contextLabel)
           : null
+        session.sessionScopeId = sessionIdentity?.sessionScopeId ?? null
+        session.retrievalAuditPath = sessionIdentity?.retrievalAuditPath ?? null
+        session.retrievalStatePath = sessionIdentity?.retrievalStatePath ?? null
         session.ptyProcess.write(`${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity)}\r`)
       }
 
@@ -468,6 +479,7 @@ export class TerminalManager {
         data
       })
       this.scheduleTranscriptPersist(session)
+      this.scheduleRetrievalAuditSync(session)
     })
 
     session.ptyProcess.onExit(({ exitCode, signal }) => {
@@ -481,6 +493,8 @@ export class TerminalManager {
       }
 
       this.flushTranscript(session)
+      this.flushRetrievalAudit(session)
+      this.clearPendingRetrievalState(session)
 
       session.ptyProcess = null
       session.snapshot = {
@@ -515,7 +529,14 @@ export class TerminalManager {
       session.captureTimer = null
     }
 
+    if (session.auditSyncTimer) {
+      clearTimeout(session.auditSyncTimer)
+      session.auditSyncTimer = null
+    }
+
     this.flushTranscript(session)
+    this.flushRetrievalAudit(session)
+    this.clearPendingRetrievalState(session)
 
     if (session.ptyProcess) {
       const ptyProcess = session.ptyProcess
@@ -573,12 +594,16 @@ export class TerminalManager {
         captureBuffer: '',
         bootTimer: null,
         captureTimer: null,
+        auditSyncTimer: null,
         logPath,
         hasReceivedData: false,
         hasMeaningfulUserInput: false,
         sessionToken: 0,
         captureArtifactId: null,
-        contextLabel: null
+        contextLabel: null,
+        sessionScopeId: null,
+        retrievalAuditPath: null,
+        retrievalStatePath: null
       })
       return
     }
@@ -609,6 +634,20 @@ export class TerminalManager {
     }, TRANSCRIPT_FLUSH_DELAY_MS)
   }
 
+  private scheduleRetrievalAuditSync(session: ManagedTerminalSession): void {
+    if (!this.syncRetrievalAuditArtifacts) {
+      return
+    }
+
+    if (session.auditSyncTimer) {
+      clearTimeout(session.auditSyncTimer)
+    }
+
+    session.auditSyncTimer = setTimeout(() => {
+      this.flushRetrievalAudit(session)
+    }, TRANSCRIPT_FLUSH_DELAY_MS)
+  }
+
   private flushTranscript(session: ManagedTerminalSession): void {
     if (
       !this.persistTerminalTranscript ||
@@ -633,6 +672,27 @@ export class TerminalManager {
         contextLabel: session.contextLabel,
         content: session.captureBuffer
       }) ?? session.captureArtifactId
+  }
+
+  private flushRetrievalAudit(session: ManagedTerminalSession): void {
+    if (!this.syncRetrievalAuditArtifacts) {
+      return
+    }
+
+    if (session.auditSyncTimer) {
+      clearTimeout(session.auditSyncTimer)
+      session.auditSyncTimer = null
+    }
+
+    this.syncRetrievalAuditArtifacts(session.sessionScopeId)
+  }
+
+  private clearPendingRetrievalState(session: ManagedTerminalSession): void {
+    if (!session.retrievalStatePath || !existsSync(session.retrievalStatePath)) {
+      return
+    }
+
+    rmSync(session.retrievalStatePath, { force: true })
   }
 
   private resolveBuiltInConfig(config: TerminalPanelConfig): TerminalPanelConfig {

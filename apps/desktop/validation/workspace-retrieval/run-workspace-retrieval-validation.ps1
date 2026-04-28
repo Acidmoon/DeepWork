@@ -124,6 +124,9 @@ Assert-Condition -Condition ($workspaceProtocol.Contains('self-contained')) -Mes
 Assert-Condition -Condition ($workspaceProtocol.Contains('aw-suggest')) -Message 'Workspace protocol should describe aw-suggest retrieval.'
 Assert-Condition -Condition ($workspaceProtocol.Contains('do not broaden into global workspace scanning')) -Message 'Workspace protocol should forbid global workspace scanning.'
 Assert-Condition -Condition ($agentsBlock.Contains('Inspect exactly one candidate scope')) -Message 'Managed AGENTS block should require single-scope inspection.'
+Assert-Condition -Condition ($source.Contains('syncRetrievalAuditArtifacts')) -Message 'Workspace manager should expose retrieval audit synchronization.'
+Assert-Condition -Condition ($source.Contains("captureMode: 'auto-cli-retrieval-audit'")) -Message 'Workspace manager should persist retrieval audits as workspace-managed records.'
+Assert-Condition -Condition ($source.Contains("logs\\retrieval")) -Message 'Workspace manager should scan retrieval audit logs under logs\\retrieval.'
 
 $tempRoot = Join-Path $env:TEMP ('ai-workbench-retrieval-' + [Guid]::NewGuid().ToString('N'))
 $workspaceRoot = Join-Path $tempRoot 'workspace'
@@ -155,12 +158,17 @@ try {
   Assert-Condition -Condition (-not ($firstResult.candidates[0].PSObject.Properties.Name -contains 'artifacts')) -Message 'Structured aw-suggest output must not expose raw artifact lists.'
   Assert-Condition -Condition (-not ($firstResult.candidates[0].PSObject.Properties.Name -contains 'content')) -Message 'Structured aw-suggest output must not expose raw artifact content.'
 
-  aw-origin 'deepseek-web__a-chat-s-9b9f89a2-ceff' | Out-Null
+  $secondCandidateResult = aw-suggest -Query 'codex session' -Top 3 -Json | ConvertFrom-Json
+  Assert-Condition -Condition ($secondCandidateResult.outcome -eq 'candidates_found') -Message "Expected second lookup to return candidates_found, received $($secondCandidateResult.outcome)"
+  Assert-Condition -Condition (@($secondCandidateResult.candidates).Count -ge 1) -Message 'Expected a candidate for the Codex session lookup.'
+  Assert-Condition -Condition ($secondCandidateResult.candidates[0].scopeId -eq 'codex-cli__session-0001') -Message "Expected Codex session scope to rank first, received $($secondCandidateResult.candidates[0].scopeId)"
 
-  $secondResult = aw-suggest -Query 'completely unrelated retrieval miss' -Top 3 -Json | ConvertFrom-Json
-  Assert-Condition -Condition ($secondResult.outcome -eq 'no_match') -Message "Expected no_match outcome, received $($secondResult.outcome)"
-  Assert-Condition -Condition ($secondResult.reason -eq 'no_candidates') -Message "Expected no_candidates reason, received $($secondResult.reason)"
-  Assert-Condition -Condition (@($secondResult.candidates).Count -eq 0) -Message 'No-match result should not return candidates.'
+  aw-origin 'codex-cli__session-0001' | Out-Null
+
+  $thirdResult = aw-suggest -Query 'completely unrelated retrieval miss' -Top 3 -Json | ConvertFrom-Json
+  Assert-Condition -Condition ($thirdResult.outcome -eq 'no_match') -Message "Expected no_match outcome, received $($thirdResult.outcome)"
+  Assert-Condition -Condition ($thirdResult.reason -eq 'no_candidates') -Message "Expected no_candidates reason, received $($thirdResult.reason)"
+  Assert-Condition -Condition (@($thirdResult.candidates).Count -eq 0) -Message 'No-match result should not return candidates.'
 
   Assert-Condition -Condition (Test-Path -LiteralPath $auditPath) -Message 'Retrieval audit log was not created.'
   Assert-Condition -Condition (-not (Test-Path -LiteralPath $statePath)) -Message 'Pending retrieval state file should be cleared after selection/no-match completion.'
@@ -171,19 +179,23 @@ try {
       ForEach-Object { $_ | ConvertFrom-Json }
   )
 
+  $supersededEntry = $auditEntries | Where-Object { $_.reason -eq 'superseded_without_selection' } | Select-Object -First 1
   $selectedEntry = $auditEntries | Where-Object { $_.outcome -eq 'selected' } | Select-Object -First 1
-  $noMatchEntry = $auditEntries | Where-Object { $_.outcome -eq 'no_match' } | Select-Object -First 1
+  $noMatchEntry = $auditEntries | Where-Object { $_.reason -eq 'no_candidates' } | Select-Object -First 1
 
-  Assert-Condition -Condition ($auditEntries.Count -eq 2) -Message "Expected 2 retrieval audit entries, received $($auditEntries.Count)"
-  Assert-Condition -Condition ($selectedEntry.query -eq '111 deepseek') -Message 'Selected audit entry should capture the original query.'
-  Assert-Condition -Condition (@($selectedEntry.candidateScopeIds) -contains 'deepseek-web__a-chat-s-9b9f89a2-ceff') -Message 'Selected audit entry should include ranked candidate scope IDs.'
-  Assert-Condition -Condition ($selectedEntry.selectedScopeId -eq 'deepseek-web__a-chat-s-9b9f89a2-ceff') -Message "Selected audit entry should record the chosen scope, received $($selectedEntry.selectedScopeId)"
+  Assert-Condition -Condition ($auditEntries.Count -eq 3) -Message "Expected 3 retrieval audit entries, received $($auditEntries.Count)"
+  Assert-Condition -Condition ($supersededEntry.query -eq '111 deepseek') -Message 'Superseded audit entry should capture the original unresolved query.'
+  Assert-Condition -Condition ($supersededEntry.outcome -eq 'no_match') -Message "Superseded audit entry should be finalized as no_match, received $($supersededEntry.outcome)"
+  Assert-Condition -Condition ($selectedEntry.query -eq 'codex session') -Message 'Selected audit entry should capture the Codex session query.'
+  Assert-Condition -Condition (@($selectedEntry.candidateScopeIds) -contains 'codex-cli__session-0001') -Message 'Selected audit entry should include ranked candidate scope IDs.'
+  Assert-Condition -Condition ($selectedEntry.selectedScopeId -eq 'codex-cli__session-0001') -Message "Selected audit entry should record the chosen scope, received $($selectedEntry.selectedScopeId)"
   Assert-Condition -Condition ($noMatchEntry.reason -eq 'no_candidates') -Message "No-match audit entry should record no_candidates, received $($noMatchEntry.reason)"
 
   [ordered]@{
     topScopeId = $firstResult.candidates[0].scopeId
+    supersededReason = $supersededEntry.reason
     auditEntries = $auditEntries.Count
-    noMatchReason = $secondResult.reason
+    noMatchReason = $thirdResult.reason
   } | ConvertTo-Json -Compress | Write-Output
 } finally {
   Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue

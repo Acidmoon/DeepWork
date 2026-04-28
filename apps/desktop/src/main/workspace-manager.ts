@@ -1,6 +1,6 @@
 import { clipboard } from 'electron'
 import { createHash } from 'node:crypto'
-import { basename, join, relative } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import {
   artifactDirectories,
@@ -20,6 +20,7 @@ import {
   type SaveClipboardResult,
   type WorkspaceSnapshot
 } from '@ai-workbench/core/desktop/workspace'
+import { parseRetrievalAuditEntries, type RetrievalAuditEntry } from '@ai-workbench/core/desktop/workspace'
 
 const WORKSPACE_PROTOCOL = `# Workspace Protocol
 
@@ -398,6 +399,8 @@ interface SaveTextArtifactOptions {
   contextLabel?: string
   metadata?: Record<string, unknown>
   artifactId?: string | null
+  fileName?: string
+  relativePath?: string
 }
 
 interface SaveWebContextOptions {
@@ -646,7 +649,40 @@ function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
     return hasSubstantiveTerminalContent(artifact)
   }
 
+  if (captureMode === 'auto-cli-retrieval-audit') {
+    return true
+  }
+
   return artifact.size >= 80
+}
+
+function buildRetrievalAuditArtifactId(sessionScopeId: string): string {
+  return `retrieval_audit_${sanitizeOrigin(sessionScopeId)}`
+}
+
+function buildRetrievalAuditSummary(entry: RetrievalAuditEntry): string {
+  const outcome = entry.outcome.replace(/[_-]+/g, ' ').trim()
+  const selectedScope = entry.selectedScopeId ? ` Selected scope: ${entry.selectedScopeId}.` : ''
+  const reason = entry.reason ? ` Reason: ${entry.reason}.` : ''
+  const query = entry.query.replace(/\s+/g, ' ').trim()
+  return `CLI retrieval audit latest outcome: ${outcome}.${selectedScope}${reason} Query: ${query}`.trim()
+}
+
+function toRetrievalAuditMetadata(entry: RetrievalAuditEntry, entryCount: number, sessionScopeId: string): Record<string, unknown> {
+  return {
+    captureMode: 'auto-cli-retrieval-audit',
+    panelId: sanitizeOrigin(String(entry.session?.panelId ?? 'manual')),
+    launchCount: entry.session?.launchCount ?? null,
+    contextLabel: sanitizeContextLabel(String(entry.session?.contextLabel ?? '')),
+    sessionScopeId,
+    retrievalQuery: entry.query,
+    retrievalOutcome: entry.outcome,
+    retrievalReason: entry.reason ?? null,
+    selectedScopeId: entry.selectedScopeId ?? null,
+    candidateScopeIds: entry.candidateScopeIds ?? [],
+    latestAuditTimestamp: entry.timestamp,
+    auditEntryCount: entryCount
+  }
 }
 
 function safeReadContextIndex(path: string, workspaceRoot: string): ContextIndexManifest {
@@ -716,6 +752,7 @@ export class WorkspaceManager {
   }
 
   getSnapshot(): WorkspaceSnapshot {
+    this.syncRetrievalAuditArtifacts({ emitSnapshot: false })
     const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
     const contextIndex = safeReadContextIndex(this.contextIndexPath, this.workspaceRoot)
 
@@ -784,6 +821,7 @@ export class WorkspaceManager {
 
   readArtifactContent(artifactId: string): ArtifactContentPayload | null {
     this.ensureInitialized()
+    this.syncRetrievalAuditArtifacts({ emitSnapshot: false })
 
     const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
     const artifact = manifest.artifacts.find((item) => item.id === artifactId)
@@ -934,6 +972,19 @@ export class WorkspaceManager {
     }
   }
 
+  syncRetrievalAuditArtifacts(options: { sessionScopeId?: string | null; emitSnapshot?: boolean } = {}): WorkspaceSnapshot {
+    this.ensureInitialized()
+
+    const nextManifest = this.syncRetrievalAuditArtifactsInternal(options.sessionScopeId ?? null)
+    const snapshot = this.getSnapshotFromManifest(nextManifest)
+
+    if (options.emitSnapshot ?? true) {
+      this.emitSnapshot(snapshot)
+    }
+
+    return snapshot
+  }
+
   private ensureInitialized(): void {
     ensureDirectory(this.workspaceRoot)
 
@@ -1028,15 +1079,16 @@ export class WorkspaceManager {
       : null
     const artifactType = existingArtifact?.type ?? options.type
     const id = existingArtifact?.id ?? nextArtifactId(artifactType, manifest)
-    const fileName = existingArtifact?.name ?? fileNameForArtifact(id, artifactType)
-    const relativePath = existingArtifact?.path ?? join(artifactDirectories[artifactType], fileName).replaceAll('\\', '/')
+    const fileName = existingArtifact?.name ?? options.fileName ?? fileNameForArtifact(id, artifactType)
+    const relativePath =
+      existingArtifact?.path ?? options.relativePath ?? join(artifactDirectories[artifactType], fileName).replaceAll('\\', '/')
     const absolutePath = join(this.workspaceRoot, relativePath)
     const createdAt = existingArtifact?.createdAt ?? nowIso()
     const updatedAt = nowIso()
     const origin = sanitizeOrigin(options.origin || existingArtifact?.origin || 'manual')
     const contextLabel = sanitizeContextLabel(options.contextLabel ?? String(existingArtifact?.metadata?.contextLabel ?? ''))
 
-    ensureDirectory(join(this.workspaceRoot, artifactDirectories[artifactType]))
+    ensureDirectory(dirname(absolutePath))
     ensureDirectory(join(this.workspaceRoot, 'outputs', origin))
     writeFileSync(absolutePath, options.content, 'utf8')
 
@@ -1085,6 +1137,117 @@ export class WorkspaceManager {
     }
 
     this.onSnapshotChanged(snapshot ?? this.getSnapshot())
+  }
+
+  private getSnapshotFromManifest(manifest: ArtifactManifest): WorkspaceSnapshot {
+    const contextIndex = safeReadContextIndex(this.contextIndexPath, this.workspaceRoot)
+
+    return {
+      projectId: this.projectId,
+      workspaceRoot: this.workspaceRoot,
+      manifestPath: this.manifestPath,
+      contextIndexPath: this.contextIndexPath,
+      originManifestsPath: this.originManifestsPath,
+      rulesPath: this.rulesPath,
+      initialized: existsSync(this.workspaceRoot) && existsSync(this.manifestPath) && existsSync(this.contextIndexPath),
+      artifactCount: manifest.artifacts.length,
+      bucketCounts: bucketCounts(manifest.artifacts),
+      contextEntries: contextIndex.origins,
+      artifacts: [...manifest.artifacts].reverse(),
+      recentArtifacts: [...manifest.artifacts].slice(-10).reverse(),
+      lastSavedArtifactId: this.lastSavedArtifactId,
+      lastError: this.lastError
+    }
+  }
+
+  private syncRetrievalAuditArtifactsInternal(sessionScopeId: string | null): ArtifactManifest {
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    const retrievalDirectory = join(this.workspaceRoot, 'logs', 'retrieval')
+    if (!existsSync(retrievalDirectory)) {
+      return manifest
+    }
+
+    const candidateFiles = readdirSync(retrievalDirectory)
+      .filter((fileName) => fileName.endsWith('.jsonl'))
+      .filter((fileName) => !sessionScopeId || fileName === `${sessionScopeId}.jsonl`)
+
+    let nextArtifacts = manifest.artifacts
+    let changed = false
+
+    for (const fileName of candidateFiles) {
+      const relativePath = join('logs', 'retrieval', fileName).replaceAll('\\', '/')
+      const absolutePath = join(this.workspaceRoot, relativePath)
+      if (!existsSync(absolutePath)) {
+        continue
+      }
+
+      const content = readFileSync(absolutePath, 'utf8')
+      const entries = parseRetrievalAuditEntries(content)
+      if (entries.length === 0) {
+        continue
+      }
+
+      const latestEntry = entries[entries.length - 1]
+      const resolvedSessionScopeId =
+        String(latestEntry.session?.sessionScopeId ?? '').trim() || fileName.replace(/\.jsonl$/i, '')
+      const artifactId = buildRetrievalAuditArtifactId(resolvedSessionScopeId)
+      const origin = sanitizeOrigin(String(latestEntry.session?.panelId ?? 'manual'))
+      const summary = buildRetrievalAuditSummary(latestEntry)
+      const metadata = toRetrievalAuditMetadata(latestEntry, entries.length, resolvedSessionScopeId)
+      const stat = statSync(absolutePath)
+      const hash = hashContent(content)
+      const tags = [...new Set(['log', 'retrieval', 'audit', origin])]
+      const existingArtifact = nextArtifacts.find((artifact) => artifact.id === artifactId) ?? null
+
+      const nextArtifact: ArtifactRecord = {
+        id: artifactId,
+        name: existingArtifact?.name ?? fileName,
+        type: 'log',
+        path: relativePath,
+        absolutePath,
+        origin,
+        summary,
+        tags,
+        parents: existingArtifact?.parents ?? [],
+        createdAt: existingArtifact?.createdAt ?? latestEntry.timestamp,
+        updatedAt: latestEntry.timestamp,
+        size: stat.size,
+        hash,
+        metadata
+      }
+
+      const hasChanged =
+        !existingArtifact ||
+        existingArtifact.hash !== nextArtifact.hash ||
+        existingArtifact.summary !== nextArtifact.summary ||
+        JSON.stringify(existingArtifact.metadata ?? {}) !== JSON.stringify(nextArtifact.metadata ?? {})
+
+      if (!hasChanged) {
+        continue
+      }
+
+      changed = true
+      nextArtifacts = existingArtifact
+        ? nextArtifacts.map((artifact) => (artifact.id === artifactId ? nextArtifact : artifact))
+        : [...nextArtifacts, nextArtifact]
+      this.lastSavedArtifactId = artifactId
+    }
+
+    if (!changed) {
+      return manifest
+    }
+
+    const nextManifest: ArtifactManifest = {
+      ...manifest,
+      workspaceRoot: this.workspaceRoot,
+      projectId: this.projectId,
+      artifacts: nextArtifacts
+    }
+
+    writeFileSync(this.manifestPath, JSON.stringify(nextManifest, null, 2), 'utf8')
+    this.writeContextIndex(nextManifest.artifacts)
+    this.lastError = null
+    return nextManifest
   }
 
   private writeContextIndex(artifacts: ArtifactRecord[]): void {

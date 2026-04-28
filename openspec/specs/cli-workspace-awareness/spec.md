@@ -35,7 +35,7 @@ Managed CLI sessions SHALL retrieve workspace context at scope or session granul
 - **THEN** it opens only the specific artifacts needed from that selected scope
 
 ### Requirement: Inspectable retrieval outcomes
-The system SHALL make managed CLI retrieval outcomes inspectable for each session when a workspace lookup occurs.
+The system SHALL make managed CLI retrieval outcomes inspectable for each session when a workspace lookup occurs, and the recorded evidence SHALL remain stable enough to inspect through workspace-managed records instead of requiring transcript parsing or ad hoc file discovery.
 
 #### Scenario: Record a retrieval with a selected scope
 - **WHEN** a managed CLI session performs a lookup and selects a scope
@@ -46,3 +46,8 @@ The system SHALL make managed CLI retrieval outcomes inspectable for each sessio
 - **WHEN** a managed CLI session performs a lookup and no relevant scope is selected
 - **THEN** the workspace records that no scope was chosen for the query
 - **THEN** the recorded evidence includes a machine-readable reason or outcome for the no-match case
+
+#### Scenario: Record a superseded pending lookup
+- **WHEN** a managed CLI session starts a new lookup before the previous pending selection has been completed
+- **THEN** the earlier lookup is finalized with an explicit machine-readable superseded outcome
+- **THEN** the later lookup becomes the only active pending selection state for that session

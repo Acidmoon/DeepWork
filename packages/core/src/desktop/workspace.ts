@@ -97,6 +97,28 @@ export interface BuildContextEntriesOptions<TArtifact extends ArtifactRecord = A
   isArtifactSubstantive?: (artifact: TArtifact) => boolean
 }
 
+export interface RetrievalAuditEntry {
+  timestamp: string
+  session?: {
+    panelId?: string | null
+    title?: string | null
+    launchCount?: number | null
+    contextLabel?: string | null
+    sessionScopeId?: string | null
+  } | null
+  query: string
+  candidateScopeIds?: string[]
+  candidates?: Array<{
+    scopeId?: string | null
+    score?: number | null
+    origin?: string | null
+    contextLabel?: string | null
+  }>
+  selectedScopeId?: string | null
+  outcome: string
+  reason?: string | null
+}
+
 const MAX_SCOPE_SUMMARY_PARTS = 3
 const MAX_SEARCH_TERMS = 64
 
@@ -152,6 +174,20 @@ export function getArtifactScopeId(artifact: Pick<ArtifactRecord, 'origin' | 'me
   const origin = sanitizeOrigin(artifact.origin || 'manual')
   const contextLabel = sanitizeContextLabel(String(artifact.metadata?.contextLabel ?? ''))
   return `${origin}__${contextLabel}`
+}
+
+export function parseRetrievalAuditEntries(content: string): RetrievalAuditEntry[] {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as RetrievalAuditEntry]
+      } catch {
+        return []
+      }
+    })
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
