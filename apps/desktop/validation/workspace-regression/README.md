@@ -34,6 +34,21 @@ Or from the repo root:
 npm run validate:workspace-regression
 ```
 
+If the renderer dev server binds to a different local port, override it explicitly:
+
+```powershell
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
+npm run validate:workspace-regression
+```
+
+If local HTTP access is constrained, validate against the compiled renderer instead:
+
+```powershell
+npm run build -w @ai-workbench/desktop
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='file:///E:/vibecoding/DeepWork/apps/desktop/out/renderer/index.html'
+npm run validate:workspace-regression
+```
+
 ## What It Uses
 
 - `fixtures/workspace-snapshot.json`: deterministic workspace metadata fixture
