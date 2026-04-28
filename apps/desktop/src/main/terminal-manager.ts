@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
 import * as pty from 'node-pty'
-import type { CustomTerminalPanelSettings } from '@ai-workbench/core/desktop/settings'
+import type { CliRetrievalPreference, CustomTerminalPanelSettings } from '@ai-workbench/core/desktop/settings'
 import { sanitizeContextLabel, sanitizeOrigin } from '@ai-workbench/core/desktop/workspace'
 import {
   createCustomTerminalPanelConfig,
@@ -65,7 +65,8 @@ function createManagedSessionIdentity(
 function createWorkspaceBootstrap(
   workspaceRoot: string,
   sessionCwd: string,
-  sessionIdentity: ManagedSessionIdentity | null = null
+  sessionIdentity: ManagedSessionIdentity | null = null,
+  retrievalPreference: CliRetrievalPreference = 'thread-first'
 ): string {
   const toolsPath = join(workspaceRoot, 'rules', 'WORKBENCH_TOOLS.ps1')
   const environmentAssignments = {
@@ -79,7 +80,8 @@ function createWorkspaceBootstrap(
     AI_WORKBENCH_THREAD_ID: sessionIdentity?.threadId ?? '',
     AI_WORKBENCH_THREAD_TITLE: sessionIdentity?.threadTitle ?? '',
     AI_WORKBENCH_RETRIEVAL_AUDIT_PATH: sessionIdentity?.retrievalAuditPath ?? '',
-    AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity?.retrievalStatePath ?? ''
+    AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity?.retrievalStatePath ?? '',
+    AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE: retrievalPreference
   }
 
   return [
@@ -170,6 +172,7 @@ export class TerminalManager {
   private readonly builtInIds = new Set(terminalPanelConfigs.map((config) => config.id))
   private workspaceRoot: string
   private globalStartupPreludeCommands: string[]
+  private cliRetrievalPreference: CliRetrievalPreference
 
   constructor(
     private readonly window: BrowserWindow,
@@ -177,12 +180,18 @@ export class TerminalManager {
     defaultCwd: string,
     customPanels: CustomTerminalPanelSettings[] = [],
     startupPreludeCommands: string[] = [],
+    cliRetrievalPreference: CliRetrievalPreference = 'thread-first',
     private readonly persistTerminalTranscript?: (payload: PersistTerminalTranscriptPayload) => string | null,
     private readonly syncRetrievalAuditArtifacts?: (sessionScopeId?: string | null) => void,
-    private readonly resolveSessionThread?: (panelId: string, title: string) => { threadId: string; title: string } | null
+    private readonly resolveSessionThread?: (
+      panelId: string,
+      title: string,
+      contextLabel: string
+    ) => { threadId: string; title: string } | null
   ) {
     this.workspaceRoot = defaultCwd
     this.globalStartupPreludeCommands = startupPreludeCommands
+    this.cliRetrievalPreference = cliRetrievalPreference
     this.logDirectory = join(baseDirectory, 'logs', 'terminal')
     mkdirSync(this.logDirectory, { recursive: true })
 
@@ -228,7 +237,7 @@ export class TerminalManager {
       const sessionToken = session.sessionToken + 1
       const nextLaunchCount = session.snapshot.launchCount + 1
       const contextLabel = `session-${String(nextLaunchCount).padStart(4, '0')}`
-      const threadIdentity = this.resolveSessionThread?.(session.config.id, session.config.title) ?? null
+      const threadIdentity = this.resolveSessionThread?.(session.config.id, session.config.title, contextLabel) ?? null
       const sessionIdentity = createManagedSessionIdentity(
         this.workspaceRoot,
         session.config.id,
@@ -250,6 +259,7 @@ export class TerminalManager {
         AI_WORKBENCH_THREAD_TITLE: sessionIdentity.threadTitle ?? '',
         AI_WORKBENCH_RETRIEVAL_AUDIT_PATH: sessionIdentity.retrievalAuditPath,
         AI_WORKBENCH_RETRIEVAL_STATE_PATH: sessionIdentity.retrievalStatePath,
+        AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE: this.cliRetrievalPreference,
         ...session.config.env
       }
 
@@ -300,7 +310,9 @@ export class TerminalManager {
           return
         }
 
-        session.ptyProcess.write(`${createWorkspaceBootstrap(this.workspaceRoot, cwd, sessionIdentity)}\r`)
+        session.ptyProcess.write(
+          `${createWorkspaceBootstrap(this.workspaceRoot, cwd, sessionIdentity, this.cliRetrievalPreference)}\r`
+        )
         for (const command of this.resolvePreludeCommands(session.config)) {
           if (command.trim().length > 0) {
             session.ptyProcess.write(`${command}\r`)
@@ -461,7 +473,9 @@ export class TerminalManager {
         session.threadTitle = sessionIdentity?.threadTitle ?? session.threadTitle
         session.retrievalAuditPath = sessionIdentity?.retrievalAuditPath ?? null
         session.retrievalStatePath = sessionIdentity?.retrievalStatePath ?? null
-        session.ptyProcess.write(`${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity)}\r`)
+        session.ptyProcess.write(
+          `${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity, this.cliRetrievalPreference)}\r`
+        )
       }
 
       this.publishState(session.snapshot)
@@ -471,6 +485,36 @@ export class TerminalManager {
   dispose(): void {
     for (const session of this.sessions.values()) {
       this.disposeSession(session)
+    }
+  }
+
+  syncCliRetrievalPreference(preference: CliRetrievalPreference): void {
+    this.cliRetrievalPreference = preference
+
+    for (const session of this.sessions.values()) {
+      if (!session.ptyProcess) {
+        continue
+      }
+
+      const sessionCwd = session.config.cwd ?? this.workspaceRoot
+      const sessionIdentity = session.contextLabel
+        ? createManagedSessionIdentity(
+            this.workspaceRoot,
+            session.config.id,
+            session.config.title,
+            session.snapshot.launchCount,
+            session.contextLabel,
+            session.threadId && session.threadTitle
+              ? {
+                  threadId: session.threadId,
+                  title: session.threadTitle
+                }
+              : null
+          )
+        : null
+      session.ptyProcess.write(
+        `${createWorkspaceBootstrap(this.workspaceRoot, sessionCwd, sessionIdentity, this.cliRetrievalPreference)}\r`
+      )
     }
   }
 

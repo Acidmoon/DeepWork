@@ -195,6 +195,7 @@ try {
   $env:AI_WORKBENCH_RETRIEVAL_STATE_PATH = $statePath
   $env:AI_WORKBENCH_THREAD_ID = [string]$snapshot.activeThreadId
   $env:AI_WORKBENCH_THREAD_TITLE = [string]$snapshot.activeThreadTitle
+  $env:AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE = 'thread-first'
 
   . $toolsPath
 
@@ -234,6 +235,15 @@ try {
   Assert-Condition -Condition ($fourthResult.retrievalMode -eq 'global_fallback') -Message "Expected global_fallback for the no-match query, received $($fourthResult.retrievalMode)"
   Assert-Condition -Condition (@($fourthResult.candidates).Count -eq 0) -Message 'No-match result should not return candidates.'
 
+  $env:AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE = 'global-first'
+  $fifthResult = aw-suggest -Query '111 deepseek' -Top 3 -Json | ConvertFrom-Json
+  Assert-Condition -Condition ($fifthResult.outcome -eq 'candidates_found') -Message "Expected global-first lookup to return candidates_found, received $($fifthResult.outcome)"
+  Assert-Condition -Condition ($fifthResult.retrievalMode -eq 'global_preferred') -Message "Expected global_preferred retrieval mode, received $($fifthResult.retrievalMode)"
+  Assert-Condition -Condition (@($fifthResult.candidates).Count -ge 1) -Message 'Expected at least one candidate for the global-first lookup.'
+  Assert-Condition -Condition ($fifthResult.candidates[0].scopeId -eq 'deepseek-web__a-chat-s-9b9f89a2-ceff') -Message "Expected DeepSeek scope to rank first for the global-first lookup, received $($fifthResult.candidates[0].scopeId)"
+
+  aw-origin 'deepseek-web__a-chat-s-9b9f89a2-ceff' | Out-Null
+
   Assert-Condition -Condition (Test-Path -LiteralPath $auditPath) -Message 'Retrieval audit log was not created.'
   Assert-Condition -Condition (-not (Test-Path -LiteralPath $statePath)) -Message 'Pending retrieval state file should be cleared after selection/no-match completion.'
 
@@ -247,8 +257,9 @@ try {
   $selectedFallbackEntry = $auditEntries | Where-Object { $_.selectedScopeId -eq 'minimax-web__minimax-agent' } | Select-Object -First 1
   $selectedThreadLocalEntry = $auditEntries | Where-Object { $_.selectedScopeId -eq 'codex-cli__session-0001' } | Select-Object -First 1
   $noMatchEntry = $auditEntries | Where-Object { $_.reason -eq 'no_candidates' } | Select-Object -First 1
+  $selectedGlobalPreferredEntry = $auditEntries | Where-Object { $_.retrievalMode -eq 'global_preferred' } | Select-Object -First 1
 
-  Assert-Condition -Condition ($auditEntries.Count -eq 4) -Message "Expected 4 retrieval audit entries, received $($auditEntries.Count)"
+  Assert-Condition -Condition ($auditEntries.Count -eq 5) -Message "Expected 5 retrieval audit entries, received $($auditEntries.Count)"
   Assert-Condition -Condition ($supersededEntry.query -eq '111 deepseek') -Message 'Superseded audit entry should capture the original unresolved query.'
   Assert-Condition -Condition ($supersededEntry.outcome -eq 'no_match') -Message "Superseded audit entry should be finalized as no_match, received $($supersededEntry.outcome)"
   Assert-Condition -Condition ($supersededEntry.retrievalMode -eq 'thread_local') -Message "Superseded audit entry should preserve thread_local mode, received $($supersededEntry.retrievalMode)"
@@ -260,12 +271,15 @@ try {
   Assert-Condition -Condition ($selectedThreadLocalEntry.session.threadId -eq 'thread-release-planning') -Message "Selected entry should preserve the active thread id, received $($selectedThreadLocalEntry.session.threadId)"
   Assert-Condition -Condition ($noMatchEntry.reason -eq 'no_candidates') -Message "No-match audit entry should record no_candidates, received $($noMatchEntry.reason)"
   Assert-Condition -Condition ($noMatchEntry.retrievalMode -eq 'global_fallback') -Message "No-match audit entry should record global_fallback, received $($noMatchEntry.retrievalMode)"
+  Assert-Condition -Condition ($selectedGlobalPreferredEntry.query -eq '111 deepseek') -Message 'Global-preferred selected audit entry should capture the DeepSeek query.'
+  Assert-Condition -Condition ($selectedGlobalPreferredEntry.selectedScopeId -eq 'deepseek-web__a-chat-s-9b9f89a2-ceff') -Message "Global-preferred selected entry should keep the DeepSeek scope, received $($selectedGlobalPreferredEntry.selectedScopeId)"
 
   [ordered]@{
     topScopeId = $firstResult.candidates[0].scopeId
     firstRetrievalMode = $firstResult.retrievalMode
     fallbackRetrievalMode = $secondCandidateResult.retrievalMode
     threadLocalSelectionMode = $selectedThreadLocalEntry.retrievalMode
+    globalPreferredMode = $fifthResult.retrievalMode
     auditEntries = $auditEntries.Count
     noMatchReason = $fourthResult.reason
   } | ConvertTo-Json -Compress | Write-Output

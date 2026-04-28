@@ -2,6 +2,7 @@ import { basename, join } from 'node:path'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import {
   getArtifactScopeId,
+  getArtifactThreadId,
   sanitizeOrigin,
   type ArtifactContentPayload,
   type ArtifactManifest,
@@ -10,6 +11,7 @@ import {
   type SaveClipboardResult,
   type WorkspaceSnapshot
 } from '@ai-workbench/core/desktop/workspace'
+import type { ThreadContinuationPreference } from '@ai-workbench/core/desktop/settings'
 import {
   AGENTS_MD_BLOCK,
   CLAUDE_INSTRUCTIONS,
@@ -56,6 +58,7 @@ export class WorkspaceManager {
   private readonly defaultWorkspaceRoot: string
   private projectId = 'default'
   private workspaceRoot: string
+  private threadContinuationPreference: ThreadContinuationPreference
   private manifestPath: string
   private contextIndexPath: string
   private originManifestsPath: string
@@ -68,10 +71,12 @@ export class WorkspaceManager {
   constructor(
     basePath: string,
     configuredRoot: string | null = null,
+    threadContinuationPreference: ThreadContinuationPreference = 'continue-active-thread',
     private readonly onSnapshotChanged?: (snapshot: WorkspaceSnapshot) => void
   ) {
     this.defaultWorkspaceRoot = join(basePath, 'AI-Workspace', 'projects', 'default')
     this.workspaceRoot = this.defaultWorkspaceRoot
+    this.threadContinuationPreference = threadContinuationPreference
     this.manifestPath = join(this.workspaceRoot, 'manifests', 'artifacts.json')
     this.contextIndexPath = join(this.workspaceRoot, 'manifests', 'context-index.json')
     this.originManifestsPath = join(this.workspaceRoot, 'manifests', 'origins')
@@ -118,7 +123,7 @@ export class WorkspaceManager {
 
     const thread = options.threadId?.trim()
       ? this.ensureThreadSelection(options.threadId, options.contextLabel || options.origin || 'manual')
-      : this.ensureActiveThread(options.contextLabel || options.origin || 'manual')
+      : this.resolveImplicitThread(options.origin || 'manual', options.contextLabel, options.contextLabel || options.origin || 'manual')
     const result = saveTextArtifactToWorkspace(this.getManifestContext(), {
       type: payload.type,
       content: payload.content,
@@ -159,47 +164,7 @@ export class WorkspaceManager {
 
   createThread(title?: string | null, activate = true): WorkspaceSnapshot {
     this.ensureInitialized()
-
-    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
-    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
-    const nextTitle = deriveThreadTitleFromSeed(
-      title,
-      `${this.projectId}-${String(threadIndex.threads.length + 1).padStart(2, '0')}`
-    )
-    const threadId = createThreadId(nextTitle)
-
-    writeFileSync(
-      this.threadIndexPath,
-      JSON.stringify(
-        {
-          ...threadIndex,
-          workspaceRoot: this.workspaceRoot,
-          activeThreadId: activate ? threadId : threadIndex.activeThreadId,
-          threads: [
-            {
-              threadId,
-              title: nextTitle,
-              derived: false,
-              scopeIds: [],
-              artifactIds: [],
-              scopeCount: 0,
-              artifactCount: 0,
-              latestArtifactId: null,
-              latestUpdatedAt: null,
-              originHints: [],
-              searchTerms: [],
-              summary: ''
-            },
-            ...threadIndex.threads
-          ]
-        },
-        null,
-        2
-      ),
-      'utf8'
-    )
-
-    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: activate ? threadId : threadIndex.activeThreadId })
+    this.createThreadRecord(title, activate)
     this.lastError = null
     const snapshot = this.getSnapshot()
     this.emitSnapshot(snapshot)
@@ -208,9 +173,7 @@ export class WorkspaceManager {
 
   selectThread(threadId: string | null): WorkspaceSnapshot {
     this.ensureInitialized()
-
-    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
-    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: threadId?.trim() ? sanitizeOrigin(threadId) : null })
+    this.writeActiveThreadSelection(threadId)
     this.lastError = null
     const snapshot = this.getSnapshot()
     this.emitSnapshot(snapshot)
@@ -286,13 +249,17 @@ export class WorkspaceManager {
     return snapshot
   }
 
-  ensureThreadForSession(panelId: string, title: string): { threadId: string; title: string } {
+  ensureThreadForSession(panelId: string, title: string, contextLabel?: string | null): { threadId: string; title: string } {
     this.ensureInitialized()
-    const thread = this.ensureActiveThread(title || panelId)
+    const thread = this.resolveImplicitThread(panelId, contextLabel, title || panelId)
     return {
       threadId: thread.threadId,
       title: thread.title
     }
+  }
+
+  syncThreadContinuationPreference(preference: ThreadContinuationPreference): void {
+    this.threadContinuationPreference = preference
   }
 
   deleteScope(scopeId: string): WorkspaceSnapshot {
@@ -339,7 +306,7 @@ export class WorkspaceManager {
   }): string | null {
     const thread = input.threadId?.trim()
       ? this.ensureThreadSelection(input.threadId, input.title)
-      : this.ensureActiveThread(input.title)
+      : this.resolveImplicitThread(input.panelId, input.contextLabel, input.title)
     const result = saveTextArtifactToWorkspace(this.getManifestContext(), {
       artifactId: input.artifactId,
       type: 'log',
@@ -367,7 +334,11 @@ export class WorkspaceManager {
   upsertWebContext(input: SaveWebContextOptions): { transcriptArtifactId: string | null; messagesArtifactId: string | null } {
     const thread = input.threadId?.trim()
       ? this.ensureThreadSelection(input.threadId, input.threadTitle || input.title || input.url)
-      : this.ensureActiveThread(input.threadTitle || input.title || input.url)
+      : this.resolveImplicitThread(
+          input.panelId,
+          input.contextLabel,
+          input.threadTitle || input.title || input.url
+        )
     const messagePreview = input.messages?.find((message) => message.role === 'user' || message.role === 'assistant')?.text
       ?.replace(/\s+/g, ' ')
       .slice(0, 120)
@@ -609,13 +580,7 @@ export class WorkspaceManager {
       return activeThread
     }
 
-    const snapshot = this.createThread(seed, true)
-    const createdThread = snapshot.threads.find((thread) => thread.threadId === snapshot.activeThreadId)
-    if (!createdThread) {
-      throw new Error('Failed to initialize an active workspace thread.')
-    }
-
-    return createdThread
+    return this.createThreadRecord(seed, true)
   }
 
   private ensureThreadSelection(threadId: string, fallbackTitle: string): ContextThreadSummary {
@@ -624,7 +589,7 @@ export class WorkspaceManager {
     const existingThread = threadIndex.threads.find((thread) => thread.threadId === normalizedThreadId)
     if (existingThread) {
       if (threadIndex.activeThreadId !== normalizedThreadId) {
-        this.selectThread(normalizedThreadId)
+        this.writeActiveThreadSelection(normalizedThreadId)
       }
       return existingThread
     }
@@ -660,8 +625,7 @@ export class WorkspaceManager {
       ),
       'utf8'
     )
-    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
-    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, { activeThreadId: normalizedThreadId })
+    this.writeActiveThreadSelection(normalizedThreadId)
 
     return {
       threadId: normalizedThreadId,
@@ -677,5 +641,81 @@ export class WorkspaceManager {
       searchTerms: [],
       summary: ''
     }
+  }
+
+  private createThreadRecord(title?: string | null, activate = true): ContextThreadSummary {
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+    const nextTitle = deriveThreadTitleFromSeed(
+      title,
+      `${this.projectId}-${String(threadIndex.threads.length + 1).padStart(2, '0')}`
+    )
+    const threadId = createThreadId(nextTitle)
+    const thread: ContextThreadSummary = {
+      threadId,
+      title: nextTitle,
+      derived: false,
+      scopeIds: [],
+      artifactIds: [],
+      scopeCount: 0,
+      artifactCount: 0,
+      latestArtifactId: null,
+      latestUpdatedAt: null,
+      originHints: [],
+      searchTerms: [],
+      summary: ''
+    }
+
+    writeFileSync(
+      this.threadIndexPath,
+      JSON.stringify(
+        {
+          ...threadIndex,
+          workspaceRoot: this.workspaceRoot,
+          activeThreadId: activate ? threadId : threadIndex.activeThreadId,
+          threads: [thread, ...threadIndex.threads]
+        },
+        null,
+        2
+      ),
+      'utf8'
+    )
+
+    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, {
+      activeThreadId: activate ? threadId : threadIndex.activeThreadId
+    })
+
+    return thread
+  }
+
+  private writeActiveThreadSelection(threadId: string | null): void {
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    writeContextIndexFiles(this.getManifestContext(), manifest.artifacts, {
+      activeThreadId: threadId?.trim() ? sanitizeOrigin(threadId) : null
+    })
+  }
+
+  private resolveImplicitThread(
+    origin: string,
+    contextLabel: string | null | undefined,
+    fallbackTitle: string
+  ): ContextThreadSummary {
+    const scopeId = getArtifactScopeId({
+      origin,
+      metadata: {
+        contextLabel: contextLabel ?? ''
+      }
+    })
+    const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
+    const existingArtifact = manifest.artifacts.find((artifact) => getArtifactScopeId(artifact) === scopeId)
+    if (existingArtifact) {
+      return this.ensureThreadSelection(getArtifactThreadId(existingArtifact), fallbackTitle)
+    }
+
+    if (this.threadContinuationPreference === 'continue-active-thread') {
+      return this.ensureActiveThread(fallbackTitle)
+    }
+
+    return this.createThreadRecord(fallbackTitle, true)
   }
 }

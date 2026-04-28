@@ -341,7 +341,9 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             ...settingsPanel.viewState,
             language: snapshot.language,
             theme: snapshot.theme,
-            terminalPreludeText: snapshot.terminalPreludeCommands.join('\n')
+            terminalPreludeText: snapshot.terminalPreludeCommands.join('\n'),
+            threadContinuationPreference: snapshot.threadContinuationPreference,
+            cliRetrievalPreference: snapshot.cliRetrievalPreference
           }
         }
       }

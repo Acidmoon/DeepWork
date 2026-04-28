@@ -82,6 +82,9 @@ export const WORKBENCH_TOOLS = `function aw-workspace {
   if ($env:AI_WORKBENCH_THREAD_ID) {
     Write-Host "Active Thread: $env:AI_WORKBENCH_THREAD_ID"
   }
+  if ($env:AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE) {
+    Write-Host "CLI Retrieval Preference: $env:AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE"
+  }
 }
 
 function aw-origins {
@@ -300,6 +303,12 @@ function aw-suggest {
   } else {
     ''
   }
+  $retrievalPreference =
+    if ([string]::Equals([string]$env:AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE, 'global-first', [System.StringComparison]::OrdinalIgnoreCase)) {
+      'global-first'
+    } else {
+      'thread-first'
+    }
 
   $results = foreach ($entry in $contextIndex.origins) {
     $searchTerms = @($entry.retrieval.searchTerms | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
@@ -371,13 +380,17 @@ function aw-suggest {
   }
   $hasThreadScopedResults = $threadScopedResults.Length -gt 0
   $candidatePool =
-    if ($hasThreadScopedResults) {
+    if ($retrievalPreference -eq 'global-first') {
+      $allResults
+    } elseif ($hasThreadScopedResults) {
       $threadScopedResults
     } else {
       $allResults
     }
   $retrievalMode =
-    if ($hasThreadScopedResults) {
+    if ($retrievalPreference -eq 'global-first') {
+      'global_preferred'
+    } elseif ($hasThreadScopedResults) {
       'thread_local'
     } elseif (-not [string]::IsNullOrWhiteSpace($activeThreadId)) {
       'global_fallback'

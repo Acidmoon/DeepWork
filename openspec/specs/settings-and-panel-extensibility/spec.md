@@ -4,7 +4,7 @@
 Define how application settings and panel definitions are persisted, including the future-facing preferences that shape how managed CLI sessions discover workspace context by default.
 ## Requirements
 ### Requirement: Persisted application settings
-The system SHALL persist application-level settings for language, theme, workspace root, terminal prelude commands, built-in web panel overrides, and custom panel definitions.
+The system SHALL persist application-level settings for language, theme, workspace root, terminal prelude commands, built-in web panel overrides, custom panel definitions, default thread continuation, and managed CLI retrieval preference.
 
 #### Scenario: Load settings on startup
 - **WHEN** the application starts
@@ -66,11 +66,12 @@ The renderer SHALL allow users to create, rename, configure, enable or disable, 
 The settings panel SHALL expose the preferences that are currently implemented and SHALL keep deferred preference areas visible as placeholders rather than silently omitting them.
 
 #### Scenario: Edit implemented settings
-- **WHEN** the user changes language, theme, or terminal prelude commands in the settings panel
+- **WHEN** the user changes language, theme, terminal prelude commands, default thread continuation, or managed CLI retrieval preference in the settings panel
 - **THEN** the updated values are persisted through the settings IPC flow
 - **THEN** language and theme changes take effect in the renderer without requiring a code change
+- **THEN** later managed captures and managed CLI retrievals use the updated continuity settings without requiring manual file edits
 
 #### Scenario: View deferred preferences
 - **WHEN** the user opens the settings panel
-- **THEN** placeholder entries remain visible for CLI workspace-retrieval defaults, default workspace behavior, and terminal behavior extensions
+- **THEN** placeholder entries remain visible for default workspace behavior and terminal behavior extensions
 - **THEN** those entries are presented as future-facing placeholders rather than active runtime configuration

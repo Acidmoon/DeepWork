@@ -50,13 +50,18 @@ app.whenReady().then(() => {
   app.setName('DeepWork')
   settingsManager = new SettingsManager(app.getPath('userData'))
   mainWindow = createMainWindow()
-  workspaceManager = new WorkspaceManager(app.getPath('documents'), settingsManager.getSnapshot().workspaceRoot, (snapshot) => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      return
-    }
+  workspaceManager = new WorkspaceManager(
+    app.getPath('documents'),
+    settingsManager.getSnapshot().workspaceRoot,
+    settingsManager.getSnapshot().threadContinuationPreference,
+    (snapshot) => {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        return
+      }
 
-    mainWindow.webContents.send('workspace:state-changed', snapshot)
-  })
+      mainWindow.webContents.send('workspace:state-changed', snapshot)
+    }
+  )
   webPanelManager = new WebPanelManager(
     mainWindow,
     settingsManager.getSnapshot().webPanels,
@@ -69,11 +74,12 @@ app.whenReady().then(() => {
     settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
     settingsManager.getSnapshot().customTerminalPanels,
     settingsManager.getSnapshot().terminalPreludeCommands,
+    settingsManager.getSnapshot().cliRetrievalPreference,
     (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
     (sessionScopeId) => {
       workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
     },
-    (panelId, title) => workspaceManager?.ensureThreadForSession(panelId, title) ?? null
+    (panelId, title, contextLabel) => workspaceManager?.ensureThreadForSession(panelId, title, contextLabel) ?? null
   )
   terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
 
@@ -164,6 +170,8 @@ app.whenReady().then(() => {
     webPanelManager?.syncCustomPanels(snapshot.customWebPanels)
     terminalManager?.syncCustomPanels(snapshot.customTerminalPanels)
     terminalManager?.syncStartupPreludeCommands(snapshot.terminalPreludeCommands)
+    terminalManager?.syncCliRetrievalPreference(snapshot.cliRetrievalPreference)
+    workspaceManager?.syncThreadContinuationPreference(snapshot.threadContinuationPreference)
     if (workspaceManager && Object.prototype.hasOwnProperty.call(update, 'workspaceRoot')) {
       const workspaceSnapshot = workspaceManager.setWorkspaceRoot(snapshot.workspaceRoot)
       terminalManager?.syncWorkspaceRoot(workspaceSnapshot.workspaceRoot)
@@ -185,13 +193,18 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       settingsManager = new SettingsManager(app.getPath('userData'))
       mainWindow = createMainWindow()
-      workspaceManager = new WorkspaceManager(app.getPath('documents'), settingsManager.getSnapshot().workspaceRoot, (snapshot) => {
-        if (!mainWindow || mainWindow.isDestroyed()) {
-          return
-        }
+      workspaceManager = new WorkspaceManager(
+        app.getPath('documents'),
+        settingsManager.getSnapshot().workspaceRoot,
+        settingsManager.getSnapshot().threadContinuationPreference,
+        (snapshot) => {
+          if (!mainWindow || mainWindow.isDestroyed()) {
+            return
+          }
 
-        mainWindow.webContents.send('workspace:state-changed', snapshot)
-      })
+          mainWindow.webContents.send('workspace:state-changed', snapshot)
+        }
+      )
       webPanelManager = new WebPanelManager(
         mainWindow,
         settingsManager.getSnapshot().webPanels,
@@ -204,11 +217,12 @@ app.whenReady().then(() => {
         settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
         settingsManager.getSnapshot().customTerminalPanels,
         settingsManager.getSnapshot().terminalPreludeCommands,
+        settingsManager.getSnapshot().cliRetrievalPreference,
         (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
         (sessionScopeId) => {
           workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
         },
-        (panelId, title) => workspaceManager?.ensureThreadForSession(panelId, title) ?? null
+        (panelId, title, contextLabel) => workspaceManager?.ensureThreadForSession(panelId, title, contextLabel) ?? null
       )
       terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
     }

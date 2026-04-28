@@ -2,7 +2,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { WebPanelConfig } from '@ai-workbench/core/desktop/web-panels'
 import type { AppSettingsSnapshot, AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
-import { defaultAppSettings } from '@ai-workbench/core/desktop/settings'
+import {
+  defaultAppSettings,
+  normalizeCliRetrievalPreference,
+  normalizeThreadContinuationPreference
+} from '@ai-workbench/core/desktop/settings'
 
 export class SettingsManager {
   private readonly filePath: string
@@ -18,9 +22,14 @@ export class SettingsManager {
   }
 
   update(update: AppSettingsUpdate): AppSettingsSnapshot {
-    this.snapshot = {
+    const nextSnapshot = {
       ...this.snapshot,
       ...update
+    }
+    this.snapshot = {
+      ...nextSnapshot,
+      threadContinuationPreference: normalizeThreadContinuationPreference(nextSnapshot.threadContinuationPreference),
+      cliRetrievalPreference: normalizeCliRetrievalPreference(nextSnapshot.cliRetrievalPreference)
     }
 
     this.writeSettings(this.snapshot)
@@ -73,6 +82,8 @@ export class SettingsManager {
         theme: parsed.theme ?? defaultAppSettings.theme,
         workspaceRoot: parsed.workspaceRoot ?? defaultAppSettings.workspaceRoot,
         terminalPreludeCommands: parsed.terminalPreludeCommands ?? defaultAppSettings.terminalPreludeCommands,
+        threadContinuationPreference: normalizeThreadContinuationPreference(parsed.threadContinuationPreference),
+        cliRetrievalPreference: normalizeCliRetrievalPreference(parsed.cliRetrievalPreference),
         webPanels: parsed.webPanels ?? defaultAppSettings.webPanels,
         customWebPanels: parsed.customWebPanels ?? defaultAppSettings.customWebPanels,
         customTerminalPanels: parsed.customTerminalPanels ?? defaultAppSettings.customTerminalPanels

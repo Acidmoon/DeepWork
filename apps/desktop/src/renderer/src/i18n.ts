@@ -1,6 +1,10 @@
 import type { NavigationSection, PanelDefinition, PanelKind, PanelState, SettingsOptionPlaceholder } from '@ai-workbench/core/desktop/panels'
 import type { TerminalPanelStatus } from '@ai-workbench/core/desktop/terminal-panels'
-import type { ThemePreference } from '@ai-workbench/core/desktop/settings'
+import type {
+  CliRetrievalPreference,
+  ThemePreference,
+  ThreadContinuationPreference
+} from '@ai-workbench/core/desktop/settings'
 
 export type SupportedLocale = 'zh-CN' | 'en-US'
 export type LanguagePreference = 'system' | SupportedLocale
@@ -77,10 +81,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     settings: {
       title: 'Settings',
       group: 'System',
-      summary: '设置面板开始承接应用级偏好项，当前先落地语言选项与后续能力的占位配置。',
-      nextStep: '继续把 CLI 工作区检索策略、默认工作区、终端启动策略等接入可配置项。',
-      delivery: '首版设置面板：语言切换入口 + 可扩展占位。',
-      signal: 'Preferences scaffolded'
+      summary: '设置面板已经开始承接应用级偏好项，当前版本已支持语言、主题、CLI 前置命令与跨会话连续性设置。',
+      nextStep: '继续把默认工作区和更细粒度的终端行为扩展成可配置项。',
+      delivery: '设置面板：基础外观配置 + 跨会话连续性设置。',
+      signal: 'Preferences live'
     }
   },
   'en-US': {
@@ -151,10 +155,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     settings: {
       title: 'Settings',
       group: 'System',
-      summary: 'The settings panel now starts owning app-level preferences, beginning with language options and placeholders for future capabilities.',
-      nextStep: 'Keep wiring CLI workspace-retrieval defaults, default workspace selection, and terminal startup behavior into real settings.',
-      delivery: 'First settings panel: language switch entry plus expandable placeholders.',
-      signal: 'Preferences scaffolded'
+      summary: 'The settings panel now owns app-level preferences for language, theme, CLI prelude commands, and cross-session continuity defaults.',
+      nextStep: 'Continue wiring default workspace selection and deeper terminal behavior into real settings.',
+      delivery: 'Settings panel: baseline appearance controls plus continuity defaults.',
+      signal: 'Preferences live'
     }
   }
 }
@@ -183,7 +187,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     system: {
       title: 'System',
-      caption: '应用级配置集中在这里，当前先提供语言与后续功能占位。'
+      caption: '应用级配置集中在这里，当前已支持连续性设置，并保留后续偏好扩展位。'
     }
   },
   'en-US': {
@@ -209,7 +213,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     system: {
       title: 'System',
-      caption: 'App-level configuration lives here, starting with language settings and placeholder preferences.'
+      caption: 'App-level configuration lives here, including live continuity defaults and placeholder space for later preferences.'
     }
   }
 }
@@ -433,7 +437,7 @@ const uiText = {
     lastArtifact: '最近 Artifact',
     renderNotes: '渲染备注',
     applicationSettings: '应用设置',
-    settingsIntro: '这里可以配置应用级偏好项。当前版本已支持语言、浅色/深色/跟随系统，以及 CLI 启动前置命令。',
+    settingsIntro: '这里可以配置应用级偏好项。当前版本已支持语言、浅色/深色/跟随系统、CLI 启动前置命令，以及跨会话连续性设置。',
     language: '语言',
     uiLocalePreference: '界面语言偏好',
     displayLanguage: '显示语言',
@@ -442,6 +446,17 @@ const uiText = {
     displayTheme: '显示模式',
     lightMode: '浅色模式',
     darkMode: '深色模式',
+    sessionContinuityDefaults: '会话连续性默认值',
+    sessionContinuityHint: '决定新的网页、CLI 和手动保存内容在未显式指定线程时如何归属。',
+    defaultThreadContinuation: '默认线程延续',
+    continueActiveThread: '继续当前线程',
+    startNewThreadPerScope: '新范围新线程',
+    continuitySettingsNote: '只影响后续新会话或新捕获，不会改写已有 Artifact 的线程归属。',
+    cliRetrievalPreference: 'CLI 检索偏好',
+    cliRetrievalPreferenceHint: '决定受管 CLI 在需要历史上下文时，是先查当前线程还是直接全局检索。',
+    retrievalActiveThreadFirst: '先查当前线程',
+    retrievalGlobalFirst: '直接全局检索',
+    retrievalSettingsNote: '设置会在后续检索中生效，并保留在 retrieval audit 记录里。',
     cliStartupPrelude: 'CLI 启动前置命令',
     cliStartupPreludeHint: '这些命令会在启动 Codex / Claude 之前依次执行。',
     cliStartupPreludePlaceholder: '每行一条命令，例如：\nproxy_on',
@@ -655,7 +670,7 @@ const uiText = {
     lastArtifact: 'Last Artifact',
     renderNotes: 'Render Notes',
     applicationSettings: 'Application Settings',
-    settingsIntro: 'Configure app-level preferences here. This version already supports language, light/dark/system appearance, and CLI startup prelude commands.',
+    settingsIntro: 'Configure app-level preferences here. This version already supports language, light/dark/system appearance, CLI startup prelude commands, and cross-session continuity defaults.',
     language: 'Language',
     uiLocalePreference: 'UI locale preference',
     displayLanguage: 'Display Language',
@@ -664,6 +679,17 @@ const uiText = {
     displayTheme: 'Display Theme',
     lightMode: 'Light',
     darkMode: 'Dark',
+    sessionContinuityDefaults: 'Session Continuity Defaults',
+    sessionContinuityHint: 'Choose how new web, CLI, and manual captures attach to threads when no thread is selected explicitly.',
+    defaultThreadContinuation: 'Default Thread Continuation',
+    continueActiveThread: 'Continue Active Thread',
+    startNewThreadPerScope: 'New Thread Per Scope',
+    continuitySettingsNote: 'This only affects future sessions and captures. Existing artifact thread assignments stay unchanged.',
+    cliRetrievalPreference: 'CLI Retrieval Preference',
+    cliRetrievalPreferenceHint: 'Choose whether managed CLI retrieval should search the active thread first or rank the whole workspace immediately.',
+    retrievalActiveThreadFirst: 'Active Thread First',
+    retrievalGlobalFirst: 'Whole Workspace First',
+    retrievalSettingsNote: 'The selected mode applies to later retrievals and remains visible in retrieval audit records.',
     cliStartupPrelude: 'CLI Startup Prelude',
     cliStartupPreludeHint: 'These commands run before Codex or Claude starts.',
     cliStartupPreludePlaceholder: 'One command per line, for example:\nproxy_on',
@@ -833,6 +859,28 @@ export function getThemeLabel(preference: ThemePreference, locale: SupportedLoca
       return ui.lightMode
     case 'dark':
       return ui.darkMode
+  }
+}
+
+export function getThreadContinuationLabel(preference: ThreadContinuationPreference, locale: SupportedLocale): string {
+  const ui = uiText[locale]
+
+  switch (preference) {
+    case 'continue-active-thread':
+      return ui.continueActiveThread
+    case 'start-new-thread-per-scope':
+      return ui.startNewThreadPerScope
+  }
+}
+
+export function getCliRetrievalPreferenceLabel(preference: CliRetrievalPreference, locale: SupportedLocale): string {
+  const ui = uiText[locale]
+
+  switch (preference) {
+    case 'thread-first':
+      return ui.retrievalActiveThreadFirst
+    case 'global-first':
+      return ui.retrievalGlobalFirst
   }
 }
 

@@ -79,6 +79,8 @@ function buildBootstrapScript() {
       theme: 'light',
       workspaceRoot: null,
       terminalPreludeCommands: ['proxy_on'],
+      threadContinuationPreference: 'continue-active-thread',
+      cliRetrievalPreference: 'thread-first',
       webPanels: {},
       customWebPanels: [],
       customTerminalPanels: []
@@ -273,7 +275,10 @@ function buildBootstrapScript() {
             webPanels: update.webPanels ?? settings.webPanels,
             customWebPanels: update.customWebPanels ?? settings.customWebPanels,
             customTerminalPanels: update.customTerminalPanels ?? settings.customTerminalPanels,
-            terminalPreludeCommands: update.terminalPreludeCommands ?? settings.terminalPreludeCommands
+            terminalPreludeCommands: update.terminalPreludeCommands ?? settings.terminalPreludeCommands,
+            threadContinuationPreference:
+              update.threadContinuationPreference ?? settings.threadContinuationPreference,
+            cliRetrievalPreference: update.cliRetrievalPreference ?? settings.cliRetrievalPreference
           }
           syncCustomSnapshots()
           return clone(settings)

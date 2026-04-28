@@ -1,4 +1,12 @@
-import type { CustomTerminalPanelSettings, CustomWebPanelSettings, LanguagePreference, ThemePreference } from './settings'
+import {
+  defaultAppSettings,
+  type CliRetrievalPreference,
+  type CustomTerminalPanelSettings,
+  type CustomWebPanelSettings,
+  type LanguagePreference,
+  type ThemePreference,
+  type ThreadContinuationPreference
+} from './settings'
 import { getTerminalPanelConfig } from './terminal-panels'
 import type { TerminalPanelSnapshot, TerminalPanelStatus } from './terminal-panels'
 import { getWebPanelConfig } from './web-panels'
@@ -121,6 +129,8 @@ export interface SettingsPanelViewState {
   language: LanguagePreference
   theme: ThemePreference
   terminalPreludeText: string
+  threadContinuationPreference: ThreadContinuationPreference
+  cliRetrievalPreference: CliRetrievalPreference
   placeholders: SettingsOptionPlaceholder[]
   notes: string
 }
@@ -254,10 +264,10 @@ export const panelRegistry: PanelDefinition[] = [
     group: 'System',
     kind: 'settings',
     state: 'scaffolded',
-    summary: '设置面板开始承接应用级偏好项，当前先落地语言选项与后续能力的占位配置。',
-    nextStep: '继续把 CLI 工作区检索策略、默认工作区、终端启动策略等接入可配置项。',
-    delivery: '首版设置面板：语言切换入口 + 可扩展占位。',
-    signal: 'Preferences scaffolded'
+    summary: '设置面板已经开始承接应用级偏好项，当前版本已支持语言、主题、CLI 前置命令与跨会话连续性设置。',
+    nextStep: '继续把默认工作区和更细粒度的终端行为扩展成可配置项。',
+    delivery: '设置面板：基础外观配置 + 跨会话连续性设置。',
+    signal: 'Preferences live'
   }
 ]
 
@@ -295,7 +305,7 @@ export const navigationSections: NavigationSection[] = [
   {
     id: 'system',
     title: 'System',
-    caption: '应用级配置集中在这里，当前先提供语言与后续功能占位。',
+    caption: '应用级配置集中在这里，当前已支持连续性设置，并保留后续偏好扩展位。',
     panelIds: ['settings']
   }
 ]
@@ -305,12 +315,6 @@ const DEFAULT_TERMINAL_ROWS = 32
 const DISABLED_WEB_PANEL_ERROR = 'Disabled until enabled'
 
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
-  {
-    id: 'cli-prompt-template',
-    label: 'CLI Workspace Retrieval',
-    description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。',
-    status: 'planned'
-  },
   {
     id: 'default-workspace',
     label: 'Default Workspace',
@@ -418,11 +422,13 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
     case 'settings':
       return {
         kind: 'settings',
-        language: 'system',
-        theme: 'system',
-        terminalPreludeText: 'proxy_on',
+        language: defaultAppSettings.language,
+        theme: defaultAppSettings.theme,
+        terminalPreludeText: defaultAppSettings.terminalPreludeCommands.join('\n'),
+        threadContinuationPreference: defaultAppSettings.threadContinuationPreference,
+        cliRetrievalPreference: defaultAppSettings.cliRetrievalPreference,
         placeholders: defaultSettingsPlaceholders,
-        notes: 'Settings panel scaffolded for future preferences.'
+        notes: 'Settings panel now includes continuity defaults and keeps later preferences visible as placeholders.'
       }
   }
 }

@@ -146,6 +146,8 @@ function buildBootstrapScript(payload) {
           theme: 'light',
           workspaceRoot: currentSnapshot.workspaceRoot,
           terminalPreludeCommands: ['proxy_on'],
+          threadContinuationPreference: 'continue-active-thread',
+          cliRetrievalPreference: 'thread-first',
           webPanels: {},
           customWebPanels: [],
           customTerminalPanels: []
@@ -155,6 +157,8 @@ function buildBootstrapScript(payload) {
           theme: update.theme ?? 'light',
           workspaceRoot: currentSnapshot.workspaceRoot,
           terminalPreludeCommands: ['proxy_on'],
+          threadContinuationPreference: update.threadContinuationPreference ?? 'continue-active-thread',
+          cliRetrievalPreference: update.cliRetrievalPreference ?? 'thread-first',
           webPanels: {},
           customWebPanels: [],
           customTerminalPanels: []

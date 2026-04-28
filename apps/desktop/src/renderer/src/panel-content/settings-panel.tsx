@@ -1,7 +1,9 @@
 import {
+  getCliRetrievalPreferenceLabel,
   getLanguageLabel,
   getPlaceholderStatusLabel,
   getThemeLabel,
+  getThreadContinuationLabel,
   getUiText,
   localizePanelDefinition,
   localizeSettingsPlaceholder,
@@ -111,6 +113,90 @@ export function SettingsPanel({
             <div className="detail-list__item">
               <span>{ui.note}</span>
               <strong>{ui.themePreference}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel-section">
+        <div className="section-line">
+          <strong>{ui.sessionContinuityDefaults}</strong>
+          <span>{ui.sessionContinuityHint}</span>
+        </div>
+
+        <div className="detail-columns">
+          <label className="field">
+            <span>{ui.defaultThreadContinuation}</span>
+            <select
+              value={state.threadContinuationPreference}
+              onChange={async (event) => {
+                const threadContinuationPreference = event.target.value as SettingsPanelViewState['threadContinuationPreference']
+
+                updatePanelViewState(panel.definition.id, {
+                  ...state,
+                  threadContinuationPreference
+                })
+
+                const snapshot = await window.workbenchShell.settings.update({ threadContinuationPreference })
+                if (snapshot) {
+                  useWorkbenchStore.getState().syncSettingsState(snapshot)
+                }
+              }}
+            >
+              <option value="continue-active-thread">{ui.continueActiveThread}</option>
+              <option value="start-new-thread-per-scope">{ui.startNewThreadPerScope}</option>
+            </select>
+          </label>
+          <div className="detail-list">
+            <div className="detail-list__item">
+              <span>{ui.currentMode}</span>
+              <strong>{getThreadContinuationLabel(state.threadContinuationPreference, locale)}</strong>
+            </div>
+            <div className="detail-list__item">
+              <span>{ui.note}</span>
+              <strong>{ui.continuitySettingsNote}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel-section">
+        <div className="section-line">
+          <strong>{ui.cliRetrievalPreference}</strong>
+          <span>{ui.cliRetrievalPreferenceHint}</span>
+        </div>
+
+        <div className="detail-columns">
+          <label className="field">
+            <span>{ui.cliRetrievalPreference}</span>
+            <select
+              value={state.cliRetrievalPreference}
+              onChange={async (event) => {
+                const cliRetrievalPreference = event.target.value as SettingsPanelViewState['cliRetrievalPreference']
+
+                updatePanelViewState(panel.definition.id, {
+                  ...state,
+                  cliRetrievalPreference
+                })
+
+                const snapshot = await window.workbenchShell.settings.update({ cliRetrievalPreference })
+                if (snapshot) {
+                  useWorkbenchStore.getState().syncSettingsState(snapshot)
+                }
+              }}
+            >
+              <option value="thread-first">{ui.retrievalActiveThreadFirst}</option>
+              <option value="global-first">{ui.retrievalGlobalFirst}</option>
+            </select>
+          </label>
+          <div className="detail-list">
+            <div className="detail-list__item">
+              <span>{ui.currentMode}</span>
+              <strong>{getCliRetrievalPreferenceLabel(state.cliRetrievalPreference, locale)}</strong>
+            </div>
+            <div className="detail-list__item">
+              <span>{ui.note}</span>
+              <strong>{ui.retrievalSettingsNote}</strong>
             </div>
           </div>
         </div>
