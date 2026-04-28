@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('workbenchShell', {
     getState: () => ipcRenderer.invoke('workspace:get-state') as Promise<WorkspaceSnapshot | null>,
     readArtifact: (artifactId: string) => ipcRenderer.invoke('workspace:read-artifact', artifactId) as Promise<ArtifactContentPayload | null>,
     deleteScope: (scopeId: string) => ipcRenderer.invoke('workspace:delete-scope', scopeId) as Promise<WorkspaceSnapshot | null>,
+    resync: (panelId?: string) => ipcRenderer.invoke('workspace:resync', panelId) as Promise<WorkspaceSnapshot | null>,
     chooseRoot: () => ipcRenderer.invoke('workspace:choose-root') as Promise<WorkspaceSnapshot | null>,
     saveClipboard: (options: SaveClipboardOptions) =>
       ipcRenderer.invoke('workspace:save-clipboard', options) as Promise<SaveClipboardResult | null>,

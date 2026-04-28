@@ -175,10 +175,17 @@ interface ManagedWebPanel {
   captureUnlocked: boolean
   pendingConversationUnlock: boolean
   pendingUserMessageBaseline: number
+  pendingContentBaselineSignature: string | null
   lastObservedUserMessageCount: number
+  lastObservedContentSignature: string | null
   lastMeaningfulInputAt: number | null
+  lastPersistedCaptureSignature: string | null
   captureTimer: NodeJS.Timeout | null
   captureInterval: NodeJS.Timeout | null
+}
+
+interface CaptureCurrentContextOptions {
+  force?: boolean
 }
 
 interface PersistWebContextPayload {
@@ -230,6 +237,21 @@ function hasRecentPendingWebInput(panel: ManagedWebPanel): boolean {
     panel.lastMeaningfulInputAt !== null &&
     Date.now() - panel.lastMeaningfulInputAt <= WEB_PENDING_INPUT_GRACE_MS
   )
+}
+
+function createCaptureSignature(input: { url: string; title: string; rawText: string; messages: Array<{ role: string; text: string }> }): string {
+  const normalizedText = input.rawText.replace(/\s+/g, ' ').trim().slice(0, 4000)
+  const normalizedMessages = input.messages
+    .map((message) => `${message.role}:${message.text.replace(/\s+/g, ' ').trim()}`)
+    .join('\n')
+    .slice(0, 4000)
+
+  return JSON.stringify({
+    url: input.url.trim(),
+    title: input.title.trim(),
+    rawText: normalizedText,
+    messages: normalizedMessages
+  })
 }
 
 export class WebPanelManager {
@@ -372,10 +394,31 @@ export class WebPanelManager {
       return
     }
 
+    void this.captureCurrentContext(panel, { force: true })
     panel.view.setVisible(false)
     this.stopCaptureLoop(panel)
     if (this.activePanelId === panelId) {
       this.activePanelId = null
+    }
+  }
+
+  async capturePersistedContexts(panelId?: string): Promise<void> {
+    if (panelId) {
+      const panel = this.panels.get(panelId)
+      if (!panel) {
+        return
+      }
+
+      await this.captureCurrentContext(panel, { force: true })
+      return
+    }
+
+    for (const panel of this.panels.values()) {
+      if (!panel.hasLoaded) {
+        continue
+      }
+
+      await this.captureCurrentContext(panel, { force: true })
     }
   }
 
@@ -467,8 +510,11 @@ export class WebPanelManager {
       captureUnlocked: false,
       pendingConversationUnlock: false,
       pendingUserMessageBaseline: 0,
+      pendingContentBaselineSignature: null,
       lastObservedUserMessageCount: 0,
+      lastObservedContentSignature: null,
       lastMeaningfulInputAt: null,
+      lastPersistedCaptureSignature: null,
       captureTimer: null,
       captureInterval: null,
       snapshot: {
@@ -557,6 +603,7 @@ export class WebPanelManager {
 
       panel.pendingConversationUnlock = true
       panel.pendingUserMessageBaseline = panel.lastObservedUserMessageCount
+      panel.pendingContentBaselineSignature = panel.lastObservedContentSignature
       panel.lastMeaningfulInputAt = Date.now()
       this.scheduleContextCapture(panel, 900)
     })
@@ -702,12 +749,23 @@ export class WebPanelManager {
     panel.captureUnlocked = false
     panel.pendingConversationUnlock = false
     panel.pendingUserMessageBaseline = 0
+    panel.pendingContentBaselineSignature = null
     panel.lastObservedUserMessageCount = 0
+    panel.lastObservedContentSignature = null
     panel.lastMeaningfulInputAt = null
+    panel.lastPersistedCaptureSignature = null
   }
 
-  private async captureCurrentContext(panel: ManagedWebPanel): Promise<void> {
-    if (!this.persistWebContext || this.activePanelId !== panel.snapshot.panelId || panel.snapshot.isLoading) {
+  private async captureCurrentContext(
+    panel: ManagedWebPanel,
+    options: CaptureCurrentContextOptions = {}
+  ): Promise<void> {
+    const force = options.force === true
+    if (
+      !this.persistWebContext ||
+      panel.snapshot.isLoading ||
+      (!force && this.activePanelId !== panel.snapshot.panelId)
+    ) {
       return
     }
 
@@ -721,6 +779,7 @@ export class WebPanelManager {
         | {
             title?: string
             url?: string
+            host?: string
             bodyText?: string
             metaDescription?: string
             heading?: string
@@ -733,20 +792,52 @@ export class WebPanelManager {
         | null
 
       const url = result?.url?.trim() || panel.snapshot.currentUrl
+      const host = result?.host?.trim().toLowerCase() || ''
       const title = result?.title?.trim() || panel.snapshot.title
       const rawText = [result?.heading?.trim(), result?.bodyText?.trim()].filter(Boolean).join('\n\n').trim()
       const messages = normalizeCapturedMessages(result?.messages)
       const userMessages = messages.filter((message) => message.role === 'user')
+      const assistantMessages = messages.filter((message) => message.role === 'assistant')
+      const conversationLikeContent =
+        messages.length >= 2 ||
+        (userMessages.length > 0 && assistantMessages.length > 0) ||
+        (/chatgpt|claude|gemini|deepseek|doubao|kimi|yuanbao|tongyi|copilot/.test(host) &&
+          rawText.length >= 120)
+      const currentCaptureSignature = createCaptureSignature({
+        url,
+        title,
+        rawText,
+        messages
+      })
+      const contentChangedSinceInput =
+        Boolean(panel.pendingContentBaselineSignature) && currentCaptureSignature !== panel.pendingContentBaselineSignature
 
-      if (panel.pendingConversationUnlock && userMessages.length > panel.pendingUserMessageBaseline) {
+      if (
+        panel.pendingConversationUnlock &&
+        (
+          userMessages.length > panel.pendingUserMessageBaseline ||
+          (hasRecentPendingWebInput(panel) && rawText.length >= 120 && contentChangedSinceInput)
+        )
+      ) {
         panel.captureUnlocked = true
         panel.pendingConversationUnlock = false
         panel.pendingUserMessageBaseline = userMessages.length
+        panel.pendingContentBaselineSignature = currentCaptureSignature
       }
 
       panel.lastObservedUserMessageCount = userMessages.length
+      panel.lastObservedContentSignature = currentCaptureSignature
 
-      if (!url || !panel.captureUnlocked || userMessages.length === 0) {
+      if (force && !panel.captureUnlocked && conversationLikeContent) {
+        panel.captureUnlocked = true
+        panel.pendingConversationUnlock = false
+      }
+
+      if (!url || !panel.captureUnlocked) {
+        return
+      }
+
+      if (userMessages.length === 0 && rawText.length < 120) {
         return
       }
 
@@ -754,8 +845,13 @@ export class WebPanelManager {
       if (panel.captureContextLabel !== contextLabel) {
         panel.transcriptArtifactId = null
         panel.messagesArtifactId = null
+        panel.lastPersistedCaptureSignature = null
       }
       panel.captureContextLabel = contextLabel
+
+      if (panel.lastPersistedCaptureSignature === currentCaptureSignature) {
+        return
+      }
 
       const persisted = this.persistWebContext({
           transcriptArtifactId: panel.transcriptArtifactId,
@@ -771,6 +867,7 @@ export class WebPanelManager {
 
       panel.transcriptArtifactId = persisted?.transcriptArtifactId ?? panel.transcriptArtifactId
       panel.messagesArtifactId = persisted?.messagesArtifactId ?? panel.messagesArtifactId
+      panel.lastPersistedCaptureSignature = currentCaptureSignature
     } catch {
       // Ignore transient script failures while remote apps are hydrating.
     }

@@ -121,6 +121,10 @@ app.whenReady().then(() => {
   ipcMain.handle('workspace:get-state', () => workspaceManager?.getSnapshot() ?? null)
   ipcMain.handle('workspace:read-artifact', (_event, artifactId: string) => workspaceManager?.readArtifactContent(artifactId) ?? null)
   ipcMain.handle('workspace:delete-scope', (_event, scopeId: string) => workspaceManager?.deleteScope(scopeId) ?? null)
+  ipcMain.handle('workspace:resync', async (_event, panelId?: string) => {
+    await webPanelManager?.capturePersistedContexts(panelId)
+    return workspaceManager?.getSnapshot() ?? null
+  })
   ipcMain.handle('workspace:choose-root', async () => {
     if (!mainWindow || !workspaceManager) {
       return null

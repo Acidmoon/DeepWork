@@ -43,6 +43,7 @@ interface WorkbenchShellApi {
     getState: () => Promise<WorkspaceSnapshot | null>
     readArtifact: (artifactId: string) => Promise<ArtifactContentPayload | null>
     deleteScope: (scopeId: string) => Promise<WorkspaceSnapshot | null>
+    resync: (panelId?: string) => Promise<WorkspaceSnapshot | null>
     chooseRoot: () => Promise<WorkspaceSnapshot | null>
     saveClipboard: (options: SaveClipboardOptions) => Promise<SaveClipboardResult | null>
     onStateChanged: (listener: (snapshot: WorkspaceSnapshot) => void) => () => void

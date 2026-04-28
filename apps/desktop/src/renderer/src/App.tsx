@@ -97,6 +97,13 @@ function App(): JSX.Element {
 
   const panelMenu = contextMenu ? panels[contextMenu.panelId] : null
 
+  const handleWorkspaceResync = async (): Promise<void> => {
+    const snapshot = await window.workbenchShell.workspace.resync()
+    if (snapshot) {
+      useWorkbenchStore.getState().syncWorkspaceState(snapshot)
+    }
+  }
+
   const handleAddCustomWeb = async (sectionId: string): Promise<void> => {
     const settings = await window.workbenchShell.settings.getState()
     if (!settings) {
@@ -338,7 +345,14 @@ function App(): JSX.Element {
                     <button
                       type="button"
                       className="action-button action-button--ghost"
-                      onClick={() => refreshActivePanelStatus()}
+                      onClick={() => {
+                        if (activeWorkspaceState) {
+                          void handleWorkspaceResync()
+                          return
+                        }
+
+                        refreshActivePanelStatus()
+                      }}
                     >
                       {ui.sync}
                     </button>
