@@ -3,6 +3,31 @@ async page => {
   await page.getByRole('button', { name: 'A Artifacts Open Artifacts' }).click()
   await page.waitForTimeout(300)
 
+  const normalizedMetadataState = await page.evaluate(() => {
+    const snapshot = window.__workspaceRegressionValidation.getState().snapshot
+    const retrievalAudit = snapshot.artifacts.find((artifact) => artifact.id === 'retrieval_audit_codex-cli__session-0001') ?? null
+    const manualNote = snapshot.artifacts.find((artifact) => artifact.id === 'text_0003') ?? null
+    const sideResearchThread = snapshot.threads.find((thread) => thread.threadId === 'thread-side-research') ?? null
+    return {
+      retrievalAuditKind: retrievalAudit?.metadata?.artifactKind ?? null,
+      retrievalAuditScopeId: retrievalAudit?.metadata?.sessionScopeId ?? null,
+      retrievalOutcome: retrievalAudit?.metadata?.retrievalOutcome ?? null,
+      manualArtifactKind: manualNote?.metadata?.artifactKind ?? null,
+      manualThreadId: manualNote?.metadata?.threadId ?? null,
+      sideResearchScopeCount: sideResearchThread?.scopeCount ?? null
+    }
+  })
+  if (
+    normalizedMetadataState.retrievalAuditKind !== 'retrieval-audit' ||
+    normalizedMetadataState.retrievalAuditScopeId !== 'codex-cli__session-0001' ||
+    normalizedMetadataState.retrievalOutcome !== 'selected_scope' ||
+    normalizedMetadataState.manualArtifactKind !== 'manual-save' ||
+    normalizedMetadataState.manualThreadId !== 'thread-side-research' ||
+    normalizedMetadataState.sideResearchScopeCount !== 2
+  ) {
+    throw new Error(`Normalized artifact metadata fixture was not wired correctly: ${JSON.stringify(normalizedMetadataState)}`)
+  }
+
   const searchBox = page.getByRole('textbox', { name: '搜索查询' })
   await searchBox.fill('111')
   await page.waitForTimeout(300)
@@ -163,6 +188,7 @@ async page => {
       sessionResults,
       deepseekSessionVisible,
       minimaxSessionVisible,
+      normalizedMetadataState,
       jsonPreviewVisible,
       selectedCountAfterCheck,
       previewStillJson,

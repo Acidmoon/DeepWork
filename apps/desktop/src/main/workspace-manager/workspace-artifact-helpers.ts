@@ -9,6 +9,7 @@ import {
   type ThreadIndexManifest,
   artifactExtensions,
   buildDerivedThreadId,
+  normalizeArtifactRecords,
   sanitizeContextLabel,
   sanitizeOrigin
 } from '@ai-workbench/core/desktop/workspace'
@@ -33,7 +34,13 @@ export function safeReadManifest(path: string, workspaceRoot: string, projectId:
   }
 
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as ArtifactManifest
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as ArtifactManifest
+    return {
+      version: parsed.version ?? '1.0',
+      projectId: parsed.projectId ?? projectId,
+      workspaceRoot,
+      artifacts: normalizeArtifactRecords(Array.isArray(parsed.artifacts) ? parsed.artifacts : [])
+    }
   } catch {
     return {
       version: '1.0',
@@ -132,6 +139,15 @@ export function fileNameForArtifact(id: string, type: ArtifactType): string {
 
 export function hashContent(content: string): string {
   return `sha256:${createHash('sha256').update(content).digest('hex')}`
+}
+
+export function buildPreviewTextSnippet(content: string, maxLength = 160): string | null {
+  const collapsed = content.replace(/\s+/g, ' ').trim()
+  if (!collapsed) {
+    return null
+  }
+
+  return collapsed.length <= maxLength ? collapsed : `${collapsed.slice(0, maxLength - 1).trimEnd()}...`
 }
 
 const GENERIC_NOISE_PATTERNS = [
@@ -256,11 +272,11 @@ export function buildRetrievalAuditArtifactId(sessionScopeId: string): string {
 }
 
 export function buildRetrievalAuditSummary(entry: RetrievalAuditEntry): string {
-  const outcome = entry.outcome.replace(/[_-]+/g, ' ').trim()
+  const outcome = entry.outcome.replace(/[_-]+/g, ' ').trim() || 'recorded'
+  const query = entry.query.replace(/\s+/g, ' ').trim()
   const selectedScope = entry.selectedScopeId ? ` Selected scope: ${entry.selectedScopeId}.` : ''
   const reason = entry.reason ? ` Reason: ${entry.reason}.` : ''
-  const query = entry.query.replace(/\s+/g, ' ').trim()
-  return `CLI retrieval audit latest outcome: ${outcome}.${selectedScope}${reason} Query: ${query}`.trim()
+  return `Retrieval audit ${outcome} for "${query}".${selectedScope}${reason}`.trim()
 }
 
 export function toRetrievalAuditMetadata(
@@ -271,6 +287,7 @@ export function toRetrievalAuditMetadata(
   return {
     captureMode: 'auto-cli-retrieval-audit',
     panelId: sanitizeOrigin(String(entry.session?.panelId ?? 'manual')),
+    sessionTitle: entry.session?.title ?? null,
     launchCount: entry.session?.launchCount ?? null,
     contextLabel: sanitizeContextLabel(String(entry.session?.contextLabel ?? '')),
     threadId: entry.session?.threadId ? sanitizeOrigin(String(entry.session.threadId)) : null,

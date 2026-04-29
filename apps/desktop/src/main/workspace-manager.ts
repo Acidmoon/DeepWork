@@ -21,6 +21,7 @@ import {
 } from '@ai-workbench/core/desktop/workspace'
 import { syncManagedInstructionFile } from './workspace-manager/managed-workspace-file-sync'
 import {
+  buildPreviewTextSnippet,
   createThreadId,
   deriveThreadTitleFromSeed,
   detectClipboardPayload,
@@ -144,6 +145,9 @@ export class WorkspaceManager {
       contextLabel: options.contextLabel,
       threadId: thread.threadId,
       metadata: {
+        captureMode: 'manual-save',
+        panelId: options.origin || 'manual',
+        previewText: buildPreviewTextSnippet(payload.content),
         clipboardFormats: payload.formats
       }
     })
@@ -330,9 +334,11 @@ export class WorkspaceManager {
       metadata: {
         captureMode: 'auto-terminal-transcript',
         panelId: input.panelId,
+        sessionTitle: input.title,
         launchCount: input.launchCount,
         contextLabel: input.contextLabel,
-        threadId: thread.threadId
+        threadId: thread.threadId,
+        previewText: buildPreviewTextSnippet(input.content)
       }
     })
     this.lastSavedArtifactId = result.lastSavedArtifactId
@@ -360,6 +366,7 @@ export class WorkspaceManager {
     const messagePreview = input.messages?.find((message) => message.role === 'user' || message.role === 'assistant')?.text
       ?.replace(/\s+/g, ' ')
       .slice(0, 120)
+    const contentPreview = messagePreview || buildPreviewTextSnippet(input.content)
     const transcriptArtifact = saveTextArtifactToWorkspace(this.getManifestContext(), {
       artifactId: input.transcriptArtifactId,
       type: 'markdown',
@@ -390,6 +397,7 @@ export class WorkspaceManager {
         sourceUrl: input.url,
         pageTitle: input.title,
         messageCount: input.messages?.length ?? 0,
+        previewText: contentPreview,
         contextLabel: input.contextLabel,
         threadId: thread.threadId
       }
@@ -411,11 +419,11 @@ export class WorkspaceManager {
             content: JSON.stringify(
               {
                 version: '1.0',
-                panelId: input.panelId,
-                title: input.title,
-                url: input.url,
-                contextLabel: input.contextLabel,
-                threadId: thread.threadId,
+              panelId: input.panelId,
+              title: input.title,
+              url: input.url,
+              contextLabel: input.contextLabel,
+              threadId: thread.threadId,
                 capturedAt: nowIso(),
                 messageCount: input.messages.length,
                 messages: input.messages
@@ -429,6 +437,7 @@ export class WorkspaceManager {
               sourceUrl: input.url,
               pageTitle: input.title,
               messageCount: input.messages.length,
+              previewText: contentPreview,
               contextLabel: input.contextLabel,
               threadId: thread.threadId
             }

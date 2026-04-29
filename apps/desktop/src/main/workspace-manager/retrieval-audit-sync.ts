@@ -1,6 +1,13 @@
 import { join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { parseRetrievalAuditEntries, sanitizeOrigin, type ArtifactManifest, type ArtifactRecord } from '@ai-workbench/core/desktop/workspace'
+import {
+  normalizeArtifactRecord,
+  normalizeArtifactRecords,
+  parseRetrievalAuditEntries,
+  sanitizeOrigin,
+  type ArtifactManifest,
+  type ArtifactRecord
+} from '@ai-workbench/core/desktop/workspace'
 import {
   buildRetrievalAuditArtifactId,
   buildRetrievalAuditSummary,
@@ -58,7 +65,7 @@ export function syncRetrievalAuditArtifactsFromLogs(
     const tags = [...new Set(['log', 'retrieval', 'audit', origin])]
     const existingArtifact = nextArtifacts.find((artifact) => artifact.id === artifactId) ?? null
 
-    const nextArtifact: ArtifactRecord = {
+    const nextArtifact: ArtifactRecord = normalizeArtifactRecord({
       id: artifactId,
       name: existingArtifact?.name ?? fileName,
       type: 'log',
@@ -73,7 +80,7 @@ export function syncRetrievalAuditArtifactsFromLogs(
       size: stat.size,
       hash,
       metadata
-    }
+    })
 
     const hasChanged =
       !existingArtifact ||
@@ -87,8 +94,8 @@ export function syncRetrievalAuditArtifactsFromLogs(
 
     changed = true
     nextArtifacts = existingArtifact
-      ? nextArtifacts.map((artifact) => (artifact.id === artifactId ? nextArtifact : artifact))
-      : [...nextArtifacts, nextArtifact]
+      ? normalizeArtifactRecords(nextArtifacts.map((artifact) => (artifact.id === artifactId ? nextArtifact : artifact)))
+      : normalizeArtifactRecords([...nextArtifacts, nextArtifact])
     nextLastSavedArtifactId = artifactId
   }
 

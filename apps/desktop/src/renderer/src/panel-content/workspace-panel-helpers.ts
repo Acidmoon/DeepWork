@@ -1,4 +1,4 @@
-import { type ArtifactRecord, type ContextIndexEntry } from '@ai-workbench/core/desktop/workspace'
+import { getArtifactInspectionKind, type ArtifactRecord, type ContextIndexEntry } from '@ai-workbench/core/desktop/workspace'
 import { resolveLocale } from '../i18n'
 
 export function normalizeWorkspaceSearchQuery(value: string): string {
@@ -108,12 +108,17 @@ export function buildSessionSummary(
     .map((artifactId) => artifacts.find((artifact) => artifact.id === artifactId))
     .filter((artifact): artifact is ArtifactRecord => Boolean(artifact))
   const representative =
+    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'message-index') ??
+    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'web-context') ??
+    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'manual-save') ??
+    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'terminal-transcript') ??
+    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'retrieval-audit') ??
     scopedArtifacts.find((artifact) => artifact.type === 'json') ??
     scopedArtifacts.find((artifact) => artifact.type === 'markdown') ??
     scopedArtifacts[0]
   const messageCount = Number(representative?.metadata?.messageCount ?? 0)
-  const transcriptCount = scopedArtifacts.filter((artifact) => artifact.type === 'markdown').length
-  const logCount = scopedArtifacts.filter((artifact) => artifact.type === 'log').length
+  const transcriptCount = scopedArtifacts.filter((artifact) => getArtifactInspectionKind(artifact) === 'terminal-transcript').length
+  const logCount = scopedArtifacts.filter((artifact) => getArtifactInspectionKind(artifact) === 'retrieval-audit').length
   const preview = extractSessionPreview(representative) || entry.retrieval.scopeSummary || formatContextEntryDescription(entry, locale)
   const title = deriveSessionTitle(entry, representative, locale)
   const badges = [
@@ -156,7 +161,7 @@ export function formatArtifactTitle(
   const contextLabel = typeof artifact.metadata?.contextLabel === 'string' && artifact.metadata.contextLabel.trim()
     ? artifact.metadata.contextLabel
     : null
-  const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact.type) : humanizeArtifactTypeEn(artifact.type)
+  const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact) : humanizeArtifactTypeEn(artifact)
   return contextLabel ? `${typeLabel} · ${contextLabel}` : `${typeLabel} · ${artifact.id}`
 }
 
@@ -165,11 +170,11 @@ export function formatArtifactSummary(artifact: { summary: string }): string {
 }
 
 export function formatArtifactMeta(
-  artifact: { origin: string; type: string },
+  artifact: { origin: string; type: string; metadata?: Record<string, unknown> },
   locale: ReturnType<typeof resolveLocale>
 ): string {
   const originLabel = formatOriginLabel(artifact.origin)
-  const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact.type) : humanizeArtifactTypeEn(artifact.type)
+  const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact) : humanizeArtifactTypeEn(artifact)
   return `${originLabel} · ${typeLabel}`
 }
 
@@ -190,37 +195,71 @@ export function formatOriginLabel(origin: string): string {
   }
 }
 
-export function humanizeArtifactTypeZh(type: string): string {
-  switch (type) {
-    case 'markdown':
-      return '对话转录'
-    case 'json':
+export function humanizeArtifactTypeZh(artifact: { type: string; origin?: string; metadata?: Record<string, unknown> }): string {
+  switch (getArtifactInspectionKind({
+    origin: artifact.origin ?? 'manual',
+    type: artifact.type as ArtifactRecord['type'],
+    metadata: artifact.metadata
+  })) {
+    case 'manual-save':
+      return '手动保存'
+    case 'web-context':
+      return '网页上下文'
+    case 'message-index':
       return '消息索引'
-    case 'log':
-      return '终端记录'
-    case 'html':
-      return '网页片段'
-    case 'text':
-      return '文本'
+    case 'terminal-transcript':
+      return '终端转录'
+    case 'retrieval-audit':
+      return '检索审计'
     default:
-      return type
+      switch (artifact.type) {
+        case 'markdown':
+          return '对话转录'
+        case 'json':
+          return '消息索引'
+        case 'log':
+          return '终端记录'
+        case 'html':
+          return '网页片段'
+        case 'text':
+          return '文本'
+        default:
+          return artifact.type
+      }
   }
 }
 
-export function humanizeArtifactTypeEn(type: string): string {
-  switch (type) {
-    case 'markdown':
-      return 'Transcript'
-    case 'json':
+export function humanizeArtifactTypeEn(artifact: { type: string; origin?: string; metadata?: Record<string, unknown> }): string {
+  switch (getArtifactInspectionKind({
+    origin: artifact.origin ?? 'manual',
+    type: artifact.type as ArtifactRecord['type'],
+    metadata: artifact.metadata
+  })) {
+    case 'manual-save':
+      return 'Manual Save'
+    case 'web-context':
+      return 'Web Context'
+    case 'message-index':
       return 'Message Index'
-    case 'log':
-      return 'Terminal Log'
-    case 'html':
-      return 'Web Clip'
-    case 'text':
-      return 'Text'
+    case 'terminal-transcript':
+      return 'Terminal Transcript'
+    case 'retrieval-audit':
+      return 'Retrieval Audit'
     default:
-      return type
+      switch (artifact.type) {
+        case 'markdown':
+          return 'Transcript'
+        case 'json':
+          return 'Message Index'
+        case 'log':
+          return 'Terminal Log'
+        case 'html':
+          return 'Web Clip'
+        case 'text':
+          return 'Text'
+        default:
+          return artifact.type
+      }
   }
 }
 
@@ -231,9 +270,14 @@ export function deriveSessionTitle(
 ): string {
   const contextLabel = entry.contextLabel.replace(/[-_]+/g, ' ').trim()
   const pageTitle = typeof artifact?.metadata?.pageTitle === 'string' ? artifact.metadata.pageTitle.trim() : ''
+  const sessionTitle = typeof artifact?.metadata?.sessionTitle === 'string' ? artifact.metadata.sessionTitle.trim() : ''
 
   if (pageTitle) {
     return pageTitle
+  }
+
+  if (sessionTitle) {
+    return sessionTitle
   }
 
   if (contextLabel && contextLabel !== 'default context') {
@@ -248,6 +292,14 @@ export function deriveSessionTitle(
 export function extractSessionPreview(artifact: ArtifactRecord | undefined): string {
   if (!artifact) {
     return ''
+  }
+
+  if (typeof artifact.metadata?.previewText === 'string' && artifact.metadata.previewText.trim()) {
+    return artifact.metadata.previewText.trim()
+  }
+
+  if (typeof artifact.metadata?.retrievalQuery === 'string' && artifact.metadata.retrievalQuery.trim()) {
+    return artifact.metadata.retrievalQuery.trim()
   }
 
   const previewMatch = artifact.summary.match(/Preview:\s*(.+)$/i)

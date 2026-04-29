@@ -3,6 +3,8 @@ import { statSync, writeFileSync } from 'node:fs'
 import {
   artifactDirectories,
   getArtifactScopeId,
+  normalizeArtifactRecord,
+  normalizeArtifactRecords,
   sanitizeContextLabel,
   sanitizeOrigin,
   sanitizeThreadId,
@@ -58,7 +60,7 @@ export function saveTextArtifactToWorkspace(
   writeFileSync(absolutePath, options.content, 'utf8')
 
   const stat = statSync(absolutePath)
-  const artifact: ArtifactRecord = {
+  const artifact: ArtifactRecord = normalizeArtifactRecord({
     id,
     name: fileName,
     type: artifactType,
@@ -78,13 +80,14 @@ export function saveTextArtifactToWorkspace(
       contextLabel,
       ...(threadId ? { threadId } : {})
     }
-  }
+  })
 
   const baseArtifacts = existingArtifact
     ? manifest.artifacts.map((item) => (item.id === artifact.id ? artifact : item))
     : [...manifest.artifacts, artifact]
-  const nextArtifacts = threadId
-    ? baseArtifacts.map((item) =>
+  const nextArtifacts = normalizeArtifactRecords(
+    threadId
+      ? baseArtifacts.map((item) =>
         getArtifactScopeId(item) === scopeId
           ? {
               ...item,
@@ -96,7 +99,8 @@ export function saveTextArtifactToWorkspace(
             }
           : item
       )
-    : baseArtifacts
+      : baseArtifacts
+  )
   const nextManifest = {
     ...manifest,
     workspaceRoot: context.workspaceRoot,

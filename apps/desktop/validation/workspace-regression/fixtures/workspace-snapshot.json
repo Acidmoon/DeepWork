@@ -6,23 +6,24 @@
   "originManifestsPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/manifests/origins",
   "rulesPath": "C:/Users/17740/Documents/AI-Workspace/projects/default/rules",
   "initialized": true,
-  "artifactCount": 5,
+  "artifactCount": 7,
   "bucketCounts": {
-    "artifacts/": 4,
+    "artifacts/": 5,
     "outputs/": 0,
-    "logs/": 1
+    "logs/": 2
   },
   "contextEntries": [
     {
       "origin": "codex-cli",
       "contextLabel": "session-0001",
       "scopeId": "codex-cli__session-0001",
-      "artifactCount": 1,
+      "artifactCount": 2,
       "artifactIds": [
+        "retrieval_audit_codex-cli__session-0001",
         "log_0010"
       ],
-      "latestArtifactId": "log_0010",
-      "latestUpdatedAt": "2026-04-26T12:54:01.511Z",
+      "latestArtifactId": "retrieval_audit_codex-cli__session-0001",
+      "latestUpdatedAt": "2026-04-26T12:54:18.000Z",
       "retrieval": {
         "normalizedOrigin": "codex-cli",
         "normalizedContextLabel": "session-0001",
@@ -146,6 +147,44 @@
         "scopeSummary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能."
       },
       "threadId": "thread-side-research"
+    },
+    {
+      "origin": "manual",
+      "contextLabel": "research-note",
+      "scopeId": "manual__research-note",
+      "artifactCount": 1,
+      "artifactIds": [
+        "text_0003"
+      ],
+      "latestArtifactId": "text_0003",
+      "latestUpdatedAt": "2026-04-26T12:41:30.000Z",
+      "retrieval": {
+        "normalizedOrigin": "manual",
+        "normalizedContextLabel": "research-note",
+        "latestArtifactSummary": "Manual text saved from clipboard.",
+        "latestArtifactType": "text",
+        "artifactTypes": [
+          "text"
+        ],
+        "tags": [
+          "clipboard",
+          "manual",
+          "manual-save",
+          "text"
+        ],
+        "searchTerms": [
+          "manual",
+          "research-note",
+          "text",
+          "manual-save",
+          "clipboard",
+          "capture",
+          "research",
+          "note"
+        ],
+        "scopeSummary": "Manual text saved from clipboard."
+      },
+      "threadId": "thread-side-research"
     }
   ],
   "artifacts": [
@@ -234,6 +273,51 @@
       }
     },
     {
+      "id": "retrieval_audit_codex-cli__session-0001",
+      "name": "codex-cli__session-0001.jsonl",
+      "type": "log",
+      "path": "logs/retrieval/codex-cli__session-0001.jsonl",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/logs/retrieval/codex-cli__session-0001.jsonl",
+      "origin": "codex-cli",
+      "summary": "Retrieval audit selected scope for \"release workspace controls\". Selected scope: deepseek-web__a-chat-s-9b9f89a2-ceff. Reason: highest ranked candidate.",
+      "tags": [
+        "log",
+        "codex-cli",
+        "auto-cli-retrieval-audit",
+        "retrieval",
+        "audit",
+        "session",
+        "thread_local",
+        "selected_scope"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:54:18.000Z",
+      "updatedAt": "2026-04-26T12:54:18.000Z",
+      "size": 588,
+      "metadata": {
+        "captureMode": "auto-cli-retrieval-audit",
+        "artifactKind": "retrieval-audit",
+        "panelId": "codex-cli",
+        "sessionTitle": "Codex CLI",
+        "launchCount": 1,
+        "contextLabel": "session-0001",
+        "sessionScopeId": "codex-cli__session-0001",
+        "threadId": "thread-release-planning",
+        "threadTitle": "Release Planning Thread",
+        "retrievalQuery": "release workspace controls",
+        "retrievalOutcome": "selected_scope",
+        "retrievalReason": "highest ranked candidate",
+        "retrievalMode": "thread_local",
+        "selectedScopeId": "deepseek-web__a-chat-s-9b9f89a2-ceff",
+        "candidateScopeIds": [
+          "deepseek-web__a-chat-s-9b9f89a2-ceff",
+          "codex-cli__session-0001"
+        ],
+        "latestAuditTimestamp": "2026-04-26T12:54:18.000Z",
+        "auditEntryCount": 3
+      }
+    },
+    {
       "id": "markdown_0015",
       "name": "markdown_0015.md",
       "type": "markdown",
@@ -289,6 +373,38 @@
         "messageCount": 0,
         "contextLabel": "minimax-agent",
         "threadId": "thread-side-research"
+      }
+    },
+    {
+      "id": "text_0003",
+      "name": "text_0003.txt",
+      "type": "text",
+      "path": "artifacts/text/text_0003.txt",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/text/text_0003.txt",
+      "origin": "manual",
+      "summary": "Manual text saved from clipboard.",
+      "tags": [
+        "text",
+        "manual",
+        "manual-save",
+        "clipboard"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:41:30.000Z",
+      "updatedAt": "2026-04-26T12:41:30.000Z",
+      "size": 164,
+      "metadata": {
+        "captureMode": "manual-save",
+        "artifactKind": "manual-save",
+        "panelId": "manual",
+        "contextLabel": "research-note",
+        "sessionScopeId": "manual__research-note",
+        "threadId": "thread-side-research",
+        "captureSource": "clipboard",
+        "clipboardFormats": [
+          "text/plain"
+        ],
+        "previewText": "Capture the MiniMax research note before reassigning the thread."
       }
     }
   ],
@@ -378,6 +494,51 @@
       }
     },
     {
+      "id": "retrieval_audit_codex-cli__session-0001",
+      "name": "codex-cli__session-0001.jsonl",
+      "type": "log",
+      "path": "logs/retrieval/codex-cli__session-0001.jsonl",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/logs/retrieval/codex-cli__session-0001.jsonl",
+      "origin": "codex-cli",
+      "summary": "Retrieval audit selected scope for \"release workspace controls\". Selected scope: deepseek-web__a-chat-s-9b9f89a2-ceff. Reason: highest ranked candidate.",
+      "tags": [
+        "log",
+        "codex-cli",
+        "auto-cli-retrieval-audit",
+        "retrieval",
+        "audit",
+        "session",
+        "thread_local",
+        "selected_scope"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:54:18.000Z",
+      "updatedAt": "2026-04-26T12:54:18.000Z",
+      "size": 588,
+      "metadata": {
+        "captureMode": "auto-cli-retrieval-audit",
+        "artifactKind": "retrieval-audit",
+        "panelId": "codex-cli",
+        "sessionTitle": "Codex CLI",
+        "launchCount": 1,
+        "contextLabel": "session-0001",
+        "sessionScopeId": "codex-cli__session-0001",
+        "threadId": "thread-release-planning",
+        "threadTitle": "Release Planning Thread",
+        "retrievalQuery": "release workspace controls",
+        "retrievalOutcome": "selected_scope",
+        "retrievalReason": "highest ranked candidate",
+        "retrievalMode": "thread_local",
+        "selectedScopeId": "deepseek-web__a-chat-s-9b9f89a2-ceff",
+        "candidateScopeIds": [
+          "deepseek-web__a-chat-s-9b9f89a2-ceff",
+          "codex-cli__session-0001"
+        ],
+        "latestAuditTimestamp": "2026-04-26T12:54:18.000Z",
+        "auditEntryCount": 3
+      }
+    },
+    {
       "id": "markdown_0015",
       "name": "markdown_0015.md",
       "type": "markdown",
@@ -434,6 +595,38 @@
         "contextLabel": "minimax-agent",
         "threadId": "thread-side-research"
       }
+    },
+    {
+      "id": "text_0003",
+      "name": "text_0003.txt",
+      "type": "text",
+      "path": "artifacts/text/text_0003.txt",
+      "absolutePath": "C:/Users/17740/Documents/AI-Workspace/projects/default/artifacts/text/text_0003.txt",
+      "origin": "manual",
+      "summary": "Manual text saved from clipboard.",
+      "tags": [
+        "text",
+        "manual",
+        "manual-save",
+        "clipboard"
+      ],
+      "parents": [],
+      "createdAt": "2026-04-26T12:41:30.000Z",
+      "updatedAt": "2026-04-26T12:41:30.000Z",
+      "size": 164,
+      "metadata": {
+        "captureMode": "manual-save",
+        "artifactKind": "manual-save",
+        "panelId": "manual",
+        "contextLabel": "research-note",
+        "sessionScopeId": "manual__research-note",
+        "threadId": "thread-side-research",
+        "captureSource": "clipboard",
+        "clipboardFormats": [
+          "text/plain"
+        ],
+        "previewText": "Capture the MiniMax research note before reassigning the thread."
+      }
     }
   ],
   "lastSavedArtifactId": null,
@@ -452,14 +645,15 @@
         "deepseek-web__a-chat-s-9b9f89a2-ceff"
       ],
       "artifactIds": [
+        "retrieval_audit_codex-cli__session-0001",
         "log_0010",
         "json_0006",
         "markdown_0016"
       ],
       "scopeCount": 2,
-      "artifactCount": 3,
-      "latestArtifactId": "log_0010",
-      "latestUpdatedAt": "2026-04-26T12:54:01.511Z",
+      "artifactCount": 4,
+      "latestArtifactId": "retrieval_audit_codex-cli__session-0001",
+      "latestUpdatedAt": "2026-04-26T12:54:18.000Z",
       "originHints": [
         "codex-cli",
         "deepseek-web"
@@ -470,32 +664,36 @@
         "codex-cli__session-0001",
         "deepseek-web__a-chat-s-9b9f89a2-ceff"
       ],
-      "summary": "Codex CLI transcript captured from session 1. | Structured message index for 用户询问数字111含义 - DeepSeek."
+      "summary": "Retrieval audit selected scope for \"release workspace controls\". Selected scope: deepseek-web__a-chat-s-9b9f89a2-ceff. Reason: highest ranked candidate. | Codex CLI transcript captured from session 1. | Structured message index for 用户询问数字111含义 - DeepSeek."
     },
     {
       "threadId": "thread-side-research",
       "title": "Side Research Thread",
       "derived": false,
       "scopeIds": [
+        "manual__research-note",
         "minimax-web__minimax-agent"
       ],
       "artifactIds": [
         "markdown_0015",
+        "text_0003",
         "markdown_0014"
       ],
-      "scopeCount": 1,
-      "artifactCount": 2,
+      "scopeCount": 2,
+      "artifactCount": 3,
       "latestArtifactId": "markdown_0015",
       "latestUpdatedAt": "2026-04-26T12:52:45.168Z",
       "originHints": [
+        "manual",
         "minimax-web"
       ],
       "searchTerms": [
         "thread-side-research",
         "side research thread",
+        "manual__research-note",
         "minimax-web__minimax-agent"
       ],
-      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能."
+      "summary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能. | Manual text saved from clipboard."
     }
   ]
 }

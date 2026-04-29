@@ -4,6 +4,7 @@ import {
   buildContextEntries,
   buildThreadEntries,
   getArtifactThreadId,
+  normalizeArtifactRecords,
   sanitizeContextLabel,
   sanitizeOrigin,
   type ArtifactRecord,
@@ -29,10 +30,11 @@ export function writeContextIndexFiles(
   artifacts: ArtifactRecord[],
   options: WriteWorkspaceIndexOptions = {}
 ): void {
+  const normalizedArtifacts = normalizeArtifactRecords(artifacts)
   const nextIndex: ContextIndexManifest = {
     version: '1.0',
     workspaceRoot: context.workspaceRoot,
-    origins: buildContextEntries(artifacts, {
+    origins: buildContextEntries(normalizedArtifacts, {
       isArtifactSubstantive: isSubstantiveArtifact
     })
   }
@@ -46,7 +48,7 @@ export function writeContextIndexFiles(
   }
 
   for (const entry of nextIndex.origins) {
-    const originArtifacts = artifacts.filter((artifact) => sanitizeOrigin(artifact.origin) === entry.origin)
+    const originArtifacts = normalizedArtifacts.filter((artifact) => sanitizeOrigin(artifact.origin) === entry.origin)
       .filter((artifact) => sanitizeContextLabel(String(artifact.metadata?.contextLabel ?? '')) === entry.contextLabel)
     const originManifest: OriginArtifactManifest = {
       version: '1.0',
@@ -61,7 +63,7 @@ export function writeContextIndexFiles(
   }
 
   const previousThreadIndex = safeReadThreadIndex(context.threadIndexPath, context.workspaceRoot)
-  const nextThreads = buildThreadEntries(artifacts, {
+  const nextThreads = buildThreadEntries(normalizedArtifacts, {
     explicitThreads: previousThreadIndex.threads.map((thread) => ({
       threadId: thread.threadId,
       title: thread.title,
@@ -92,7 +94,7 @@ export function writeContextIndexFiles(
   }
 
   for (const thread of nextThreads) {
-    const threadArtifacts = artifacts.filter((artifact) => getArtifactThreadId(artifact) === thread.threadId)
+    const threadArtifacts = normalizedArtifacts.filter((artifact) => getArtifactThreadId(artifact) === thread.threadId)
     const threadManifest: ThreadArtifactManifest = {
       version: '1.0',
       workspaceRoot: context.workspaceRoot,
