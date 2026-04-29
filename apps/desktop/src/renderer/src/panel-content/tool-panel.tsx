@@ -19,7 +19,6 @@ export function ToolPanel({
       <section className="panel-header">
         <p className="eyebrow">{ui.toolPlaceholder}</p>
         <h3>{definition.title}</h3>
-        <p>{ui.toolIntro}</p>
       </section>
 
       <div className="detail-columns">

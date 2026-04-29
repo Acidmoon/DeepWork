@@ -87,7 +87,6 @@ export function WorkspacePanel({
 
     return matchesThread && matchesOrigin && matchesBucket && matchesQuery
   })
-  const selectedArtifacts = state.artifacts.filter((artifact) => state.selectedArtifactIds.includes(artifact.id))
   const selectedPreviewArtifact = state.previewArtifactId
     ? state.artifacts.find((artifact) => artifact.id === state.previewArtifactId) ?? null
     : null
@@ -283,7 +282,6 @@ export function WorkspacePanel({
       <section className="panel-header">
         <p className="eyebrow">{ui.workspaceLive}</p>
         <h3>{definition.title}</h3>
-        <p>{ui.workspaceSimpleIntro}</p>
       </section>
 
       <div className="stats-row">
@@ -367,26 +365,6 @@ export function WorkspacePanel({
 
       <div className="panel-section">
         <div className="section-line">
-          <strong>{ui.workspaceHowItWorks}</strong>
-        </div>
-        <div className="workspace-guide">
-          <div className="workspace-guide__item">
-            <strong>{ui.workspaceGuideCaptureTitle}</strong>
-            <p>{ui.workspaceGuideCaptureBody}</p>
-          </div>
-          <div className="workspace-guide__item">
-            <strong>{ui.workspaceGuideIndexTitle}</strong>
-            <p>{ui.workspaceGuideIndexBody}</p>
-          </div>
-          <div className="workspace-guide__item">
-            <strong>{ui.workspaceGuideRetrieveTitle}</strong>
-            <p>{ui.workspaceGuideRetrieveBody}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="panel-section">
-        <div className="section-line">
           <strong>{ui.findContext}</strong>
           <span>
             {selectedScope
@@ -450,7 +428,6 @@ export function WorkspacePanel({
         {selectedScope ? (
           <div className="workspace-inline-note">
             <div className="workspace-inline-note__copy">
-              <strong>{ui.currentSelection}</strong>
               <span>{formatContextEntryDescription(selectedScope, locale)}</span>
             </div>
             <div className="workspace-inline-note__actions">
@@ -665,7 +642,6 @@ export function WorkspacePanel({
               <strong>{ui.cliSelfSearch}</strong>
               <span>PowerShell</span>
             </div>
-            <p className="section-empty">{ui.cliSelfSearchHint}</p>
             <div className="detail-list">
               <div className="detail-list__item">
                 <span>`aw-workspace`</span>
@@ -692,40 +668,6 @@ export function WorkspacePanel({
                 <strong>{ui.cliCommandThread}</strong>
               </div>
             </div>
-          </div>
-
-          <div className="panel-section">
-            <div className="section-line">
-              <strong>{ui.selectedArtifacts}</strong>
-              <span>{selectedArtifacts.length} {ui.selectedCount}</span>
-            </div>
-            {selectedArtifacts.length === 0 ? (
-              <p className="section-empty">{ui.selectedArtifactsEmpty}</p>
-            ) : (
-              <div className="artifact-list">
-                {selectedArtifacts.map((artifact) => (
-                  <article key={artifact.id} className="artifact-row">
-                    <div className="artifact-row__body">
-                      <strong>{artifact.id}</strong>
-                      <p>{artifact.summary}</p>
-                    </div>
-                    <div className="artifact-row__meta">
-                      <span>{artifact.origin}</span>
-                      <small>{artifact.path}</small>
-                    </div>
-                    <div className="artifact-row__actions">
-                      <button
-                        type="button"
-                        className="action-button action-button--ghost action-button--compact"
-                        onClick={() => setPreviewArtifact(artifact.id)}
-                      >
-                        {ui.previewArtifact}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="panel-section">
@@ -781,23 +723,19 @@ export function WorkspacePanel({
         </article>
       </div>
 
-      <div className="panel-section">
-        <div className="detail-list">
-          <strong>{state.initialized ? ui.workspaceInitialized : ui.workspaceInitializationPending}</strong>
-          {state.lastSavedArtifactId ? (
-            <div className="detail-list__item">
-              <span>{ui.lastSaved}</span>
-              <strong>{state.lastSavedArtifactId}</strong>
-            </div>
-          ) : null}
-          {state.lastError ? (
-            <div className="detail-list__item">
-              <span>{ui.error}</span>
-              <strong>{state.lastError}</strong>
-            </div>
-          ) : null}
+      {!state.initialized || state.lastError ? (
+        <div className="panel-section">
+          <div className="detail-list">
+            {!state.initialized ? <strong>{ui.workspaceInitializationPending}</strong> : null}
+            {state.lastError ? (
+              <div className="detail-list__item">
+                <span>{ui.error}</span>
+                <strong>{state.lastError}</strong>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }

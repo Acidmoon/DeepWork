@@ -134,7 +134,6 @@ export function WebPanel({
         <section className="panel-header">
           <p className="eyebrow">{ui.reservedWebPanel}</p>
           <h3>{definition.title}</h3>
-          <p>{ui.reservedWebMessage}</p>
         </section>
 
         <div className="stats-row">

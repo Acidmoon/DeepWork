@@ -24,7 +24,6 @@ export function HomePanel({
       <section className="panel-header">
         <p className="eyebrow">{ui.phaseSnapshot}</p>
         <h3>{definition.title}</h3>
-        <p>{definition.summary}</p>
       </section>
 
       <div className="stats-row">
