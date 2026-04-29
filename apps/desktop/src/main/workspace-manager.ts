@@ -1,6 +1,14 @@
 import { basename, join } from 'node:path'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import {
+  buildManagedWorkspaceInstructionBlocks,
+  buildManagedWorkspaceRuleTemplates,
+  type ManagedWorkspaceInstructionBlockKey,
+  type ManagedWorkspaceRuleTemplateKey
+} from '@ai-workbench/core/desktop/managed-workspace-content'
+import type { ThreadContinuationPreference } from '@ai-workbench/core/desktop/settings'
+import { planImplicitThreadContinuation } from '@ai-workbench/core/desktop/workspace-continuity'
+import {
   getArtifactScopeId,
   getArtifactThreadId,
   sanitizeOrigin,
@@ -11,16 +19,7 @@ import {
   type SaveClipboardResult,
   type WorkspaceSnapshot
 } from '@ai-workbench/core/desktop/workspace'
-import type { ThreadContinuationPreference } from '@ai-workbench/core/desktop/settings'
-import {
-  AGENTS_MD_BLOCK,
-  CLAUDE_INSTRUCTIONS,
-  CLAUDE_MD_BLOCK,
-  CODEX_INSTRUCTIONS,
-  WORKBENCH_TOOLS,
-  WORKSPACE_PROTOCOL,
-  syncManagedInstructionFile
-} from './workspace-manager/managed-workspace-content'
+import { syncManagedInstructionFile } from './workspace-manager/managed-workspace-content'
 import {
   createThreadId,
   deriveThreadTitleFromSeed,
@@ -52,6 +51,18 @@ interface SaveWebContextOptions {
     role: string
     text: string
   }>
+}
+
+const MANAGED_WORKSPACE_RULE_FILENAMES: Record<ManagedWorkspaceRuleTemplateKey, string> = {
+  'workspace-protocol': 'WORKSPACE_PROTOCOL.md',
+  'codex-instructions': 'CODEX_INSTRUCTIONS.md',
+  'claude-instructions': 'CLAUDE_INSTRUCTIONS.md',
+  'workbench-tools': 'WORKBENCH_TOOLS.ps1'
+}
+
+const MANAGED_WORKSPACE_ROOT_FILENAMES: Record<ManagedWorkspaceInstructionBlockKey, string> = {
+  'agents-md': 'AGENTS.md',
+  'claude-md': 'CLAUDE.md'
 }
 
 export class WorkspaceManager {
@@ -528,19 +539,18 @@ export class WorkspaceManager {
       }
     }
 
-    const managedFiles: Array<[string, string]> = [
-      [join(this.workspaceRoot, 'rules', 'WORKSPACE_PROTOCOL.md'), WORKSPACE_PROTOCOL],
-      [join(this.workspaceRoot, 'rules', 'CODEX_INSTRUCTIONS.md'), CODEX_INSTRUCTIONS],
-      [join(this.workspaceRoot, 'rules', 'CLAUDE_INSTRUCTIONS.md'), CLAUDE_INSTRUCTIONS],
-      [join(this.workspaceRoot, 'rules', 'WORKBENCH_TOOLS.ps1'), WORKBENCH_TOOLS]
-    ]
+    const managedFiles = buildManagedWorkspaceRuleTemplates().map((template) => [
+      join(this.workspaceRoot, 'rules', MANAGED_WORKSPACE_RULE_FILENAMES[template.key]),
+      template.content
+    ] as const)
 
     for (const [path, content] of managedFiles) {
       writeFileSync(path, content, 'utf8')
     }
 
-    syncManagedInstructionFile(join(this.workspaceRoot, 'AGENTS.md'), 'AI-WORKBENCH-CODEX', AGENTS_MD_BLOCK)
-    syncManagedInstructionFile(join(this.workspaceRoot, 'CLAUDE.md'), 'AI-WORKBENCH-CLAUDE', CLAUDE_MD_BLOCK)
+    for (const block of buildManagedWorkspaceInstructionBlocks()) {
+      syncManagedInstructionFile(join(this.workspaceRoot, MANAGED_WORKSPACE_ROOT_FILENAMES[block.key]), block.heading, block.content)
+    }
 
     const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
     writeContextIndexFiles(this.getManifestContext(), manifest.artifacts)
@@ -571,16 +581,6 @@ export class WorkspaceManager {
       ...this.getManifestContext(),
       rulesPath: this.rulesPath
     }
-  }
-
-  private ensureActiveThread(seed: string): ContextThreadSummary {
-    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
-    const activeThread = threadIndex.threads.find((thread) => thread.threadId === threadIndex.activeThreadId)
-    if (activeThread) {
-      return activeThread
-    }
-
-    return this.createThreadRecord(seed, true)
   }
 
   private ensureThreadSelection(threadId: string, fallbackTitle: string): ContextThreadSummary {
@@ -708,12 +708,18 @@ export class WorkspaceManager {
     })
     const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
     const existingArtifact = manifest.artifacts.find((artifact) => getArtifactScopeId(artifact) === scopeId)
-    if (existingArtifact) {
-      return this.ensureThreadSelection(getArtifactThreadId(existingArtifact), fallbackTitle)
-    }
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+    const activeThread = threadIndex.threads.find((thread) => thread.threadId === threadIndex.activeThreadId)
+    const plan = planImplicitThreadContinuation({
+      origin,
+      contextLabel,
+      threadContinuationPreference: this.threadContinuationPreference,
+      existingScopeThreadId: existingArtifact ? getArtifactThreadId(existingArtifact) : null,
+      activeThreadId: activeThread?.threadId ?? null
+    })
 
-    if (this.threadContinuationPreference === 'continue-active-thread') {
-      return this.ensureActiveThread(fallbackTitle)
+    if (plan.decision === 'reuse-existing-scope-thread' || plan.decision === 'reuse-active-thread') {
+      return this.ensureThreadSelection(plan.threadId, fallbackTitle)
     }
 
     return this.createThreadRecord(fallbackTitle, true)
