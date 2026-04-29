@@ -44,7 +44,7 @@ The system SHALL allow built-in web panels to persist updated home URL, partitio
 - **THEN** the main process does not mount a live `WebContentsView` for that panel
 
 ### Requirement: Custom panel lifecycle
-The renderer SHALL allow users to create, rename, configure, enable or disable, and delete custom web and CLI panels, and the application SHALL synchronize those definitions into runtime managers, persisted settings, and navigation state. Custom web panels SHALL accept arbitrary safe URLs as saved home targets while keeping live address browsing separate from persisted configuration until the user saves changes. Custom CLI panels SHALL persist shell-level configuration separately from active terminal session state so later launches can use the saved behavior without manual file edits.
+The renderer SHALL allow users to create, rename, configure, and delete custom web and CLI panels, SHALL allow custom web panels to be enabled or disabled, and the application SHALL synchronize those definitions into runtime managers, persisted settings, and navigation state. Custom web panels SHALL accept arbitrary safe URLs as saved home targets while keeping live address browsing separate from persisted configuration until the user saves changes. Custom CLI panels SHALL persist shell-level configuration separately from active terminal session state so later launches can use the saved behavior without manual file edits.
 
 #### Scenario: Add a custom web panel
 - **WHEN** the user adds a custom web panel from a section action and provides an HTTP or HTTPS target URL

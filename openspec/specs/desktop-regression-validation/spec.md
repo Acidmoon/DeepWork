@@ -1,18 +1,23 @@
 # desktop-regression-validation Specification
 
 ## Purpose
-Define the repeatable validation assets, scripted regression flows, and execution guidance that protect critical desktop workspace browsing and web-capture sync behavior from regressions.
+Define the repeatable validation assets, scripted regression flows, and execution guidance that protect critical desktop workspace, retrieval, and managed panel configuration behavior from regressions.
 ## Requirements
-### Requirement: Repeatable workspace regression validation assets
-The repository SHALL provide repeatable validation assets for the desktop renderer workspace flow without requiring a live user workspace or manual inline scripting.
+### Requirement: Repeatable desktop regression validation assets
+The repository SHALL provide repeatable validation assets for focused desktop validation flows without requiring a live user workspace or ad hoc inline scripting.
 
 #### Scenario: Load deterministic workspace fixtures
 - **WHEN** a developer runs the workspace regression validation flow
 - **THEN** the validation uses repo-owned fixture data for workspace snapshot metadata and artifact contents
 - **THEN** the flow does not depend on the operator's current local workspace records under `Documents`
 
-### Requirement: Scripted verification of critical workspace interactions
-The repository SHALL provide a scripted validation path for the critical workspace interactions introduced in the desktop application, including renderer-side workspace browsing and the managed web capture plus Workspace Sync flow.
+#### Scenario: Run panel validation against stubbed runtime surfaces
+- **WHEN** a developer runs a focused managed-panel validation flow
+- **THEN** the validation can inject deterministic runtime stubs instead of requiring a live Electron main-process session
+- **THEN** the pass or fail result remains reproducible from repo-owned assets and scripted assertions
+
+### Requirement: Scripted verification of critical desktop interactions
+The repository SHALL provide scripted validation paths for the critical desktop interactions introduced in the application, including renderer-side workspace browsing, managed web capture plus Workspace Sync, CLI retrieval helper behavior, and managed panel configuration persistence flows.
 
 #### Scenario: Verify search and preview behavior
 - **WHEN** the scripted validation runs against the desktop renderer workspace panel
@@ -26,11 +31,21 @@ The repository SHALL provide a scripted validation path for the critical workspa
 - **THEN** it verifies that conversation-like web content is persisted into workspace-managed artifacts
 - **THEN** it verifies that the refreshed workspace snapshot exposes the captured context through normal workspace browsing data
 
+#### Scenario: Verify CLI retrieval helpers and audit persistence
+- **WHEN** the scripted validation runs against the managed workspace retrieval helpers
+- **THEN** it verifies scope-ranking behavior and retrieval-audit persistence using a deterministic workspace fixture
+- **THEN** the flow does not require a live operator workspace to confirm those retrieval contracts
+
+#### Scenario: Verify managed panel configuration flows
+- **WHEN** the scripted validation runs against managed panel configuration surfaces
+- **THEN** it verifies persisted configuration synchronization for the targeted panel workflow
+- **THEN** it verifies any explicit restart-to-apply or reserved-state behavior that the product promises for that workflow
+
 ### Requirement: Regression validation documentation
-The repository SHALL document how to execute the workspace regression validation flows together with the required prechecks, including the managed web capture and Workspace Sync coverage.
+The repository SHALL document how to execute the focused regression validation flows together with the required prechecks, including workspace browsing, managed web capture, retrieval-helper, and managed-panel configuration coverage where applicable.
 
 #### Scenario: Run documented validation workflow
 - **WHEN** a developer follows the documented regression-validation workflow
 - **THEN** the workflow includes renderer typechecking as a required precheck
-- **THEN** the workflow includes the exact command path needed to execute the browser-driven validation
-- **THEN** the workflow distinguishes the existing workspace browsing validation from the managed web capture resync validation when they run as separate scripts
+- **THEN** the workflow includes the exact command path needed to execute each documented validation flow
+- **THEN** the workflow distinguishes the workspace browsing, managed web capture resync, retrieval-helper, and panel-configuration flows when they run as separate scripts

@@ -1,7 +1,7 @@
 # context-thread-management Specification
 
 ## Purpose
-TBD - created by archiving change introduce-cross-session-context-threads. Update Purpose after archive.
+Define how stable context threads span web, CLI, and manual workspace captures while preserving per-session scope boundaries and configurable continuity defaults.
 ## Requirements
 ### Requirement: Persistent cross-session context threads
 The system SHALL maintain stable context-thread records that are distinct from per-capture scope IDs so multiple web, CLI, and manual scopes can belong to one continuing line of work.
