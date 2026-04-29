@@ -24,6 +24,7 @@ import {
   type WorkspaceStateUpdate
 } from '@ai-workbench/core/desktop/panels'
 import type { AppSettingsSnapshot, CustomWebPanelSettings } from '@ai-workbench/core/desktop/settings'
+import { getTerminalPanelConfig } from '@ai-workbench/core/desktop/terminal-panels'
 import { getLanguageLabel, getUiText, resolveLocale } from './i18n'
 
 interface WorkbenchState {
@@ -108,6 +109,7 @@ function statusTextForTerminalSnapshot(
   locale: ReturnType<typeof resolveLocale>
 ): string {
   const ui = getUiText(locale)
+  const startupCommand = viewState.startupCommand.trim()
 
   if (viewState.lastError) {
     return viewState.lastError
@@ -117,9 +119,9 @@ function statusTextForTerminalSnapshot(
     case 'idle':
       return ui.sessionWaitingOrExited
     case 'starting':
-      return `${ui.start} ${viewState.startupCommand}`
+      return startupCommand ? `${ui.start} ${startupCommand}` : ui.terminalRuntimeActive
     case 'running':
-      return `${viewState.startupCommand} ${ui.connected.toLowerCase()}`
+      return startupCommand ? `${startupCommand} ${ui.connected.toLowerCase()}` : ui.terminalRuntimeActive
     case 'exited':
       return `${ui.lastExit}: ${viewState.lastExitCode ?? 0}`
     case 'error':
@@ -209,6 +211,18 @@ function syncCustomWebPanelViewState(existingPanel: ManagedPanel | undefined, co
           ? existingPanel.viewState.lastError
           : 'Disabled until enabled'
   }
+}
+
+function shellArgsToEditorText(shellArgs: string[]): string {
+  return shellArgs.join('\n')
+}
+
+function areStringListsEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index])
+}
+
+function syncDraftValue(currentDraft: string, currentSaved: string, nextSaved: string): string {
+  return currentSaved === nextSaved ? currentDraft : nextSaved
 }
 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
@@ -333,6 +347,9 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         return state
       }
 
+      const customWebPanels = snapshot.customWebPanels ?? []
+      const customTerminalPanels = snapshot.customTerminalPanels ?? []
+      const builtInTerminalPanels = snapshot.builtInTerminalPanels ?? {}
       const nextPanels: Record<string, ManagedPanel> = {
         ...state.panels,
         settings: {
@@ -353,7 +370,47 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         return !panel?.definition.userDefined
       })
 
-      for (const customConfig of snapshot.customWebPanels) {
+      for (const [panelId, panel] of Object.entries(nextPanels)) {
+        if (panel.definition.kind !== 'terminal' || panel.definition.userDefined || panel.viewState.kind !== 'terminal') {
+          continue
+        }
+
+        const builtInConfig = getTerminalPanelConfig(panelId)
+        if (!builtInConfig) {
+          continue
+        }
+
+        const savedCwd = builtInTerminalPanels[panelId]?.cwd ?? ''
+        const savedStartupCommand = builtInTerminalPanels[panelId]?.startupCommand ?? ''
+        const configChanged =
+          panel.viewState.savedCwd !== savedCwd || panel.viewState.savedStartupCommand !== savedStartupCommand
+
+        nextPanels[panelId] = {
+          ...panel,
+          viewState: {
+            ...panel.viewState,
+            shell: builtInConfig.shell,
+            shellArgs: builtInConfig.shellArgs,
+            cwd: savedCwd || snapshot.workspaceRoot || panel.viewState.cwd,
+            startupCommand: savedStartupCommand || builtInConfig.startupCommand,
+            savedShell: builtInConfig.shell,
+            savedShellArgs: builtInConfig.shellArgs,
+            savedCwd,
+            savedStartupCommand,
+            draftShell: builtInConfig.shell,
+            draftShellArgsText: shellArgsToEditorText(builtInConfig.shellArgs),
+            draftCwd: syncDraftValue(panel.viewState.draftCwd, panel.viewState.savedCwd, savedCwd),
+            draftStartupCommand: syncDraftValue(
+              panel.viewState.draftStartupCommand,
+              panel.viewState.savedStartupCommand,
+              savedStartupCommand
+            ),
+            pendingRestart: panel.viewState.pendingRestart || (configChanged && panel.viewState.isRunning)
+          }
+        }
+      }
+
+      for (const customConfig of customWebPanels) {
         const existingPanel = state.panels[customConfig.id]
         const definition = createCustomWebPanelDefinition(customConfig)
         const statusBase = existingPanel ?? createManagedPanel(definition, nowLabel())
@@ -369,21 +426,50 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         }
       }
 
-      for (const customConfig of snapshot.customTerminalPanels) {
+      for (const customConfig of customTerminalPanels) {
         const existingPanel = state.panels[customConfig.id]
         const definition = createCustomTerminalPanelDefinition(customConfig)
         const statusBase = existingPanel ?? createManagedPanel(definition, nowLabel())
+        const savedCwd = customConfig.cwd ?? ''
+        const configChanged =
+          existingPanel?.viewState.kind === 'terminal'
+            ? existingPanel.viewState.savedShell !== customConfig.shell ||
+              !areStringListsEqual(existingPanel.viewState.savedShellArgs, customConfig.shellArgs) ||
+              existingPanel.viewState.savedCwd !== savedCwd ||
+              existingPanel.viewState.savedStartupCommand !== customConfig.startupCommand
+            : false
 
         nextPanels[customConfig.id] = {
           ...statusBase,
           definition,
-          viewState: existingPanel?.viewState.kind === 'terminal'
-            ? {
-                ...existingPanel.viewState,
-              shell: customConfig.shell,
-              cwd: customConfig.cwd ?? existingPanel.viewState.cwd,
-                startupCommand: customConfig.startupCommand
-              }
+          viewState:
+            existingPanel?.viewState.kind === 'terminal'
+              ? {
+                  ...existingPanel.viewState,
+                  shell: customConfig.shell,
+                  shellArgs: customConfig.shellArgs,
+                  cwd: customConfig.cwd ?? snapshot.workspaceRoot ?? existingPanel.viewState.cwd,
+                  startupCommand: customConfig.startupCommand,
+                  savedShell: customConfig.shell,
+                  savedShellArgs: customConfig.shellArgs,
+                  savedCwd,
+                  savedStartupCommand: customConfig.startupCommand,
+                  draftShell: syncDraftValue(
+                    existingPanel.viewState.draftShell,
+                    existingPanel.viewState.savedShell,
+                    customConfig.shell
+                  ),
+                  draftShellArgsText: areStringListsEqual(existingPanel.viewState.savedShellArgs, customConfig.shellArgs)
+                    ? existingPanel.viewState.draftShellArgsText
+                    : shellArgsToEditorText(customConfig.shellArgs),
+                  draftCwd: syncDraftValue(existingPanel.viewState.draftCwd, existingPanel.viewState.savedCwd, savedCwd),
+                  draftStartupCommand: syncDraftValue(
+                    existingPanel.viewState.draftStartupCommand,
+                    existingPanel.viewState.savedStartupCommand,
+                    customConfig.startupCommand
+                  ),
+                  pendingRestart: existingPanel.viewState.pendingRestart || (configChanged && existingPanel.viewState.isRunning)
+                }
             : createCustomTerminalPanelViewState(customConfig)
         }
 
@@ -397,8 +483,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           continue
         }
 
-        const existsInCustomWeb = snapshot.customWebPanels.some((panel) => panel.id === panelId)
-        const existsInCustomTerminal = snapshot.customTerminalPanels.some((panel) => panel.id === panelId)
+        const existsInCustomWeb = customWebPanels.some((panel) => panel.id === panelId)
+        const existsInCustomTerminal = customTerminalPanels.some((panel) => panel.id === panelId)
 
         if (!existsInCustomWeb && !existsInCustomTerminal) {
           delete nextPanels[panelId]
@@ -459,6 +545,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       const nextViewState: TerminalPanelViewState = {
         ...activePanel.viewState,
         shell: snapshot.shell,
+        shellArgs: snapshot.shellArgs,
         cwd: snapshot.cwd,
         startupCommand: snapshot.startupCommand,
         launchCount: snapshot.launchCount,
@@ -471,6 +558,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         bufferSize: snapshot.bufferSize,
         logPath: snapshot.logPath,
         showDetails: activePanel.viewState.showDetails,
+        pendingRestart:
+          activePanel.viewState.pendingRestart && snapshot.hasSession && snapshot.launchCount === activePanel.viewState.launchCount,
         lastExitCode: snapshot.lastExitCode,
         lastExitSignal: snapshot.lastExitSignal,
         lastError: snapshot.lastError

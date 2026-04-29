@@ -3,9 +3,14 @@ import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
 import * as pty from 'node-pty'
-import type { CliRetrievalPreference, CustomTerminalPanelSettings } from '@ai-workbench/core/desktop/settings'
+import type {
+  BuiltInTerminalPanelSettings,
+  CliRetrievalPreference,
+  CustomTerminalPanelSettings
+} from '@ai-workbench/core/desktop/settings'
 import { sanitizeContextLabel, sanitizeOrigin } from '@ai-workbench/core/desktop/workspace'
 import {
+  applyBuiltInTerminalPanelSettings,
   createCustomTerminalPanelConfig,
   getTerminalPanelConfig,
   terminalPanelConfigs,
@@ -149,6 +154,7 @@ function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath
     panelId: config.id,
     title: config.title,
     shell: config.shell,
+    shellArgs: config.shellArgs,
     cwd,
     startupCommand: config.startupCommand,
     status: 'idle',
@@ -171,6 +177,7 @@ export class TerminalManager {
   private readonly logDirectory: string
   private readonly builtInIds = new Set(terminalPanelConfigs.map((config) => config.id))
   private workspaceRoot: string
+  private builtInOverrides: Record<string, BuiltInTerminalPanelSettings>
   private globalStartupPreludeCommands: string[]
   private cliRetrievalPreference: CliRetrievalPreference
 
@@ -178,6 +185,7 @@ export class TerminalManager {
     private readonly window: BrowserWindow,
     baseDirectory: string,
     defaultCwd: string,
+    builtInOverrides: Record<string, BuiltInTerminalPanelSettings> = {},
     customPanels: CustomTerminalPanelSettings[] = [],
     startupPreludeCommands: string[] = [],
     cliRetrievalPreference: CliRetrievalPreference = 'thread-first',
@@ -190,6 +198,7 @@ export class TerminalManager {
     ) => { threadId: string; title: string } | null
   ) {
     this.workspaceRoot = defaultCwd
+    this.builtInOverrides = builtInOverrides
     this.globalStartupPreludeCommands = startupPreludeCommands
     this.cliRetrievalPreference = cliRetrievalPreference
     this.logDirectory = join(baseDirectory, 'logs', 'terminal')
@@ -288,6 +297,7 @@ export class TerminalManager {
         ...session.snapshot,
         title: session.config.title,
         shell: session.config.shell,
+        shellArgs: session.config.shellArgs,
         cwd,
         startupCommand: session.config.startupCommand,
         status: 'starting',
@@ -427,6 +437,14 @@ export class TerminalManager {
 
     for (const config of nextConfigs.values()) {
       this.upsertSession(config)
+    }
+  }
+
+  syncBuiltInOverrides(overrides: Record<string, BuiltInTerminalPanelSettings>): void {
+    this.builtInOverrides = overrides
+
+    for (const config of terminalPanelConfigs) {
+      this.upsertSession(this.resolveBuiltInConfig(config))
     }
   }
 
@@ -690,6 +708,7 @@ export class TerminalManager {
       ...existingSession.snapshot,
       title: config.title,
       shell: config.shell,
+      shellArgs: config.shellArgs,
       cwd,
       startupCommand: config.startupCommand
     }
@@ -774,10 +793,11 @@ export class TerminalManager {
   }
 
   private resolveBuiltInConfig(config: TerminalPanelConfig): TerminalPanelConfig {
-    return {
-      ...config,
-      startupPreludeCommands: this.globalStartupPreludeCommands
-    }
+    return applyBuiltInTerminalPanelSettings(
+      config,
+      this.builtInOverrides[config.id],
+      this.globalStartupPreludeCommands
+    )
   }
 
   private resolvePreludeCommands(config: TerminalPanelConfig): string[] {

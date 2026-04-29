@@ -752,6 +752,10 @@ select {
   gap: 8px;
 }
 
+.field--wide {
+  min-width: 0;
+}
+
 .field--compact {
   min-width: 220px;
 }
@@ -884,6 +888,13 @@ select {
   background: color-mix(in srgb, var(--panel-bg) 94%, transparent);
   box-shadow: 0 20px 40px rgba(17, 24, 39, 0.16);
   backdrop-filter: blur(18px);
+}
+
+.drawer-note {
+  margin: 0;
+  color: var(--panel-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .mini-pill--warn {

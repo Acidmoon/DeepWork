@@ -22,6 +22,11 @@ export interface CustomTerminalPanelSettings {
   startupCommand: string
 }
 
+export interface BuiltInTerminalPanelSettings {
+  cwd?: string
+  startupCommand?: string
+}
+
 export interface StoredWebPanelSettings {
   homeUrl: string
   partition: string
@@ -36,6 +41,7 @@ export interface AppSettingsSnapshot {
   threadContinuationPreference: ThreadContinuationPreference
   cliRetrievalPreference: CliRetrievalPreference
   webPanels: Record<string, StoredWebPanelSettings>
+  builtInTerminalPanels: Record<string, BuiltInTerminalPanelSettings>
   customWebPanels: CustomWebPanelSettings[]
   customTerminalPanels: CustomTerminalPanelSettings[]
 }
@@ -48,6 +54,7 @@ export interface AppSettingsUpdate {
   threadContinuationPreference?: ThreadContinuationPreference
   cliRetrievalPreference?: CliRetrievalPreference
   webPanels?: Record<string, StoredWebPanelSettings>
+  builtInTerminalPanels?: Record<string, BuiltInTerminalPanelSettings>
   customWebPanels?: CustomWebPanelSettings[]
   customTerminalPanels?: CustomTerminalPanelSettings[]
 }
@@ -68,6 +75,7 @@ export const defaultAppSettings: AppSettingsSnapshot = {
   threadContinuationPreference: 'continue-active-thread',
   cliRetrievalPreference: 'thread-first',
   webPanels: {},
+  builtInTerminalPanels: {},
   customWebPanels: [],
   customTerminalPanels: []
 }

@@ -1,9 +1,20 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { getTerminalStatusLabel, getUiText, resolveLocale } from '../i18n'
 import { asTerminalViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
+
+function parseShellArgs(editorText: string): string[] {
+  return editorText
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+}
+
+function areStringListsEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index])
+}
 
 export function TerminalPanel({
   panel,
@@ -16,9 +27,101 @@ export function TerminalPanel({
   const launchCountRef = useRef(0)
   const lastSizeRef = useRef<{ cols: number; rows: number } | null>(null)
   const resizeFrameRef = useRef<number | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const updatePanelViewState = useWorkbenchStore((state) => state.updatePanelViewState)
   const syncTerminalPanelState = useWorkbenchStore((state) => state.syncTerminalPanelState)
+  const syncSettingsState = useWorkbenchStore((state) => state.syncSettingsState)
   const state = asTerminalViewState(panel.viewState)
   const ui = getUiText(locale)
+  const isCustomPanel = panel.definition.userDefined === true
+  const normalizedDraftShell = state.draftShell.trim()
+  const normalizedDraftShellArgs = parseShellArgs(state.draftShellArgsText)
+  const normalizedDraftCwd = state.draftCwd.trim()
+  const normalizedDraftStartupCommand = state.draftStartupCommand.trim()
+  const hasConfigChanges = isCustomPanel
+    ? normalizedDraftShell !== state.savedShell ||
+      !areStringListsEqual(normalizedDraftShellArgs, state.savedShellArgs) ||
+      normalizedDraftCwd !== state.savedCwd ||
+      normalizedDraftStartupCommand !== state.savedStartupCommand
+    : normalizedDraftCwd !== state.savedCwd || normalizedDraftStartupCommand !== state.savedStartupCommand
+  const canSaveConfig = isCustomPanel ? normalizedDraftShell.length > 0 && hasConfigChanges : hasConfigChanges
+
+  useEffect(() => {
+    setIsSaving(false)
+  }, [panel.definition.id, state.savedShell, state.savedCwd, state.savedStartupCommand, state.pendingRestart])
+
+  const runTerminalAction = async (): Promise<void> => {
+    if (state.isRunning || state.status === 'starting') {
+      await window.workbenchShell.terminals.restart(panel.definition.id)
+      return
+    }
+
+    await window.workbenchShell.terminals.start(panel.definition.id)
+  }
+
+  const persistConfig = async (): Promise<void> => {
+    if (!canSaveConfig) {
+      return
+    }
+
+    const settings = await window.workbenchShell.settings.getState()
+    if (!settings) {
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      if (isCustomPanel) {
+        const snapshot = await window.workbenchShell.settings.update({
+          customTerminalPanels: settings.customTerminalPanels.map((item) => {
+            if (item.id !== panel.definition.id) {
+              return item
+            }
+
+            const { cwd: _cwd, ...rest } = item
+
+            return {
+              ...rest,
+              shell: normalizedDraftShell,
+              shellArgs: normalizedDraftShellArgs,
+              ...(normalizedDraftCwd ? { cwd: normalizedDraftCwd } : {}),
+              startupCommand: normalizedDraftStartupCommand
+            }
+          })
+        })
+
+        if (snapshot) {
+          syncSettingsState(snapshot)
+        }
+
+        return
+      }
+
+      const nextBuiltInTerminalPanels = {
+        ...(settings.builtInTerminalPanels ?? {})
+      }
+
+      if (!normalizedDraftCwd && !normalizedDraftStartupCommand) {
+        delete nextBuiltInTerminalPanels[panel.definition.id]
+      } else {
+        nextBuiltInTerminalPanels[panel.definition.id] = {
+          ...(normalizedDraftCwd ? { cwd: normalizedDraftCwd } : {}),
+          ...(normalizedDraftStartupCommand ? { startupCommand: normalizedDraftStartupCommand } : {})
+        }
+      }
+
+      const snapshot = await window.workbenchShell.settings.update({
+        builtInTerminalPanels: nextBuiltInTerminalPanels
+      })
+
+      if (snapshot) {
+        syncSettingsState(snapshot)
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   useEffect(() => {
     const host = terminalHostRef.current
@@ -229,14 +332,65 @@ export function TerminalPanel({
       <div className="terminal-stage terminal-stage--immersive">
         {state.showDetails ? (
           <div className="stage-drawer">
-            <div className="detail-columns">
-              <label className="field">
+            <div className={`detail-columns${isCustomPanel ? ' detail-columns--wide' : ''}`}>
+              <label className={`field${isCustomPanel ? ' field--wide' : ''}`}>
                 <span>{ui.shell}</span>
-                <input value={state.shell} readOnly />
+                <input
+                  value={isCustomPanel ? state.draftShell : state.shell}
+                  readOnly={!isCustomPanel}
+                  onChange={(event) =>
+                    updatePanelViewState(panel.definition.id, {
+                      ...state,
+                      draftShell: event.target.value
+                    })
+                  }
+                />
               </label>
+              {isCustomPanel ? (
+                <label className="field">
+                  <span>{ui.shellArguments}</span>
+                  <textarea
+                    rows={4}
+                    value={state.draftShellArgsText}
+                    placeholder={ui.shellArgumentsPlaceholder}
+                    onChange={(event) =>
+                      updatePanelViewState(panel.definition.id, {
+                        ...state,
+                        draftShellArgsText: event.target.value
+                      })
+                    }
+                  />
+                </label>
+              ) : null}
+            </div>
+
+            <div className="detail-columns detail-columns--wide">
               <label className="field">
+                <span>{ui.workingDirectory}</span>
+                <input
+                  value={state.draftCwd}
+                  placeholder={state.cwd}
+                  onChange={(event) =>
+                    updatePanelViewState(panel.definition.id, {
+                      ...state,
+                      draftCwd: event.target.value
+                    })
+                  }
+                />
+              </label>
+              <label className="field field--wide">
                 <span>{ui.startupCommand}</span>
-                <input value={state.startupCommand} readOnly />
+                <textarea
+                  rows={3}
+                  value={state.draftStartupCommand}
+                  placeholder={isCustomPanel ? '' : state.startupCommand}
+                  onChange={(event) =>
+                    updatePanelViewState(panel.definition.id, {
+                      ...state,
+                      draftStartupCommand: event.target.value
+                    })
+                  }
+                />
               </label>
             </div>
 
@@ -269,6 +423,29 @@ export function TerminalPanel({
                 <strong>{state.lastExitCode ?? ui.active}</strong>
               </article>
             </div>
+
+            <div className="action-row">
+              <button
+                type="button"
+                className="action-button action-button--ghost"
+                disabled={!canSaveConfig || isSaving}
+                onClick={() => void persistConfig()}
+              >
+                {ui.saveConfig}
+              </button>
+              <button
+                type="button"
+                className="action-button"
+                disabled={state.status === 'starting'}
+                onClick={() => void runTerminalAction()}
+              >
+                {state.pendingRestart ? ui.restartToApply : state.isRunning || state.status === 'starting' ? ui.restart : ui.start}
+              </button>
+            </div>
+
+            <p className="drawer-note">
+              {isCustomPanel ? ui.terminalConfigApplyHint : ui.builtInTerminalConfigHint}
+            </p>
           </div>
         ) : null}
 

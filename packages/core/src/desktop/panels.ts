@@ -64,8 +64,18 @@ export interface WebPanelViewState {
 export interface TerminalPanelViewState {
   kind: 'terminal'
   shell: string
+  shellArgs: string[]
   cwd: string
   startupCommand: string
+  savedShell: string
+  savedShellArgs: string[]
+  savedCwd: string
+  savedStartupCommand: string
+  draftShell: string
+  draftShellArgsText: string
+  draftCwd: string
+  draftStartupCommand: string
+  pendingRestart: boolean
   launchCount: number
   status: TerminalPanelStatus
   hasSession: boolean
@@ -314,6 +324,10 @@ const DEFAULT_TERMINAL_COLS = 120
 const DEFAULT_TERMINAL_ROWS = 32
 const DISABLED_WEB_PANEL_ERROR = 'Disabled until enabled'
 
+function shellArgsToEditorText(shellArgs: string[]): string {
+  return shellArgs.join('\n')
+}
+
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
   {
     id: 'default-workspace',
@@ -362,8 +376,18 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
       return {
         kind: 'terminal',
         shell: config?.shell ?? 'powershell.exe',
+        shellArgs: config?.shellArgs ?? [],
         cwd: '.',
         startupCommand: config?.startupCommand ?? (panel.id === 'codex-cli' ? 'codex' : 'claude'),
+        savedShell: config?.shell ?? 'powershell.exe',
+        savedShellArgs: config?.shellArgs ?? [],
+        savedCwd: '',
+        savedStartupCommand: '',
+        draftShell: config?.shell ?? 'powershell.exe',
+        draftShellArgsText: shellArgsToEditorText(config?.shellArgs ?? []),
+        draftCwd: '',
+        draftStartupCommand: '',
+        pendingRestart: false,
         launchCount: 0,
         status: 'idle',
         hasSession: false,
@@ -513,8 +537,18 @@ export function createCustomTerminalPanelViewState(config: CustomTerminalPanelSe
   return {
     kind: 'terminal',
     shell: config.shell,
+    shellArgs: config.shellArgs,
     cwd: config.cwd ?? '.',
     startupCommand: config.startupCommand,
+    savedShell: config.shell,
+    savedShellArgs: config.shellArgs,
+    savedCwd: config.cwd ?? '',
+    savedStartupCommand: config.startupCommand,
+    draftShell: config.shell,
+    draftShellArgsText: shellArgsToEditorText(config.shellArgs),
+    draftCwd: config.cwd ?? '',
+    draftStartupCommand: config.startupCommand,
+    pendingRestart: false,
     launchCount: 0,
     status: 'idle',
     hasSession: false,

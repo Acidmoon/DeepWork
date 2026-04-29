@@ -1,4 +1,4 @@
-import type { CustomTerminalPanelSettings } from './settings'
+import type { BuiltInTerminalPanelSettings, CustomTerminalPanelSettings } from './settings'
 
 export type TerminalPanelStatus = 'idle' | 'starting' | 'running' | 'exited' | 'error'
 
@@ -17,6 +17,7 @@ export interface TerminalPanelSnapshot {
   panelId: string
   title: string
   shell: string
+  shellArgs: string[]
   cwd: string
   startupCommand: string
   status: TerminalPanelStatus
@@ -71,8 +72,30 @@ export const terminalPanelConfigMap = Object.fromEntries(
   terminalPanelConfigs.map((config) => [config.id, config] satisfies [string, TerminalPanelConfig])
 )
 
-export function getTerminalPanelConfig(panelId: string): TerminalPanelConfig | undefined {
-  return terminalPanelConfigMap[panelId]
+export function applyBuiltInTerminalPanelSettings(
+  config: TerminalPanelConfig,
+  settings: BuiltInTerminalPanelSettings | undefined,
+  startupPreludeCommands: string[] = config.startupPreludeCommands ?? []
+): TerminalPanelConfig {
+  return {
+    ...config,
+    cwd: settings?.cwd,
+    startupPreludeCommands,
+    startupCommand: settings?.startupCommand ?? config.startupCommand
+  }
+}
+
+export function getTerminalPanelConfig(
+  panelId: string,
+  builtInSettings?: Record<string, BuiltInTerminalPanelSettings>,
+  startupPreludeCommands?: string[]
+): TerminalPanelConfig | undefined {
+  const config = terminalPanelConfigMap[panelId]
+  if (!config) {
+    return undefined
+  }
+
+  return applyBuiltInTerminalPanelSettings(config, builtInSettings?.[panelId], startupPreludeCommands)
 }
 
 export function createCustomTerminalPanelConfig(config: CustomTerminalPanelSettings): TerminalPanelConfig {

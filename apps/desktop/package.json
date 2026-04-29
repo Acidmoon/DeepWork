@@ -13,7 +13,8 @@
     "validate:workspace-regression": "node validation/workspace-regression/run-workspace-regression.mjs",
     "validate:workspace-web-capture": "node validation/workspace-web-capture/run-workspace-web-capture-validation.mjs",
     "validate:workspace-retrieval": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File validation/workspace-retrieval/run-workspace-retrieval-validation.ps1",
-    "validate:custom-web-panels": "node validation/custom-web-panels/run-custom-web-panels-validation.mjs"
+    "validate:custom-web-panels": "node validation/custom-web-panels/run-custom-web-panels-validation.mjs",
+    "validate:terminal-panel-configuration": "node validation/terminal-panel-configuration/run-terminal-panel-configuration-validation.mjs"
   },
   "dependencies": {
     "@ai-workbench/core": "0.1.0",

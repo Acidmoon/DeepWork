@@ -15,6 +15,7 @@
     "validate:workspace-regression": "npm run validate:workspace-regression -w @ai-workbench/desktop",
     "validate:workspace-web-capture": "npm run validate:workspace-web-capture -w @ai-workbench/desktop",
     "validate:workspace-retrieval": "npm run validate:workspace-retrieval -w @ai-workbench/desktop",
-    "validate:custom-web-panels": "npm run validate:custom-web-panels -w @ai-workbench/desktop"
+    "validate:custom-web-panels": "npm run validate:custom-web-panels -w @ai-workbench/desktop",
+    "validate:terminal-panel-configuration": "npm run validate:terminal-panel-configuration -w @ai-workbench/desktop"
   }
 }

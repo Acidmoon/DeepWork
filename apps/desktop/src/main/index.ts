@@ -72,6 +72,7 @@ app.whenReady().then(() => {
     mainWindow,
     app.getPath('userData'),
     settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
+    settingsManager.getSnapshot().builtInTerminalPanels,
     settingsManager.getSnapshot().customTerminalPanels,
     settingsManager.getSnapshot().terminalPreludeCommands,
     settingsManager.getSnapshot().cliRetrievalPreference,
@@ -168,6 +169,7 @@ app.whenReady().then(() => {
     }
 
     webPanelManager?.syncCustomPanels(snapshot.customWebPanels)
+    terminalManager?.syncBuiltInOverrides(snapshot.builtInTerminalPanels)
     terminalManager?.syncCustomPanels(snapshot.customTerminalPanels)
     terminalManager?.syncStartupPreludeCommands(snapshot.terminalPreludeCommands)
     terminalManager?.syncCliRetrievalPreference(snapshot.cliRetrievalPreference)
@@ -215,6 +217,7 @@ app.whenReady().then(() => {
         mainWindow,
         app.getPath('userData'),
         settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
+        settingsManager.getSnapshot().builtInTerminalPanels,
         settingsManager.getSnapshot().customTerminalPanels,
         settingsManager.getSnapshot().terminalPreludeCommands,
         settingsManager.getSnapshot().cliRetrievalPreference,

@@ -710,6 +710,7 @@ function TerminalPanelQuickActions({
   return (
     <>
       <span className="mini-pill">{ui.terminalLabel}</span>
+      {state.pendingRestart ? <span className="mini-pill mini-pill--warn">{ui.restartToApply}</span> : null}
       {state.lastError ? <span className="mini-pill mini-pill--warn">{ui.error}</span> : null}
       <button
         type="button"
