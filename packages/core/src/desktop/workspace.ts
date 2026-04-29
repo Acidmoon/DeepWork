@@ -58,6 +58,11 @@ export interface ContextRetrievalMetadata {
   tags: string[]
   searchTerms: string[]
   scopeSummary: string
+  displayTitle: string | null
+  previewText: string | null
+  messageCount: number
+  transcriptCount: number
+  retrievalAuditCount: number
 }
 
 export interface ContextIndexManifest {
@@ -127,6 +132,34 @@ export interface WorkspaceSnapshot {
   recentArtifacts: ArtifactRecord[]
   lastSavedArtifactId: string | null
   lastError: string | null
+}
+
+export type ManagedSessionContinuityStatus = 'fresh' | 'pending' | 'linked'
+
+export interface ManagedSessionContinuitySummary {
+  status: ManagedSessionContinuityStatus
+  panelId: string
+  contextLabel: string | null
+  scopeId: string | null
+  scopeTitle: string | null
+  scopePreview: string | null
+  scopeArtifactCount: number
+  threadId: string | null
+  threadTitle: string | null
+  threadSummary: string | null
+  threadScopeCount: number
+  threadArtifactCount: number
+  latestUpdatedAt: string | null
+}
+
+export interface ManagedSessionContinuityInput {
+  panelId: string
+  contextLabel?: string | null
+  sessionScopeId?: string | null
+  threadId?: string | null
+  threadTitle?: string | null
+  contextEntries: ContextIndexEntry[]
+  threads: ContextThreadSummary[]
 }
 
 export interface SaveClipboardOptions {
@@ -271,6 +304,11 @@ function normalizeRecordText(value: unknown): string {
   return String(value ?? '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function normalizeOptionalRecordText(value: unknown): string | null {
+  const normalized = normalizeRecordText(value)
+  return normalized || null
 }
 
 function normalizeRecordInteger(value: unknown): number | null {
@@ -616,6 +654,75 @@ function buildArtifactInspectionSearchPhrases(artifact: ArtifactRecord): string[
   ])
 }
 
+function findRepresentativeScopeArtifact<TArtifact extends ArtifactRecord>(artifacts: TArtifact[]): TArtifact | undefined {
+  return (
+    artifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'message-index') ??
+    artifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'web-context') ??
+    artifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'manual-save') ??
+    artifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'terminal-transcript') ??
+    artifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'retrieval-audit') ??
+    artifacts.find((artifact) => artifact.type === 'json') ??
+    artifacts.find((artifact) => artifact.type === 'markdown') ??
+    artifacts[0]
+  )
+}
+
+function buildScopeFallbackTitle(origin: string, contextLabel: string): string {
+  const normalizedContextLabel = contextLabel.replace(/[-_]+/g, ' ').trim()
+  if (normalizedContextLabel && normalizedContextLabel !== 'default context') {
+    return normalizedContextLabel
+  }
+
+  return `${origin.replace(/[-_]+/g, ' ').trim() || 'workspace'} session`
+}
+
+function deriveScopeDisplayTitle<TArtifact extends ArtifactRecord>(artifacts: TArtifact[], origin: string, contextLabel: string): string {
+  const representative = findRepresentativeScopeArtifact(artifacts)
+  const pageTitle = normalizeRecordText(representative?.metadata?.pageTitle)
+  if (pageTitle) {
+    return pageTitle
+  }
+
+  const sessionTitle = normalizeRecordText(representative?.metadata?.sessionTitle || representative?.metadata?.panelTitle)
+  if (sessionTitle) {
+    return sessionTitle
+  }
+
+  return buildScopeFallbackTitle(origin, contextLabel)
+}
+
+function deriveScopePreviewText<TArtifact extends ArtifactRecord>(
+  representative: TArtifact | undefined,
+  scopeSummary: string
+): string | null {
+  const previewText = normalizeRecordText(representative?.metadata?.previewText)
+  if (previewText) {
+    return previewText
+  }
+
+  const retrievalQuery = normalizeRecordText(representative?.metadata?.retrievalQuery)
+  if (retrievalQuery) {
+    return retrievalQuery
+  }
+
+  const summary = normalizeRecordText(representative?.summary)
+  if (summary) {
+    const previewMatch = summary.match(/Preview:\s*(.+)$/i)
+    if (previewMatch?.[1]) {
+      return previewMatch[1].trim()
+    }
+
+    return summary
+  }
+
+  const sourceUrl = normalizeRecordText(representative?.metadata?.sourceUrl)
+  if (sourceUrl) {
+    return sourceUrl
+  }
+
+  return normalizeOptionalRecordText(scopeSummary)
+}
+
 export function normalizeArtifactRecord<TArtifact extends ArtifactRecord>(artifact: TArtifact): TArtifact {
   const normalizedOrigin = sanitizeOrigin(artifact.origin || 'manual')
   const withOrigin = normalizedOrigin === artifact.origin ? artifact : { ...artifact, origin: normalizedOrigin }
@@ -682,9 +789,20 @@ function buildContextRetrievalMetadata<TArtifact extends ArtifactRecord>(
       .filter((summary) => summary.length > 0)
   )
   const scopeSummary = summaryPhrases.slice(0, MAX_SCOPE_SUMMARY_PARTS).join(' | ')
+  const representative = findRepresentativeScopeArtifact(relevantArtifacts)
+  const displayTitle = deriveScopeDisplayTitle(relevantArtifacts, origin, contextLabel)
+  const previewText = deriveScopePreviewText(representative, scopeSummary)
+  const messageCount = relevantArtifacts.reduce(
+    (maximum, artifact) => Math.max(maximum, normalizeRecordInteger(artifact.metadata?.messageCount) ?? 0),
+    0
+  )
+  const transcriptCount = artifacts.filter((artifact) => getArtifactInspectionKind(artifact) === 'terminal-transcript').length
+  const retrievalAuditCount = artifacts.filter((artifact) => getArtifactInspectionKind(artifact) === 'retrieval-audit').length
   const searchPhrases = uniqueStrings([
     origin,
     contextLabel,
+    displayTitle,
+    previewText,
     ...artifactTypes,
     ...tags,
     ...summaryPhrases,
@@ -703,7 +821,12 @@ function buildContextRetrievalMetadata<TArtifact extends ArtifactRecord>(
     artifactTypes,
     tags,
     searchTerms,
-    scopeSummary
+    scopeSummary,
+    displayTitle,
+    previewText,
+    messageCount,
+    transcriptCount,
+    retrievalAuditCount
   }
 }
 
@@ -863,4 +986,46 @@ export function buildThreadEntries<TArtifact extends ArtifactRecord>(
 
       return left.title.localeCompare(right.title)
     })
+}
+
+function resolveContinuityScopeTitle(entry: ContextIndexEntry): string {
+  return normalizeOptionalRecordText(entry.retrieval.displayTitle) ?? buildScopeFallbackTitle(entry.origin, entry.contextLabel)
+}
+
+export function buildManagedSessionContinuitySummary(
+  input: ManagedSessionContinuityInput
+): ManagedSessionContinuitySummary {
+  const panelId = sanitizeOrigin(input.panelId || 'manual') || 'manual'
+  const contextLabel = normalizeOptionalRecordText(input.contextLabel)
+  const requestedScopeId = normalizeOptionalRecordText(input.sessionScopeId)
+  const candidateScopeId = contextLabel ? `${panelId}__${sanitizeContextLabel(contextLabel)}` : null
+  const scopeMap = new Map(input.contextEntries.map((entry) => [entry.scopeId, entry] satisfies [string, ContextIndexEntry]))
+  const threadMap = new Map(input.threads.map((thread) => [thread.threadId, thread] satisfies [string, ContextThreadSummary]))
+  const linkedScope = (requestedScopeId ? scopeMap.get(requestedScopeId) : null) ?? (candidateScopeId ? scopeMap.get(candidateScopeId) : null) ?? null
+  const requestedThreadId = normalizeOptionalRecordText(input.threadId)
+  const requestedThread = requestedThreadId ? threadMap.get(sanitizeThreadId(requestedThreadId)) ?? null : null
+  const linkedThread = linkedScope ? threadMap.get(linkedScope.threadId) ?? null : null
+  const resolvedThread = linkedThread ?? requestedThread
+  const fallbackThreadTitle = normalizeOptionalRecordText(input.threadTitle)
+  const hasContinuitySignals = Boolean(contextLabel || requestedScopeId || requestedThreadId || fallbackThreadTitle)
+
+  return {
+    status: linkedScope ? 'linked' : hasContinuitySignals ? 'pending' : 'fresh',
+    panelId,
+    contextLabel,
+    scopeId: linkedScope?.scopeId ?? null,
+    scopeTitle: linkedScope ? resolveContinuityScopeTitle(linkedScope) : null,
+    scopePreview:
+      linkedScope
+        ? normalizeOptionalRecordText(linkedScope.retrieval.previewText) ??
+          normalizeOptionalRecordText(linkedScope.retrieval.scopeSummary)
+        : null,
+    scopeArtifactCount: linkedScope?.artifactCount ?? 0,
+    threadId: resolvedThread?.threadId ?? (requestedThreadId ? sanitizeThreadId(requestedThreadId) : null),
+    threadTitle: resolvedThread?.title ?? fallbackThreadTitle,
+    threadSummary: normalizeOptionalRecordText(resolvedThread?.summary),
+    threadScopeCount: resolvedThread?.scopeCount ?? 0,
+    threadArtifactCount: resolvedThread?.artifactCount ?? 0,
+    latestUpdatedAt: linkedScope?.latestUpdatedAt ?? resolvedThread?.latestUpdatedAt ?? null
+  }
 }

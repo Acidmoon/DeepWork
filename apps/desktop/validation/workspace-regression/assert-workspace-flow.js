@@ -72,6 +72,8 @@ async page => {
   await page.waitForTimeout(300)
   await page.getByRole('button', { name: '查看全部范围' }).click()
   await page.waitForTimeout(300)
+  await page.locator('summary').filter({ hasText: '线程与修复' }).click()
+  await page.waitForTimeout(300)
 
   const minimaxSessionButton = page.getByRole('button', { name: /MiniMax Agent/ })
   const minimaxSessionVisibleBefore = await minimaxSessionButton.count()
@@ -169,15 +171,17 @@ async page => {
   await page.locator('.nav-item__button').filter({ hasText: 'Codex CLI' }).click()
   await page.waitForTimeout(400)
 
+  const continuityStatusVisible = await page.getByText('已链接上下文').count()
   const activeThreadBadgeVisible = await page.getByText('当前线程: Release Planning Thread').count()
+  const inspectWorkspaceButtonVisible = await page.getByRole('button', { name: '检查 Workspace' }).count()
   const manageThreadsButtonVisible = await page.getByRole('button', { name: '在 Workspace 中管理线程' }).count()
-  const terminalThreadSelectVisible = await page.getByRole('combobox', { name: '当前线程' }).count()
-  if (activeThreadBadgeVisible < 1 || manageThreadsButtonVisible < 1 || terminalThreadSelectVisible !== 0) {
+  if (continuityStatusVisible !== 0 || activeThreadBadgeVisible !== 0 || inspectWorkspaceButtonVisible !== 0 || manageThreadsButtonVisible !== 0) {
     throw new Error(
-      `Terminal toolbar did not stay read-only after workspace-driven mutations: ${JSON.stringify({
+      `Terminal panel still exposed removed continuity UI: ${JSON.stringify({
+        continuityStatusVisible,
         activeThreadBadgeVisible,
-        manageThreadsButtonVisible,
-        terminalThreadSelectVisible
+        inspectWorkspaceButtonVisible,
+        manageThreadsButtonVisible
       })}`
     )
   }
@@ -199,9 +203,10 @@ async page => {
       createdThreadId: createdThreadState.activeThreadId,
       renamedThreadTitle: renamedThreadState.activeThreadTitle,
       releasePlanningScopeCount: afterActivation.releasePlanningScopeCount,
+      continuityStatusVisible,
       activeThreadBadgeVisible,
-      manageThreadsButtonVisible,
-      terminalThreadSelectVisible
+      inspectWorkspaceButtonVisible,
+      manageThreadsButtonVisible
     })
   )
 }

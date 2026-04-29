@@ -24,6 +24,7 @@ import {
   type WorkspaceStateUpdate
 } from '@ai-workbench/core/desktop/panels'
 import type { AppSettingsSnapshot, CustomWebPanelSettings } from '@ai-workbench/core/desktop/settings'
+import { buildManagedSessionContinuitySummary, type WorkspaceSnapshot } from '@ai-workbench/core/desktop/workspace'
 import { getTerminalPanelConfig } from '@ai-workbench/core/desktop/terminal-panels'
 import { getLanguageLabel, getUiText, resolveLocale } from './i18n'
 
@@ -223,6 +224,68 @@ function areStringListsEqual(left: string[], right: string[]): boolean {
 
 function syncDraftValue(currentDraft: string, currentSaved: string, nextSaved: string): string {
   return currentSaved === nextSaved ? currentDraft : nextSaved
+}
+
+function toWorkspaceSnapshot(viewState: WorkspacePanelViewState | null): WorkspaceSnapshot | null {
+  if (!viewState) {
+    return null
+  }
+
+  return {
+    projectId: viewState.projectId,
+    workspaceRoot: viewState.workspaceRoot,
+    manifestPath: viewState.manifestPath,
+    contextIndexPath: viewState.contextIndexPath,
+    originManifestsPath: viewState.originManifestsPath,
+    threadIndexPath: viewState.threadIndexPath,
+    threadManifestsPath: viewState.threadManifestsPath,
+    rulesPath: viewState.rulesPath,
+    initialized: viewState.initialized,
+    artifactCount: viewState.artifactCount,
+    bucketCounts: viewState.bucketCounts,
+    contextEntries: viewState.contextEntries,
+    threads: viewState.threads,
+    activeThreadId: viewState.activeThreadId,
+    activeThreadTitle: viewState.activeThreadTitle,
+    artifacts: viewState.artifacts,
+    recentArtifacts: viewState.recentArtifacts,
+    lastSavedArtifactId: viewState.lastSavedArtifactId,
+    lastError: viewState.lastError
+  }
+}
+
+function resolveManagedContinuitySummary(
+  panelId: string,
+  viewState: Pick<
+    WebPanelViewState | TerminalPanelViewState,
+    'contextLabel' | 'sessionScopeId' | 'threadId' | 'threadTitle' | 'continuitySummary'
+  >,
+  workspaceSnapshot: WorkspaceSnapshot | null
+) {
+  if (!workspaceSnapshot) {
+    return (
+      viewState.continuitySummary ??
+      buildManagedSessionContinuitySummary({
+        panelId,
+        contextLabel: viewState.contextLabel,
+        sessionScopeId: viewState.sessionScopeId,
+        threadId: viewState.threadId,
+        threadTitle: viewState.threadTitle,
+        contextEntries: [],
+        threads: []
+      })
+    )
+  }
+
+  return buildManagedSessionContinuitySummary({
+    panelId,
+    contextLabel: viewState.contextLabel,
+    sessionScopeId: viewState.sessionScopeId,
+    threadId: viewState.threadId,
+    threadTitle: viewState.threadTitle,
+    contextEntries: workspaceSnapshot.contextEntries,
+    threads: workspaceSnapshot.threads
+  })
 }
 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
@@ -505,6 +568,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         return state
       }
 
+      const workspaceSnapshot = toWorkspaceSnapshot(
+        state.panels.artifacts?.viewState.kind === 'workspace' ? state.panels.artifacts.viewState : null
+      )
+
       const nextViewState: WebPanelViewState = {
         ...activePanel.viewState,
         homeUrl: snapshot.homeUrl,
@@ -521,7 +588,18 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         contextLabel: snapshot.contextLabel,
         sessionScopeId: snapshot.sessionScopeId,
         threadId: snapshot.threadId,
-        threadTitle: snapshot.threadTitle
+        threadTitle: snapshot.threadTitle,
+        continuitySummary: resolveManagedContinuitySummary(
+          snapshot.panelId,
+          {
+            contextLabel: snapshot.contextLabel,
+            sessionScopeId: snapshot.sessionScopeId,
+            threadId: snapshot.threadId,
+            threadTitle: snapshot.threadTitle,
+            continuitySummary: snapshot.continuitySummary
+          },
+          workspaceSnapshot
+        )
       }
 
       const locale = getCurrentLocale(state.panels)
@@ -545,6 +623,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       if (!activePanel || activePanel.viewState.kind !== 'terminal') {
         return state
       }
+
+      const workspaceSnapshot = toWorkspaceSnapshot(
+        state.panels.artifacts?.viewState.kind === 'workspace' ? state.panels.artifacts.viewState : null
+      )
 
       const nextViewState: TerminalPanelViewState = {
         ...activePanel.viewState,
@@ -570,7 +652,18 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         contextLabel: snapshot.contextLabel,
         sessionScopeId: snapshot.sessionScopeId,
         threadId: snapshot.threadId,
-        threadTitle: snapshot.threadTitle
+        threadTitle: snapshot.threadTitle,
+        continuitySummary: resolveManagedContinuitySummary(
+          snapshot.panelId,
+          {
+            contextLabel: snapshot.contextLabel,
+            sessionScopeId: snapshot.sessionScopeId,
+            threadId: snapshot.threadId,
+            threadTitle: snapshot.threadTitle,
+            continuitySummary: snapshot.continuitySummary
+          },
+          workspaceSnapshot
+        )
       }
 
       const locale = getCurrentLocale(state.panels)
@@ -645,6 +738,20 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           viewState: nextViewState,
           lastStatusCheckAt: formatTimeLabel(locale),
           statusText: statusTextForWorkspaceSnapshot(nextViewState, locale)
+        }
+      }
+
+      for (const [panelId, panel] of Object.entries(nextPanels)) {
+        if (panel.viewState.kind !== 'web' && panel.viewState.kind !== 'terminal') {
+          continue
+        }
+
+        nextPanels[panelId] = {
+          ...panel,
+          viewState: {
+            ...panel.viewState,
+            continuitySummary: resolveManagedContinuitySummary(panelId, panel.viewState, snapshot)
+          }
         }
       }
 

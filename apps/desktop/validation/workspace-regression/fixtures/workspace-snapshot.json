@@ -50,7 +50,12 @@
           "transcript",
           "captured"
         ],
-        "scopeSummary": "Codex CLI transcript captured from session 1."
+        "scopeSummary": "Codex CLI transcript captured from session 1.",
+        "displayTitle": "Codex CLI",
+        "previewText": "Codex CLI transcript captured from session 1.",
+        "messageCount": 0,
+        "transcriptCount": 1,
+        "retrievalAuditCount": 1
       },
       "threadId": "thread-release-planning"
     },
@@ -102,7 +107,12 @@
           "111",
           "用户询问数字111含义"
         ],
-        "scopeSummary": "Structured message index for 用户询问数字111含义 - DeepSeek. | Auto-captured web session from 用户询问数字111含义 - DeepSeek with 1 structured messages."
+        "scopeSummary": "Structured message index for 用户询问数字111含义 - DeepSeek. | Auto-captured web session from 用户询问数字111含义 - DeepSeek with 1 structured messages.",
+        "displayTitle": "用户询问数字111含义 - DeepSeek",
+        "previewText": "用户询问数字111含义",
+        "messageCount": 1,
+        "transcriptCount": 0,
+        "retrievalAuditCount": 0
       },
       "threadId": "thread-release-planning"
     },
@@ -144,7 +154,12 @@
           "简单指令",
           "无限可能"
         ],
-        "scopeSummary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能."
+        "scopeSummary": "Auto-captured web context from MiniMax Agent: 简单指令, 无限可能.",
+        "displayTitle": "MiniMax Agent: 简单指令, 无限可能",
+        "previewText": "https://agent.minimaxi.com/",
+        "messageCount": 0,
+        "transcriptCount": 0,
+        "retrievalAuditCount": 0
       },
       "threadId": "thread-side-research"
     },
@@ -182,7 +197,12 @@
           "research",
           "note"
         ],
-        "scopeSummary": "Manual text saved from clipboard."
+        "scopeSummary": "Manual text saved from clipboard.",
+        "displayTitle": "research note",
+        "previewText": "Capture the MiniMax research note before reassigning the thread.",
+        "messageCount": 0,
+        "transcriptCount": 0,
+        "retrievalAuditCount": 0
       },
       "threadId": "thread-side-research"
     }

@@ -60,27 +60,27 @@ async page => {
   await page.locator('.nav-item__button').filter({ hasText: 'DeepSeek Web' }).click()
   await page.waitForTimeout(400)
 
-  const sessionThreadVisible = await page.getByText('当前会话线程').count()
-  const sessionScopeVisible = await page.getByText('会话范围: deepseek-web__sync-regression-chat').count()
-  if (sessionThreadVisible < 1 || sessionScopeVisible < 1) {
+  const linkedContinuityVisible = await page.getByText('已链接上下文').count()
+  const inspectWorkspaceVisible = await page.getByRole('button', { name: '检查 Workspace' }).count()
+  if (linkedContinuityVisible !== 0 || inspectWorkspaceVisible !== 0) {
     throw new Error(
-      `Managed web continuity state did not render after resync. sessionThreadVisible=${sessionThreadVisible}, sessionScopeVisible=${sessionScopeVisible}`
+      `Managed web panel still exposed removed continuity UI. linked=${linkedContinuityVisible}, inspect=${inspectWorkspaceVisible}`
     )
   }
 
   const manageThreadsVisible = await page.getByRole('button', { name: '在 Workspace 中管理线程' }).count()
-  const webThreadSelectVisible = await page.getByRole('combobox', { name: '当前线程' }).count()
-  if (manageThreadsVisible < 1 || webThreadSelectVisible !== 0) {
+  if (manageThreadsVisible !== 0) {
     throw new Error(
       `Managed web toolbar exposed unexpected thread mutation controls: ${JSON.stringify({
-        manageThreadsVisible,
-        webThreadSelectVisible
+        manageThreadsVisible
       })}`
     )
   }
 
-  await page.getByRole('button', { name: '在 Workspace 中管理线程' }).click()
+  await page.locator('.nav-item__button').filter({ hasText: 'Artifacts' }).click()
   await page.waitForTimeout(400)
+  await page.locator('summary').filter({ hasText: '线程与修复' }).click()
+  await page.waitForTimeout(250)
   await page.locator('.artifact-row--thread').filter({ hasText: 'Side Research' }).getByRole('button', { name: '继续' }).click()
   await page.waitForFunction(() => window.__workspaceWebCaptureValidation.getState().snapshot.activeThreadTitle === 'Side Research')
   await page.waitForTimeout(250)
@@ -88,22 +88,19 @@ async page => {
   await page.waitForTimeout(400)
 
   const afterThreadSwitch = await page.evaluate(() => window.__workspaceWebCaptureValidation.getState())
-  const stableSessionThreadVisible = await page.getByText('Workspace Sync Thread').count()
   if (
     afterThreadSwitch.snapshot.activeThreadTitle !== 'Side Research' ||
-    afterThreadSwitch.webSnapshot.threadTitle !== 'Workspace Sync Thread' ||
-    stableSessionThreadVisible < 1
+    afterThreadSwitch.webSnapshot.threadTitle !== 'Workspace Sync Thread'
   ) {
     throw new Error(
       `Managed web continuity drifted after switching the active thread: ${JSON.stringify({
         activeThreadTitle: afterThreadSwitch.snapshot.activeThreadTitle,
-        linkedThreadTitle: afterThreadSwitch.webSnapshot.threadTitle,
-        stableSessionThreadVisible
+        linkedThreadTitle: afterThreadSwitch.webSnapshot.threadTitle
       })}`
     )
   }
 
-  await page.getByRole('button', { name: '在 Workspace 中打开' }).click()
+  await page.locator('.nav-item__button').filter({ hasText: 'Artifacts' }).click()
   await page.waitForTimeout(400)
 
   const jumpedSessionVisible = await page.getByRole('button', { name: /Workspace sync regression chat/ }).count()
@@ -124,10 +121,9 @@ async page => {
       assistantMessageVisible,
       searchedSessionVisible,
       transcriptPreviewVisible,
-      sessionThreadVisible,
-      sessionScopeVisible,
+      linkedContinuityVisible,
+      inspectWorkspaceVisible,
       manageThreadsVisible,
-      webThreadSelectVisible,
       switchedActiveThreadTitle: afterThreadSwitch.snapshot.activeThreadTitle,
       linkedThreadTitle: afterThreadSwitch.webSnapshot.threadTitle,
       jumpedSessionVisible

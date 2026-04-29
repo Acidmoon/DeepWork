@@ -11,7 +11,13 @@ import { getTerminalPanelConfig } from './terminal-panels'
 import type { TerminalPanelSnapshot, TerminalPanelStatus } from './terminal-panels'
 import { getWebPanelConfig } from './web-panels'
 import type { WebPanelSnapshot } from './web-panels'
-import type { ArtifactRecord, ContextIndexEntry, ContextThreadSummary, WorkspaceSnapshot } from './workspace'
+import type {
+  ArtifactRecord,
+  ContextIndexEntry,
+  ContextThreadSummary,
+  ManagedSessionContinuitySummary,
+  WorkspaceSnapshot
+} from './workspace'
 
 export type PanelKind = 'home' | 'web' | 'terminal' | 'workspace' | 'tool' | 'settings'
 
@@ -63,6 +69,7 @@ export interface WebPanelViewState {
   sessionScopeId: string | null
   threadId: string | null
   threadTitle: string | null
+  continuitySummary: ManagedSessionContinuitySummary | null
 }
 
 export interface TerminalPanelViewState {
@@ -97,6 +104,7 @@ export interface TerminalPanelViewState {
   sessionScopeId: string | null
   threadId: string | null
   threadTitle: string | null
+  continuitySummary: ManagedSessionContinuitySummary | null
 }
 
 export interface WorkspacePanelViewState {
@@ -380,7 +388,8 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         contextLabel: null,
         sessionScopeId: null,
         threadId: null,
-        threadTitle: null
+        threadTitle: null,
+        continuitySummary: null
       }
     }
     case 'terminal': {
@@ -417,7 +426,8 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         contextLabel: null,
         sessionScopeId: null,
         threadId: null,
-        threadTitle: null
+        threadTitle: null,
+        continuitySummary: null
       }
     }
     case 'workspace':
@@ -551,7 +561,8 @@ export function createCustomWebPanelViewState(config: CustomWebPanelSettings): W
     contextLabel: null,
     sessionScopeId: null,
     threadId: null,
-    threadTitle: null
+    threadTitle: null,
+    continuitySummary: null
   }
 }
 
@@ -587,7 +598,8 @@ export function createCustomTerminalPanelViewState(config: CustomTerminalPanelSe
     contextLabel: null,
     sessionScopeId: null,
     threadId: null,
-    threadTitle: null
+    threadTitle: null,
+    continuitySummary: null
   }
 }
 

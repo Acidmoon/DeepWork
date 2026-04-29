@@ -57,7 +57,12 @@
           "context",
           "web"
         ],
-        "scopeSummary": "Structured message index for Workspace sync regression chat. | Auto-captured web session from Workspace sync regression chat with 2 structured messages. Preview: Workspace Sync now triggers workspace:resync and persists the refreshed web context."
+        "scopeSummary": "Structured message index for Workspace sync regression chat. | Auto-captured web session from Workspace sync regression chat with 2 structured messages. Preview: Workspace Sync now triggers workspace:resync and persists the refreshed web context.",
+        "displayTitle": "Workspace sync regression chat",
+        "previewText": "Workspace Sync now triggers workspace:resync and persists the refreshed web context.",
+        "messageCount": 2,
+        "transcriptCount": 0,
+        "retrievalAuditCount": 0
       },
       "threadId": "thread-workspace-sync"
     }

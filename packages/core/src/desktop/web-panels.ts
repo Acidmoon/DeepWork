@@ -1,3 +1,5 @@
+import type { ManagedSessionContinuitySummary } from './workspace'
+
 export interface WebPanelConfig {
   id: string
   title: string
@@ -32,6 +34,7 @@ export interface WebPanelSnapshot {
   sessionScopeId: string | null
   threadId: string | null
   threadTitle: string | null
+  continuitySummary: ManagedSessionContinuitySummary | null
 }
 
 export type WebPanelUrlValidationError = 'empty' | 'invalid' | 'unsupported-protocol'

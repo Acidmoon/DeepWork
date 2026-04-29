@@ -8,6 +8,7 @@ import type {
   CliRetrievalPreference,
   CustomTerminalPanelSettings
 } from '@ai-workbench/core/desktop/settings'
+import type { ManagedSessionContinuitySummary } from '@ai-workbench/core/desktop/workspace'
 import { sanitizeContextLabel, sanitizeOrigin } from '@ai-workbench/core/desktop/workspace'
 import {
   applyBuiltInTerminalPanelSettings,
@@ -135,14 +136,16 @@ function attachSessionContinuity(
     sessionScopeId: string | null
     threadId: string | null
     threadTitle: string | null
-  }
+  },
+  continuitySummary: ManagedSessionContinuitySummary | null = null
 ): TerminalPanelSnapshot {
   return {
     ...snapshot,
     contextLabel: continuity.contextLabel,
     sessionScopeId: continuity.sessionScopeId,
     threadId: continuity.threadId,
-    threadTitle: continuity.threadTitle
+    threadTitle: continuity.threadTitle,
+    continuitySummary
   }
 }
 
@@ -190,7 +193,8 @@ function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath
     contextLabel: null,
     sessionScopeId: null,
     threadId: null,
-    threadTitle: null
+    threadTitle: null,
+    continuitySummary: null
   }
 }
 
@@ -217,7 +221,14 @@ export class TerminalManager {
       panelId: string,
       title: string,
       contextLabel: string
-    ) => { threadId: string; title: string } | null
+    ) => { threadId: string; title: string } | null,
+    private readonly resolveContinuitySummary?: (input: {
+      panelId: string
+      contextLabel: string | null
+      sessionScopeId: string | null
+      threadId: string | null
+      threadTitle: string | null
+    }) => ManagedSessionContinuitySummary | null
   ) {
     this.workspaceRoot = defaultCwd
     this.builtInOverrides = builtInOverrides
@@ -333,7 +344,8 @@ export class TerminalManager {
           lastExitSignal: null,
           lastError: null
         },
-        session
+        session,
+        this.buildContinuitySummary(session.config.id, session)
       )
 
       appendLog(session.logPath, `\n\n=== SESSION ${new Date().toISOString()} (${session.config.id}) ===\n`)
@@ -369,7 +381,8 @@ export class TerminalManager {
           pid: null,
           lastError: error instanceof Error ? error.message : String(error)
         },
-        session
+        session,
+        this.buildContinuitySummary(session.config.id, session)
       )
       this.publishState(session.snapshot)
       return session.snapshot
@@ -524,7 +537,11 @@ export class TerminalManager {
         )
       }
 
-      session.snapshot = attachSessionContinuity(session.snapshot, session)
+      session.snapshot = attachSessionContinuity(
+        session.snapshot,
+        session,
+        this.buildContinuitySummary(session.config.id, session)
+      )
       this.publishState(session.snapshot)
     }
   }
@@ -563,6 +580,26 @@ export class TerminalManager {
         `${createWorkspaceBootstrap(this.workspaceRoot, sessionCwd, sessionIdentity, this.cliRetrievalPreference)}\r`
       )
     }
+  }
+
+  private buildContinuitySummary(
+    panelId: string,
+    continuity: {
+      contextLabel: string | null
+      sessionScopeId: string | null
+      threadId: string | null
+      threadTitle: string | null
+    }
+  ): ManagedSessionContinuitySummary | null {
+    return (
+      this.resolveContinuitySummary?.({
+        panelId,
+        contextLabel: continuity.contextLabel,
+        sessionScopeId: continuity.sessionScopeId,
+        threadId: continuity.threadId,
+        threadTitle: continuity.threadTitle
+      }) ?? null
+    )
   }
 
   private attachProcessListeners(session: ManagedTerminalSession, sessionToken: number): void {
@@ -711,7 +748,21 @@ export class TerminalManager {
       this.sessions.set(config.id, {
         config,
         ptyProcess: null,
-        snapshot: createInitialSnapshot(config, cwd, logPath),
+        snapshot: attachSessionContinuity(
+          createInitialSnapshot(config, cwd, logPath),
+          {
+            contextLabel: null,
+            sessionScopeId: null,
+            threadId: null,
+            threadTitle: null
+          },
+          this.buildContinuitySummary(config.id, {
+            contextLabel: null,
+            sessionScopeId: null,
+            threadId: null,
+            threadTitle: null
+          })
+        ),
         buffer: '',
         captureBuffer: '',
         bootTimer: null,
@@ -742,7 +793,11 @@ export class TerminalManager {
       startupCommand: config.startupCommand
     }
 
-    existingSession.snapshot = attachSessionContinuity(existingSession.snapshot, existingSession)
+    existingSession.snapshot = attachSessionContinuity(
+      existingSession.snapshot,
+      existingSession,
+      this.buildContinuitySummary(existingSession.config.id, existingSession)
+    )
     this.publishState(existingSession.snapshot)
   }
 

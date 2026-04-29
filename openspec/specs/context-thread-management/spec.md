@@ -1,7 +1,8 @@
 # context-thread-management Specification
 
 ## Purpose
-Define how stable context threads span web, CLI, and manual workspace captures while preserving per-session scope boundaries and configurable continuity defaults.
+Define how stable context threads span web, CLI, and manual workspace captures while preserving per-session scope boundaries, automatic continuity defaults, and lightweight explicit steering when users need to branch or continue work.
+
 ## Requirements
 ### Requirement: Persistent cross-session context threads
 The system SHALL maintain stable context-thread records that are distinct from per-capture scope IDs so multiple web, CLI, and manual scopes can belong to one continuing line of work.
@@ -16,16 +17,16 @@ The system SHALL maintain stable context-thread records that are distinct from p
 - **THEN** the system derives backward-compatible thread records for them during rebuild or migration
 - **THEN** the existing artifacts remain valid without rewriting their raw content files
 
-### Requirement: Explicit thread continuation workflow
-The system SHALL let users continue an existing context thread from later web, CLI, or manual-capture flows instead of forcing each new session to become a disconnected context island.
+### Requirement: Lightweight thread continuation workflow
+The system SHALL let users continue an existing context thread or branch into a new one from later web, CLI, or manual-capture flows without forcing each new session to become a disconnected context island or forcing routine work through workspace management screens.
 
 #### Scenario: Continue work on an existing thread
-- **WHEN** the user selects an existing thread and opens or starts a later work surface
+- **WHEN** the user keeps working from a surface or request that already points at an existing thread
 - **THEN** the resulting web or CLI session remains associated with that same thread
 - **THEN** new captures from that flow are grouped under the selected thread while preserving their own session scope identity
 
 #### Scenario: Start a new thread beside existing ones
-- **WHEN** the user chooses to start a fresh thread instead of continuing an existing one
+- **WHEN** the user explicitly chooses to start a fresh thread instead of continuing an existing one
 - **THEN** the system creates a new thread identity
 - **THEN** subsequent captures are attached to the new thread until the user switches again
 
@@ -72,4 +73,3 @@ The system SHALL let operators rename an existing thread without changing its st
 - **WHEN** a thread title changes after scopes or sessions have already linked to that thread
 - **THEN** existing scope memberships and artifact associations remain attached to the same thread ID
 - **THEN** future captures continue using that stable thread identity until the operator selects another thread
-

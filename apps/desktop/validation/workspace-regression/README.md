@@ -1,11 +1,11 @@
 # Workspace Regression Validation
 
-This validation flow covers the desktop renderer workspace interactions added in the search-and-preview work:
+This validation flow covers the desktop renderer Workspace interactions that remain important as a secondary inspection surface:
 
 - metadata query filtering
 - bucket/query composition
 - JSON preview loading
-- separation between artifact checkbox selection and preview target
+- separation between secondary inspection selection state and preview target
 - log preview loading
 
 ## Prerequisites
@@ -59,3 +59,4 @@ npm run validate:workspace-regression
 ## Notes
 
 - The runner reserves `artifacts/` for local validation outputs, but the pass/fail contract of this workflow is the command exit status and explicit interaction assertions.
+- This workflow protects Workspace as a secondary inspection surface; it is not a statement that Workspace should become the primary day-to-day conversation entrypoint.

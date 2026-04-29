@@ -2,6 +2,7 @@ import { BrowserWindow, WebContentsView } from 'electron'
 import type { Event } from 'electron'
 import { deriveWebContextLabel, normalizeCapturedMessages } from '@ai-workbench/core/desktop/capture'
 import type { CustomWebPanelSettings } from '@ai-workbench/core/desktop/settings'
+import type { ManagedSessionContinuitySummary } from '@ai-workbench/core/desktop/workspace'
 import {
   getWebPanelConfig,
   normalizeWebPanelUrl,
@@ -270,14 +271,16 @@ function attachWebContinuity(
     sessionScopeId: string | null
     threadId: string | null
     threadTitle: string | null
-  }
+  },
+  continuitySummary: ManagedSessionContinuitySummary | null = null
 ): WebPanelSnapshot {
   return {
     ...snapshot,
     contextLabel: continuity.contextLabel,
     sessionScopeId: continuity.sessionScopeId,
     threadId: continuity.threadId,
-    threadTitle: continuity.threadTitle
+    threadTitle: continuity.threadTitle,
+    continuitySummary
   }
 }
 
@@ -293,7 +296,14 @@ export class WebPanelManager {
     customPanels: CustomWebPanelSettings[] = [],
     private readonly persistWebContext?: (
       payload: PersistWebContextPayload
-    ) => PersistWebContextResult | null
+    ) => PersistWebContextResult | null,
+    private readonly resolveContinuitySummary?: (input: {
+      panelId: string
+      contextLabel: string | null
+      sessionScopeId: string | null
+      threadId: string | null
+      threadTitle: string | null
+    }) => ManagedSessionContinuitySummary | null
   ) {
     for (const config of webPanelConfigs) {
       const resolvedConfig: WebPanelConfig = {
@@ -335,7 +345,13 @@ export class WebPanelManager {
         contextLabel: null,
         sessionScopeId: null,
         threadId: null,
-        threadTitle: null
+        threadTitle: null,
+        continuitySummary: this.buildContinuitySummary(config.id, {
+          contextLabel: null,
+          sessionScopeId: null,
+          threadId: null,
+          threadTitle: null
+        })
       }
     }
 
@@ -570,6 +586,26 @@ export class WebPanelManager {
     }
   }
 
+  private buildContinuitySummary(
+    panelId: string,
+    continuity: {
+      contextLabel: string | null
+      sessionScopeId: string | null
+      threadId: string | null
+      threadTitle: string | null
+    }
+  ): ManagedSessionContinuitySummary | null {
+    return (
+      this.resolveContinuitySummary?.({
+        panelId,
+        contextLabel: continuity.contextLabel,
+        sessionScopeId: continuity.sessionScopeId,
+        threadId: continuity.threadId,
+        threadTitle: continuity.threadTitle
+      }) ?? null
+    )
+  }
+
   private createManagedPanel(config: WebPanelConfig): ManagedWebPanel {
     const view = new WebContentsView({
       webPreferences: {
@@ -618,7 +654,13 @@ export class WebPanelManager {
         contextLabel: null,
         sessionScopeId: null,
         threadId: null,
-        threadTitle: null
+        threadTitle: null,
+        continuitySummary: this.buildContinuitySummary(config.id, {
+          contextLabel: null,
+          sessionScopeId: null,
+          threadId: null,
+          threadTitle: null
+        })
       }
     }
 
@@ -857,7 +899,12 @@ export class WebPanelManager {
       sessionScopeId: null,
       threadId: null,
       threadTitle: null
-    })
+    }, this.buildContinuitySummary(panel.snapshot.panelId, {
+      contextLabel: null,
+      sessionScopeId: null,
+      threadId: null,
+      threadTitle: null
+    }))
   }
 
   private async captureCurrentContext(
@@ -958,7 +1005,12 @@ export class WebPanelManager {
           sessionScopeId: null,
           threadId: null,
           threadTitle: null
-        })
+        }, this.buildContinuitySummary(panel.snapshot.panelId, {
+          contextLabel,
+          sessionScopeId: null,
+          threadId: null,
+          threadTitle: null
+        }))
       }
       panel.captureContextLabel = contextLabel
 
@@ -988,7 +1040,12 @@ export class WebPanelManager {
         sessionScopeId: panel.sessionScopeId,
         threadId: panel.threadId,
         threadTitle: panel.threadTitle
-      })
+      }, this.buildContinuitySummary(panel.snapshot.panelId, {
+        contextLabel: persisted?.contextLabel ?? panel.captureContextLabel,
+        sessionScopeId: panel.sessionScopeId,
+        threadId: panel.threadId,
+        threadTitle: panel.threadTitle
+      }))
       panel.lastPersistedCaptureSignature = currentCaptureSignature
       this.publish(panel.snapshot)
     } catch {

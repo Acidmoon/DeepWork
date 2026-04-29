@@ -43,19 +43,20 @@ export function buildArtifactSearchText(artifact: ArtifactRecord): string {
     .toLowerCase()
 }
 
-export function buildSessionSearchText(entry: ContextIndexEntry, artifacts: ArtifactRecord[]): string {
+export function buildSessionSearchText(entry: ContextIndexEntry): string {
   return [
     entry.origin,
     entry.contextLabel,
     entry.scopeId,
     entry.threadId,
+    entry.retrieval.displayTitle,
+    entry.retrieval.previewText,
     entry.retrieval.scopeSummary,
     entry.retrieval.latestArtifactSummary,
     entry.retrieval.latestArtifactType,
     entry.retrieval.artifactTypes.join(' '),
     entry.retrieval.tags.join(' '),
-    entry.retrieval.searchTerms.join(' '),
-    ...artifacts.map((artifact) => buildArtifactSearchText(artifact))
+    entry.retrieval.searchTerms.join(' ')
   ]
     .join(' ')
     .toLowerCase()
@@ -93,7 +94,6 @@ export function getWorkspaceFolderName(workspaceRoot: string): string {
 
 export function buildSessionSummary(
   entry: ContextIndexEntry,
-  artifacts: ArtifactRecord[],
   locale: ReturnType<typeof resolveLocale>
 ): {
   scopeId: string
@@ -104,23 +104,12 @@ export function buildSessionSummary(
   badges: string[]
   latestUpdatedAt: string | null
 } {
-  const scopedArtifacts = entry.artifactIds
-    .map((artifactId) => artifacts.find((artifact) => artifact.id === artifactId))
-    .filter((artifact): artifact is ArtifactRecord => Boolean(artifact))
-  const representative =
-    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'message-index') ??
-    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'web-context') ??
-    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'manual-save') ??
-    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'terminal-transcript') ??
-    scopedArtifacts.find((artifact) => getArtifactInspectionKind(artifact) === 'retrieval-audit') ??
-    scopedArtifacts.find((artifact) => artifact.type === 'json') ??
-    scopedArtifacts.find((artifact) => artifact.type === 'markdown') ??
-    scopedArtifacts[0]
-  const messageCount = Number(representative?.metadata?.messageCount ?? 0)
-  const transcriptCount = scopedArtifacts.filter((artifact) => getArtifactInspectionKind(artifact) === 'terminal-transcript').length
-  const logCount = scopedArtifacts.filter((artifact) => getArtifactInspectionKind(artifact) === 'retrieval-audit').length
-  const preview = extractSessionPreview(representative) || entry.retrieval.scopeSummary || formatContextEntryDescription(entry, locale)
-  const title = deriveSessionTitle(entry, representative, locale)
+  const messageCount = Number(entry.retrieval.messageCount ?? 0)
+  const transcriptCount = Number(entry.retrieval.transcriptCount ?? 0)
+  const logCount = Number(entry.retrieval.retrievalAuditCount ?? 0)
+  const preview =
+    String(entry.retrieval.previewText ?? '').trim() || entry.retrieval.scopeSummary || formatContextEntryDescription(entry, locale)
+  const title = deriveSessionTitle(entry, locale)
   const badges = [
     locale === 'zh-CN' ? `${entry.artifactCount} 条记录` : `${entry.artifactCount} items`,
     messageCount > 0 ? (locale === 'zh-CN' ? `${messageCount} 条消息` : `${messageCount} messages`) : null,
@@ -264,21 +253,15 @@ export function humanizeArtifactTypeEn(artifact: { type: string; origin?: string
 }
 
 export function deriveSessionTitle(
-  entry: { origin: string; contextLabel: string },
-  artifact: ArtifactRecord | undefined,
+  entry: { origin: string; contextLabel: string; retrieval?: { displayTitle?: string | null } },
   locale: ReturnType<typeof resolveLocale>
 ): string {
+  const displayTitle = typeof entry.retrieval?.displayTitle === 'string' ? entry.retrieval.displayTitle.trim() : ''
+  if (displayTitle) {
+    return displayTitle
+  }
+
   const contextLabel = entry.contextLabel.replace(/[-_]+/g, ' ').trim()
-  const pageTitle = typeof artifact?.metadata?.pageTitle === 'string' ? artifact.metadata.pageTitle.trim() : ''
-  const sessionTitle = typeof artifact?.metadata?.sessionTitle === 'string' ? artifact.metadata.sessionTitle.trim() : ''
-
-  if (pageTitle) {
-    return pageTitle
-  }
-
-  if (sessionTitle) {
-    return sessionTitle
-  }
 
   if (contextLabel && contextLabel !== 'default context') {
     return contextLabel

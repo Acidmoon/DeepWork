@@ -66,17 +66,18 @@ export function WorkspacePanel({
       : 'all'
   const scopeThreadMap = new Map(state.contextEntries.map((entry) => [entry.scopeId, entry.threadId] as const))
   const sessionSummaries = visibleContextEntries.map((entry) => {
-    const scopedArtifacts = state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === entry.scopeId)
-    const bucketArtifacts = scopedArtifacts.filter((artifact) => matchesWorkspaceBucket(artifact, state.selectedBucket))
-    const matchingArtifacts = normalizedQuery
-      ? bucketArtifacts.filter((artifact) => matchesWorkspaceArtifactQuery(artifact, normalizedQuery))
-      : bucketArtifacts
-    const searchableSession = buildSessionSearchText(entry, scopedArtifacts)
+    const bucketArtifacts = state.artifacts
+      .filter((artifact) => getArtifactScopeId(artifact) === entry.scopeId)
+      .filter((artifact) => matchesWorkspaceBucket(artifact, state.selectedBucket))
+    const searchableSession = buildSessionSearchText(entry)
 
     return {
-      ...buildSessionSummary(entry, state.artifacts, locale),
+      ...buildSessionSummary(entry, locale),
       matchesOrigin: effectiveSelectedOrigin === 'all' || entry.scopeId === effectiveSelectedOrigin,
-      matchesQuery: !normalizedQuery || searchableSession.includes(normalizedQuery) || matchingArtifacts.length > 0,
+      matchesQuery:
+        !normalizedQuery ||
+        searchableSession.includes(normalizedQuery) ||
+        bucketArtifacts.some((artifact) => matchesWorkspaceArtifactQuery(artifact, normalizedQuery)),
       availableArtifactCount: bucketArtifacts.length
     }
   })
@@ -102,6 +103,7 @@ export function WorkspacePanel({
   const selectedScopeArtifacts = selectedScope
     ? state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === selectedScope.scopeId)
     : []
+  const selectedScopeSummary = selectedScope ? buildSessionSummary(selectedScope, locale) : null
   const selectedScopeArtifactKey = selectedScopeArtifacts.map((artifact) => artifact.id).join('|')
 
   const updateWorkspaceViewState = (
@@ -351,30 +353,10 @@ export function WorkspacePanel({
 
       <div className="panel-section">
         <div className="section-line">
-          <strong>{ui.threadContinuity}</strong>
+          <strong>{ui.workspaceSecondaryRole}</strong>
           <span>{activeThread?.title ?? ui.noActiveThread}</span>
         </div>
-
-        <form
-          className="workspace-thread-composer"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void createThread()
-          }}
-        >
-          <label className="field field--wide">
-            <span>{ui.threadCreateTitle}</span>
-            <input
-              aria-label={ui.threadCreateTitle}
-              value={threadCreateDraft}
-              placeholder={ui.threadCreatePlaceholder}
-              onChange={(event) => setThreadCreateDraft(event.target.value)}
-            />
-          </label>
-          <button type="submit" className="action-button" disabled={pendingAction === 'create-thread'}>
-            {ui.threadCreate}
-          </button>
-        </form>
+        <p className="section-empty">{ui.workspaceSecondaryHint}</p>
 
         <div className="action-row">
           <button
@@ -390,93 +372,6 @@ export function WorkspacePanel({
             {state.threadFilterMode === 'active' ? ui.threadShowAll : ui.activeThread}
           </button>
         </div>
-
-        {threadActionFeedback ? <p className="thread-feedback">{threadActionFeedback}</p> : null}
-
-        {state.threads.length === 0 ? (
-          <p className="section-empty">{ui.threadEmptyHint}</p>
-        ) : (
-          <div className="artifact-list">
-            {state.threads.map((thread) => (
-              <article
-                key={thread.threadId}
-                className={`artifact-row artifact-row--thread${state.activeThreadId === thread.threadId ? ' artifact-row--active' : ''}`}
-              >
-                <div className="artifact-row__body">
-                  {editingThreadId === thread.threadId ? (
-                    <form
-                      className="workspace-thread-inline-form"
-                      onSubmit={(event) => {
-                        event.preventDefault()
-                        void saveThreadTitle(thread.threadId, thread.title)
-                      }}
-                    >
-                      <label className="field field--wide">
-                        <span>{ui.threadTitle}</span>
-                        <input
-                          aria-label={ui.threadTitle}
-                          value={editingThreadTitle}
-                          placeholder={ui.threadTitlePlaceholder}
-                          onChange={(event) => setEditingThreadTitle(event.target.value)}
-                        />
-                      </label>
-                      <div className="artifact-row__actions artifact-row__actions--inline">
-                        <button
-                          type="submit"
-                          className="action-button action-button--compact"
-                          disabled={
-                            pendingAction === `rename-thread:${thread.threadId}` ||
-                            !editingThreadTitle.trim() ||
-                            editingThreadTitle.trim() === thread.title
-                          }
-                        >
-                          {ui.save}
-                        </button>
-                        <button
-                          type="button"
-                          className="action-button action-button--ghost action-button--compact"
-                          onClick={cancelRenameThread}
-                        >
-                          {ui.cancel}
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <strong>{thread.title}</strong>
-                  )}
-                  <p>{thread.summary || thread.threadId}</p>
-                  <div className="session-badges">
-                    <span className="session-badge">{thread.scopeCount} {ui.threadScopeCount}</span>
-                    <span className="session-badge">{thread.artifactCount} {ui.threadArtifactCount}</span>
-                    <span className="session-badge">{thread.derived ? ui.threadDerived : ui.threadExplicit}</span>
-                  </div>
-                </div>
-                <div className="artifact-row__meta">
-                  <span>{thread.threadId}</span>
-                  <small>{thread.latestUpdatedAt ? formatTimestamp(thread.latestUpdatedAt, locale) : '-'}</small>
-                </div>
-                <div className="artifact-row__actions">
-                  <button
-                    type="button"
-                    className="action-button action-button--ghost action-button--compact"
-                    disabled={state.activeThreadId === thread.threadId}
-                    onClick={() => void continueThread(thread.threadId)}
-                  >
-                    {ui.threadContinue}
-                  </button>
-                  <button
-                    type="button"
-                    className="action-button action-button--ghost action-button--compact"
-                    disabled={editingThreadId === thread.threadId}
-                    onClick={() => startRenameThread(thread.threadId, thread.title)}
-                  >
-                    {ui.rename}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="panel-section">
@@ -541,68 +436,9 @@ export function WorkspacePanel({
           />
         </label>
 
-        {selectedScope ? (
-          <div className="workspace-inline-note">
-            <div className="workspace-inline-note__copy">
-              <span>{formatContextEntryDescription(selectedScope, locale)}</span>
-              {deleteScopeArmedId === selectedScope.scopeId ? (
-                <p className="workspace-inline-note__warning">{ui.deleteSessionWarning}</p>
-              ) : null}
-            </div>
-            <div className="workspace-inline-note__actions">
-              <label className="field field--compact">
-                <span>{ui.targetThread}</span>
-                <select value={scopeThreadTargetId} onChange={(event) => setScopeThreadTargetId(event.target.value)}>
-                  {state.threads.map((thread) => (
-                    <option key={thread.threadId} value={thread.threadId}>
-                      {thread.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                className="action-button action-button--ghost"
-                disabled={!scopeThreadTargetId || scopeThreadTargetId === selectedScope.threadId}
-                onClick={() => void reassignSelectedScope()}
-              >
-                {ui.reassignScopeThread}
-              </button>
-              {deleteScopeArmedId === selectedScope.scopeId ? (
-                <>
-                  <button
-                    type="button"
-                    className="action-button action-button--danger"
-                    disabled={pendingAction === 'delete-scope'}
-                    onClick={() => void deleteSelectedScope()}
-                  >
-                    {ui.confirmDelete}
-                  </button>
-                  <button
-                    type="button"
-                    className="action-button action-button--ghost"
-                    onClick={() => setDeleteScopeArmedId(null)}
-                  >
-                    {ui.cancel}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="action-button action-button--ghost action-button--danger"
-                  onClick={() => {
-                    setDeleteScopeArmedId(selectedScope.scopeId)
-                    setThreadActionFeedback(null)
-                  }}
-                >
-                  {ui.deleteSession}
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <p className="section-empty">{ui.findContextHint}</p>
-        )}
+        <p className="section-empty">
+          {selectedScope ? formatContextEntryDescription(selectedScope, locale) : ui.findContextHint}
+        </p>
       </div>
 
       <div className="panel-section">
@@ -645,6 +481,31 @@ export function WorkspacePanel({
                 </div>
               </button>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel-section">
+        <div className="section-line">
+          <strong>{ui.currentSelectionSummary}</strong>
+          <span>{selectedScopeSummary?.title ?? ui.sessionPreviewEmpty}</span>
+        </div>
+        {!selectedScope || !selectedScopeSummary ? (
+          <p className="section-empty">{ui.contextSelectionHint}</p>
+        ) : (
+          <div className="workspace-session-summary">
+            <div className="workspace-session-summary__header">
+              <strong>{selectedScopeSummary.title}</strong>
+              <span>{formatContextEntryLabel(selectedScopeSummary)}</span>
+            </div>
+            <p>{selectedScopeSummary.preview}</p>
+            <div className="session-badges">
+              {selectedScopeSummary.badges.map((badge) => (
+                <span key={`${selectedScopeSummary.scopeId}-${badge}`} className="session-badge">
+                  {badge}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -754,6 +615,185 @@ export function WorkspacePanel({
           </div>
         )}
       </div>
+
+      <details className="workspace-advanced">
+        <summary>{ui.workspaceManageContinuity}</summary>
+
+        <div className="workspace-advanced__body">
+          <p className="section-empty">{ui.workspaceManageContinuityHint}</p>
+
+          <form
+            className="workspace-thread-composer"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void createThread()
+            }}
+          >
+            <label className="field field--wide">
+              <span>{ui.threadCreateTitle}</span>
+              <input
+                aria-label={ui.threadCreateTitle}
+                value={threadCreateDraft}
+                placeholder={ui.threadCreatePlaceholder}
+                onChange={(event) => setThreadCreateDraft(event.target.value)}
+              />
+            </label>
+            <button type="submit" className="action-button" disabled={pendingAction === 'create-thread'}>
+              {ui.threadCreate}
+            </button>
+          </form>
+
+          {threadActionFeedback ? <p className="thread-feedback">{threadActionFeedback}</p> : null}
+
+          {state.threads.length === 0 ? (
+            <p className="section-empty">{ui.threadEmptyHint}</p>
+          ) : (
+            <div className="artifact-list">
+              {state.threads.map((thread) => (
+                <article
+                  key={thread.threadId}
+                  className={`artifact-row artifact-row--thread${state.activeThreadId === thread.threadId ? ' artifact-row--active' : ''}`}
+                >
+                  <div className="artifact-row__body">
+                    {editingThreadId === thread.threadId ? (
+                      <form
+                        className="workspace-thread-inline-form"
+                        onSubmit={(event) => {
+                          event.preventDefault()
+                          void saveThreadTitle(thread.threadId, thread.title)
+                        }}
+                      >
+                        <label className="field field--wide">
+                          <span>{ui.threadTitle}</span>
+                          <input
+                            aria-label={ui.threadTitle}
+                            value={editingThreadTitle}
+                            placeholder={ui.threadTitlePlaceholder}
+                            onChange={(event) => setEditingThreadTitle(event.target.value)}
+                          />
+                        </label>
+                        <div className="artifact-row__actions artifact-row__actions--inline">
+                          <button
+                            type="submit"
+                            className="action-button action-button--compact"
+                            disabled={
+                              pendingAction === `rename-thread:${thread.threadId}` ||
+                              !editingThreadTitle.trim() ||
+                              editingThreadTitle.trim() === thread.title
+                            }
+                          >
+                            {ui.save}
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button action-button--ghost action-button--compact"
+                            onClick={cancelRenameThread}
+                          >
+                            {ui.cancel}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <strong>{thread.title}</strong>
+                    )}
+                    <p>{thread.summary || thread.threadId}</p>
+                    <div className="session-badges">
+                      <span className="session-badge">{thread.scopeCount} {ui.threadScopeCount}</span>
+                      <span className="session-badge">{thread.artifactCount} {ui.threadArtifactCount}</span>
+                      <span className="session-badge">{thread.derived ? ui.threadDerived : ui.threadExplicit}</span>
+                    </div>
+                  </div>
+                  <div className="artifact-row__meta">
+                    <span>{thread.threadId}</span>
+                    <small>{thread.latestUpdatedAt ? formatTimestamp(thread.latestUpdatedAt, locale) : '-'}</small>
+                  </div>
+                  <div className="artifact-row__actions">
+                    <button
+                      type="button"
+                      className="action-button action-button--ghost action-button--compact"
+                      disabled={state.activeThreadId === thread.threadId}
+                      onClick={() => void continueThread(thread.threadId)}
+                    >
+                      {ui.threadContinue}
+                    </button>
+                    <button
+                      type="button"
+                      className="action-button action-button--ghost action-button--compact"
+                      disabled={editingThreadId === thread.threadId}
+                      onClick={() => startRenameThread(thread.threadId, thread.title)}
+                    >
+                      {ui.rename}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {selectedScope ? (
+            <div className="workspace-inline-note">
+              <div className="workspace-inline-note__copy">
+                <span>{formatContextEntryDescription(selectedScope, locale)}</span>
+                {deleteScopeArmedId === selectedScope.scopeId ? (
+                  <p className="workspace-inline-note__warning">{ui.deleteSessionWarning}</p>
+                ) : null}
+              </div>
+              <div className="workspace-inline-note__actions">
+                <label className="field field--compact">
+                  <span>{ui.targetThread}</span>
+                  <select value={scopeThreadTargetId} onChange={(event) => setScopeThreadTargetId(event.target.value)}>
+                    {state.threads.map((thread) => (
+                      <option key={thread.threadId} value={thread.threadId}>
+                        {thread.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="action-button action-button--ghost"
+                  disabled={!scopeThreadTargetId || scopeThreadTargetId === selectedScope.threadId}
+                  onClick={() => void reassignSelectedScope()}
+                >
+                  {ui.reassignScopeThread}
+                </button>
+                {deleteScopeArmedId === selectedScope.scopeId ? (
+                  <>
+                    <button
+                      type="button"
+                      className="action-button action-button--danger"
+                      disabled={pendingAction === 'delete-scope'}
+                      onClick={() => void deleteSelectedScope()}
+                    >
+                      {ui.confirmDelete}
+                    </button>
+                    <button
+                      type="button"
+                      className="action-button action-button--ghost"
+                      onClick={() => setDeleteScopeArmedId(null)}
+                    >
+                      {ui.cancel}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="action-button action-button--ghost action-button--danger"
+                    onClick={() => {
+                      setDeleteScopeArmedId(selectedScope.scopeId)
+                      setThreadActionFeedback(null)
+                    }}
+                  >
+                    {ui.deleteSession}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="section-empty">{ui.findContextHint}</p>
+          )}
+        </div>
+      </details>
 
       <details className="workspace-advanced">
         <summary>{ui.advancedWorkspaceTools}</summary>

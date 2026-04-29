@@ -5,8 +5,7 @@ import {
   getSectionPanels,
   type ManagedPanel,
   type NavigationSection,
-  type PanelState,
-  type WorkspacePanelViewState
+  type PanelState
 } from '@ai-workbench/core/desktop/panels'
 import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
 import { asTerminalViewState, asWebViewState, asWorkspaceViewState, useWorkbenchStore } from './store'
@@ -25,10 +24,6 @@ function App(): JSX.Element {
   const syncTerminalPanelState = useWorkbenchStore((state) => state.syncTerminalPanelState)
   const syncWorkspaceState = useWorkbenchStore((state) => state.syncWorkspaceState)
   const syncSettingsState = useWorkbenchStore((state) => state.syncSettingsState)
-  const sharedWorkspaceState = useWorkbenchStore((state) => {
-    const workspacePanel = state.panels.artifacts
-    return workspacePanel?.viewState.kind === 'workspace' ? workspacePanel.viewState : null
-  })
   const themePreference = useWorkbenchStore((state) =>
     state.panels.settings?.viewState.kind === 'settings' ? state.panels.settings.viewState.theme : 'system'
   )
@@ -346,15 +341,6 @@ function App(): JSX.Element {
                 )}
                 <div className="toolbar-meta">
                   {activeWorkspaceState ? <WorkspacePanelActions panel={activePanel} locale={locale} /> : null}
-                  {activeWebState || activeTerminalState ? (
-                    <ThreadToolbarControls
-                      locale={locale}
-                      workspaceState={sharedWorkspaceState}
-                      onManageInWorkspace={() => {
-                        startTransition(() => openPanel('artifacts'))
-                      }}
-                    />
-                  ) : null}
                   {!activeWebState && !activeTerminalState ? (
                     <button
                       type="button"
@@ -775,40 +761,6 @@ function WorkspacePanelActions({
         {ui.saveClipboard}
       </button>
     </>
-  )
-}
-
-function ThreadToolbarControls({
-  locale,
-  workspaceState,
-  onManageInWorkspace
-}: {
-  locale: ReturnType<typeof resolveLocale>
-  workspaceState: WorkspacePanelViewState | null
-  onManageInWorkspace: () => void
-}): JSX.Element | null {
-  const ui = getUiText(locale)
-
-  if (!workspaceState) {
-    return null
-  }
-
-  const activeThread = workspaceState.threads.find((thread) => thread.threadId === workspaceState.activeThreadId) ?? null
-
-  return (
-    <div className="thread-toolbar">
-      <span className="mini-pill">
-        {ui.activeThread}: {activeThread?.title ?? ui.noActiveThread}
-      </span>
-      <span className="mini-pill">{ui.threadMutationWorkspaceOnly}</span>
-      <button
-        type="button"
-        className="action-button action-button--ghost action-button--compact"
-        onClick={onManageInWorkspace}
-      >
-        {ui.manageThreadsInWorkspace}
-      </button>
-    </div>
   )
 }
 

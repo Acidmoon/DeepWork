@@ -6,7 +6,7 @@ It verifies:
 
 - the Workspace panel sync action triggers the real `workspace.resync()` path used by the renderer
 - a deterministic conversation-like web capture result becomes visible as workspace-managed artifacts
-- the refreshed workspace snapshot exposes the new session through normal workspace browsing data
+- the refreshed workspace snapshot exposes the new session through normal workspace browsing data and continuity summaries
 - structured message preview and transcript preview both work from the persisted artifacts
 
 ## Prerequisites

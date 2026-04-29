@@ -1,7 +1,8 @@
 # desktop-workbench-panels Specification
 
 ## Purpose
-Define the desktop workbench shell, navigation model, and managed web or terminal panel lifecycle that let the Electron app host stable built-in and user-defined work surfaces.
+Define the desktop workbench shell, navigation model, and managed web or terminal panel lifecycle that let the Electron app host stable work surfaces while keeping web and CLI conversations as the primary continuity entry points.
+
 ## Requirements
 ### Requirement: DeepWork desktop shell
 The system SHALL launch a single DeepWork desktop window that hosts the renderer shell through the preload bridge and prevents arbitrary secondary window creation from both the main window and managed web panels.
@@ -13,7 +14,7 @@ The system SHALL launch a single DeepWork desktop window that hosts the renderer
 - **THEN** `window.open` style requests are denied from the main window
 
 ### Requirement: Navigation and panel visibility model
-The renderer SHALL organize the workbench into stable navigation sections and panel definitions, keep a pinned home panel available, hydrate persisted user-defined panels into navigation state, and manage active/open state without deleting panel definitions when a non-pinned panel is hidden.
+The renderer SHALL organize the workbench into stable navigation sections and panel definitions, keep a pinned home panel available, hydrate persisted user-defined panels into navigation state, and manage active and open state without deleting panel definitions when a non-pinned panel is hidden.
 
 #### Scenario: Open a registered panel
 - **WHEN** a user selects a registered panel from the sidebar
@@ -80,7 +81,7 @@ The workbench SHALL expose an explicit configuration surface for managed termina
 - **THEN** later launches use the updated persisted configuration
 
 ### Requirement: Managed terminal panel lifecycle
-Built-in and user-defined CLI panels SHALL run as PTY-backed terminal sessions owned by the main process, expose attach/start/restart/write/resize/clear operations through preload IPC, launch using the persisted configuration resolved for that panel, and preserve session continuity across renderer panel switches.
+Built-in and user-defined CLI panels SHALL run as PTY-backed terminal sessions owned by the main process, expose attach, start, restart, write, resize, and clear operations through preload IPC, launch using the persisted configuration resolved for that panel, and preserve session continuity across renderer panel switches.
 
 #### Scenario: Attach to an existing terminal session
 - **WHEN** the renderer attaches to a terminal panel that already has buffered output
@@ -97,63 +98,62 @@ Built-in and user-defined CLI panels SHALL run as PTY-backed terminal sessions o
 - **THEN** the workbench restores those definitions into navigation state and terminal view state
 - **THEN** the main process can start the managed terminal session using that persisted configuration without requiring code changes
 
-### Requirement: Thread-aware workbench continuation surfaces
-The renderer SHALL expose the currently active context thread and let the user start new work or continue existing work across workspace, managed web, and managed CLI surfaces without leaving the desktop workbench.
+### Requirement: Conversation-first continuity surfaces
+The renderer SHALL keep managed web and CLI conversation surfaces as the primary place where users understand and steer continuity, while keeping Workspace as a secondary inspection surface rather than a required step before normal conversation.
 
-#### Scenario: Continue an existing thread from the renderer
-- **WHEN** the user selects a saved thread for continuation
-- **THEN** the workbench shows that thread as the active continuity target
-- **THEN** subsequent managed web, CLI, or manual-save flows use that thread unless the user explicitly changes it
+#### Scenario: Continue an existing thread from an active managed surface
+- **WHEN** the user keeps working from a managed web or CLI panel that is already linked to a saved thread
+- **THEN** the workbench continues to treat that thread as the active continuity target for the session
+- **THEN** the user does not need to switch into Workspace just to preserve continuity
 
-#### Scenario: Start a fresh thread from the renderer
-- **WHEN** the user chooses to begin a new line of work
-- **THEN** the workbench can create and activate a new thread without deleting or overwriting previous threads
-- **THEN** the new thread becomes visible through the same continuity surfaces used for later inspection
+#### Scenario: Start a fresh thread from an active managed surface
+- **WHEN** the user intentionally starts a new line of work from a managed web or CLI panel
+- **THEN** the workbench can create and activate a new thread from that surface
+- **THEN** later captures and retrieval decisions reflect the new thread without requiring persistent control bars across the broader workbench
 
-### Requirement: Thread state remains visible across relevant panels
-The workbench SHALL keep thread context visible enough that users can tell whether a web or CLI session is continuing prior work or operating on a fresh thread.
+### Requirement: Managed-panel continuity metadata without dedicated chrome
+The workbench SHALL preserve session-linked continuity metadata for managed web and CLI panels so ordinary conversation flow can continue without adding a dedicated current-thread or current-session bar to the primary surface.
 
-#### Scenario: Show active thread context for a managed panel
-- **WHEN** a managed web or CLI panel is active and linked to a thread
-- **THEN** the renderer shows the current thread identity or label in that work surface
-- **THEN** the user can understand that later captures will land in the same thread
+#### Scenario: Preserve continuity metadata for an active managed panel
+- **WHEN** a managed web or CLI panel is active
+- **THEN** the renderer state for that panel includes session-linked continuity information such as thread identity, session scope identity, or fresh-session state
+- **THEN** the metadata is derived from indexed or session-linked state rather than requiring workspace preview reads
 
-#### Scenario: Reflect thread changes in workspace browsing
-- **WHEN** the active thread changes or a scope is reassigned between threads
-- **THEN** the workspace browsing surface updates to reflect the new thread membership
-- **THEN** the renderer keeps thread inspection and thread continuation state synchronized with emitted workspace snapshots
+#### Scenario: Keep primary panel chrome focused on the conversation
+- **WHEN** continuity metadata exists for a managed panel
+- **THEN** the primary web or CLI surface does not require a persistent continuity toolbar, inspection button row, or thread-management strip
+- **THEN** deeper inspection and repair remain available through Workspace and other secondary flows
 
-### Requirement: Managed panels surface session-linked continuity context
-The workbench SHALL surface session-linked continuity context for managed web and CLI panels so operators can distinguish the panel's current session identity from the workspace's currently selected thread.
+### Requirement: Managed panels preserve session-linked continuity context
+The workbench SHALL keep session-linked continuity context attached to managed web and CLI panel state so operators and retrieval flows can distinguish the panel's current session identity from the workspace's broader active thread.
 
-#### Scenario: Show continuity context for a managed terminal panel
+#### Scenario: Preserve continuity context for a managed terminal panel
 - **WHEN** a managed CLI session is running or has buffered state linked to a workspace scope
 - **THEN** the renderer receives that session's scope identity, context label, and linked thread identity in the panel state snapshot
-- **THEN** the active terminal surface displays that continuity context without requiring the operator to inspect logs or workspace manifests
+- **THEN** later retrieval, capture, or inspection flows can reuse that context without treating the workspace's active thread as the session's source of truth
 
-#### Scenario: Show continuity context for a managed web panel
+#### Scenario: Preserve continuity context for a managed web panel
 - **WHEN** a managed web panel is linked to a thread or saved capture scope
 - **THEN** the renderer receives the linked thread identity and latest saved session-scope identity in the panel state snapshot
-- **THEN** the active web surface displays whether later captures continue an existing thread or start from a fresh one
+- **THEN** later capture and retrieval decisions can distinguish continuing an existing thread from starting fresh
 
-### Requirement: Managed panels can jump into workspace inspection
-The workbench SHALL let operators open the workspace inspection surface for the session scope that backs the current managed panel.
+### Requirement: Secondary workspace inspection access
+The workbench SHALL keep Workspace available as an intentional secondary inspection surface for debugging, audit, or recovery when the user wants to inspect saved artifacts behind the current or prior conversation context.
 
-#### Scenario: Open a managed panel session in Workspace
-- **WHEN** the operator invokes the workspace jump action from a managed web or CLI panel that has a saved or linked session scope
-- **THEN** the workbench activates the Workspace panel
-- **THEN** the workspace surface focuses the corresponding scope so the operator can inspect related artifacts and thread membership
+#### Scenario: Open Workspace for secondary inspection
+- **WHEN** the operator intentionally switches from a managed web or CLI panel into Workspace
+- **THEN** the user can inspect saved scopes, threads, and artifacts through Workspace's own browsing controls
+- **THEN** ordinary continuation on the managed panel did not require a dedicated in-panel jump or thread bar
 
-### Requirement: Inline workspace thread controls
-The workspace surface SHALL provide inline controls for thread creation, thread activation, thread title editing, and scope reassignment without relying on browser prompt or confirm dialogs.
+### Requirement: Minimal workspace thread management
+The workspace surface SHALL keep thread creation, activation, title editing, and scope reassignment available for explicit organization or repair work without turning routine continuation into a control-heavy workflow.
 
-#### Scenario: Create or activate a thread from inline controls
-- **WHEN** the operator uses the workspace continuity controls to create a new thread or continue an existing one
+#### Scenario: Create or activate a thread from focused workspace controls
+- **WHEN** the operator intentionally uses workspace continuity controls to create a new thread or continue an existing one
 - **THEN** the workbench updates the active thread through the existing workspace mutation flow
-- **THEN** the resulting thread state is visible in the same workspace surface without reopening a modal dialog
+- **THEN** the controls stay subordinate to the workspace's inspection purpose rather than occupying every artifact row or primary panel surface
 
-#### Scenario: Reassign a scope from inline controls
+#### Scenario: Reassign a scope from focused workspace controls
 - **WHEN** the operator selects a saved scope and applies a different target thread from the workspace surface
 - **THEN** the workbench persists the reassignment through the workspace mutation flow
 - **THEN** the workspace surface reflects the updated thread membership in place
-

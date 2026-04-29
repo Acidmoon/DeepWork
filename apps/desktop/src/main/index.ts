@@ -66,7 +66,8 @@ app.whenReady().then(() => {
     mainWindow,
     settingsManager.getSnapshot().webPanels,
     settingsManager.getSnapshot().customWebPanels,
-    (payload) => workspaceManager?.upsertWebContext(payload) ?? null
+    (payload) => workspaceManager?.upsertWebContext(payload) ?? null,
+    (input) => workspaceManager?.getContinuitySummary(input) ?? null
   )
   terminalManager = new TerminalManager(
     mainWindow,
@@ -80,7 +81,8 @@ app.whenReady().then(() => {
     (sessionScopeId) => {
       workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
     },
-    (panelId, title, contextLabel) => workspaceManager?.ensureThreadForSession(panelId, title, contextLabel) ?? null
+    (panelId, title, contextLabel) => workspaceManager?.ensureThreadForSession(panelId, title, contextLabel) ?? null,
+    (input) => workspaceManager?.getContinuitySummary(input) ?? null
   )
   terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
 
@@ -211,7 +213,8 @@ app.whenReady().then(() => {
         mainWindow,
         settingsManager.getSnapshot().webPanels,
         settingsManager.getSnapshot().customWebPanels,
-        (payload) => workspaceManager?.upsertWebContext(payload) ?? null
+        (payload) => workspaceManager?.upsertWebContext(payload) ?? null,
+        (input) => workspaceManager?.getContinuitySummary(input) ?? null
       )
       terminalManager = new TerminalManager(
         mainWindow,
@@ -225,7 +228,8 @@ app.whenReady().then(() => {
         (sessionScopeId) => {
           workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
         },
-        (panelId, title, contextLabel) => workspaceManager?.ensureThreadForSession(panelId, title, contextLabel) ?? null
+        (panelId, title, contextLabel) => workspaceManager?.ensureThreadForSession(panelId, title, contextLabel) ?? null,
+        (input) => workspaceManager?.getContinuitySummary(input) ?? null
       )
       terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
     }

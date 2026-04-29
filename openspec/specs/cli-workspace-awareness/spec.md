@@ -1,7 +1,8 @@
 # cli-workspace-awareness Specification
 
 ## Purpose
-Define how managed CLI sessions stay workspace-aware by default, decide when prior context is needed from ordinary natural-language requests, and retrieve only the bounded scope that matches the user's intent.
+Define how managed CLI sessions stay workspace-aware by default, infer prior context from ordinary natural-language requests, accept lightweight explicit hints when needed, and retrieve only the bounded scope that matches the user's intent.
+
 ## Requirements
 ### Requirement: Natural-language-triggered workspace retrieval
 Managed CLI sessions SHALL treat ordinary natural-language user requests as the trigger for deciding whether prior workspace context is needed.
@@ -16,10 +17,18 @@ Managed CLI sessions SHALL treat ordinary natural-language user requests as the 
 - **THEN** the managed CLI session consults workspace retrieval helpers before opening raw artifact content
 - **THEN** the lookup begins from indexed scope metadata rather than global transcript injection
 
-#### Scenario: Mention a prior session directly
-- **WHEN** the user explicitly mentions a prior session, source, or context label in natural language
+### Requirement: Lightweight explicit retrieval hints
+Managed CLI sessions SHALL treat natural-language mentions of files, threads, sessions, sources, or context labels as lightweight retrieval hints without requiring a separate workspace-selection step or renderer-generated handoff prompt.
+
+#### Scenario: Mention a prior session, file, or thread directly
+- **WHEN** the user explicitly mentions a prior session, file, thread, source, or context label in natural language
 - **THEN** the managed CLI session treats that mention as a retrieval hint and consults the workspace index on demand
 - **THEN** the user does not need to manually assemble or send a separate context handoff prompt
+
+#### Scenario: Refine retrieval from conversation instead of workspace hopping
+- **WHEN** the initial automatic retrieval signal is ambiguous and the user clarifies the request in the same CLI conversation
+- **THEN** the managed CLI session re-ranks candidates using the clarified hint
+- **THEN** the flow remains inside the conversation rather than forcing the user to open Workspace first
 
 ### Requirement: Scope-bounded CLI retrieval flow
 Managed CLI sessions SHALL retrieve workspace context at scope or session granularity before reading individual artifacts.
@@ -88,6 +97,19 @@ The system SHALL preserve whether managed CLI retrieval stayed within the curren
 - **THEN** the retrieval audit record preserves that global-preferred path together with the resulting outcome
 - **THEN** later inspection can distinguish global-preferred retrieval from thread-local or fallback retrieval
 
+### Requirement: Helper commands remain secondary inspection tools
+The managed workspace helper commands SHALL remain available for explicit inspection and debugging, but routine CLI continuity SHALL not depend on users invoking them before ordinary requests.
+
+#### Scenario: Use helper commands for debugging
+- **WHEN** a user or developer explicitly invokes `aw-workspace`, `aw-origins`, `aw-origin`, `aw-artifact`, or `aw-suggest`
+- **THEN** the session can inspect indexed workspace state directly
+- **THEN** that inspection path supplements rather than replaces the default natural-language retrieval flow
+
+#### Scenario: Continue ordinary work without helper commands
+- **WHEN** the user simply asks for follow-up work in natural language
+- **THEN** the managed CLI session still evaluates whether retrieval is needed and performs bounded retrieval when appropriate
+- **THEN** the user is not required to run helper commands first
+
 ### Requirement: Normalized retrieval audit metadata
 Managed CLI retrieval audit records SHALL use a consistent summary and metadata shape so thread-aware inspection can compare retrieval outcomes across sessions without transcript parsing.
 
@@ -100,4 +122,3 @@ Managed CLI retrieval audit records SHALL use a consistent summary and metadata 
 - **WHEN** a managed CLI lookup ends with no selection or is superseded by a later lookup
 - **THEN** the saved audit artifact uses the same normalized outcome and identity fields as successful lookups
 - **THEN** thread-aware inspection can distinguish the outcome without special-case parsing logic
-

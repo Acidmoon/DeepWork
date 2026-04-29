@@ -1,10 +1,24 @@
 # DeepWork
 
-这是一个基于 Electron + React 的本地桌面工作台，用来把网页 AI、CLI Agent 和公共 Artifact Workspace 放到同一个应用里。
+DeepWork 是一个基于 Electron + React 的本地桌面工作台，把网页 AI、CLI Agent 和共享 Workspace 放进同一个应用里。
 
-当前仓库里已经可以直接打开桌面应用进行开发运行。
+当前产品方向已经明确收敛为：
 
-## 1. 你需要什么
+- Web 和 CLI 对话面是主入口
+- Workspace 负责持久化、索引、检索和审计
+- 模型优先自动感知上下文，用户只在需要时做轻量提及或进入 Workspace 检查
+- 不再把主流程设计成“先去 Workspace 选 Artifact、点很多按钮、再回到对话”
+
+## 1. 使用原则
+
+日常使用建议只有四条：
+
+1. 直接在网页或 CLI 里继续对话。
+2. 需要引用之前内容时，优先自然语言提及线程、来源、会话、文件或任务。
+3. Workspace 主要用于检查系统到底保存了什么、检索为什么命中了某个范围、以及必要的整理修复。
+4. PowerShell helper 主要用于显式 inspection 和 debugging，不是日常必经步骤。
+
+## 2. 你需要什么
 
 建议环境：
 
@@ -20,7 +34,7 @@ node -v
 npm -v
 ```
 
-## 2. 第一次启动前怎么准备
+## 3. 第一次启动前怎么准备
 
 在项目根目录 `E:\vibecoding\DeepWork` 打开 PowerShell，然后执行：
 
@@ -34,7 +48,7 @@ npm install
 npm run typecheck
 ```
 
-这里的默认安装只包含桌面应用本体依赖。
+默认安装只包含桌面应用本体依赖。
 
 不会默认下载这些大体积验证资源：
 
@@ -42,11 +56,9 @@ npm run typecheck
 2. `tech-validation` 目录下的独立验证依赖
 3. 本地 npm 缓存
 
-这几类都改成了按需准备，不属于普通用户的首次启动路径。
+## 4. 如何打开应用
 
-## 3. 如何打开应用
-
-这是当前最直接、最推荐的打开方式：
+最直接、最推荐的打开方式：
 
 ```powershell
 npm run dev
@@ -54,9 +66,7 @@ npm run dev
 
 执行后会启动 Electron 开发模式，并弹出桌面应用窗口。
 
-如果窗口没有立刻出现，先看终端里是否有报错输出。
-
-## 4. 日常启动步骤
+## 5. 日常启动步骤
 
 以后每次重新打开项目，只需要：
 
@@ -65,47 +75,25 @@ cd E:\vibecoding\DeepWork
 npm run dev
 ```
 
-## 5. 如果你只想确认代码能构建
+## 6. 当前界面怎么理解
 
-可以运行：
+从当前代码结构看，桌面应用主要由三类表面组成：
 
-```powershell
-npm run build
+1. `Managed Web Panels`
+   用来承载 DeepSeek 等网页 AI，会保留独立网页登录态和浏览状态。
+2. `Managed CLI Panels`
+   用来承载 Codex CLI、Claude Code 等终端型 Agent，会保留会话、线程和日志状态。
+3. `Workspace`
+   用来保存 Artifact、线程、scope、检索审计和索引结果。
+
+这里最重要的理解是：
+
+```text
+Workspace 是系统底座，不是主操作台。
+Web / CLI 对话面才是主操作面。
 ```
 
-这会生成 Electron 构建产物，但它不是安装包流程。当前仓库主要还是按开发模式启动。
-
-## 6. 可选的技术验证依赖
-
-`tech-validation/` 是开发验证工具目录，不是应用运行必需项。
-
-只有在你要验证以下能力时，才需要单独安装：
-
-1. Electron Web 验证
-2. PTY 终端验证
-3. Playwright HTML/PDF 渲染验证
-
-按需安装方式：
-
-```powershell
-cd E:\vibecoding\DeepWork\tech-validation
-npm install
-```
-
-如果你还需要 Playwright 浏览器，再额外安装：
-
-```powershell
-npx playwright install chromium
-```
-
-说明：
-
-1. 这一步会下载较大的浏览器二进制文件。
-2. 下载内容会进入 `tech-validation/.playwright-browsers/`。
-3. 这些文件已经加入 `.gitignore`，不会作为仓库内容提交。
-4. 普通使用 `DeepWork` 不需要做这一步。
-
-## 7. 工作区文件会写到哪里
+## 7. Workspace 文件会写到哪里
 
 应用启动后，Workspace 会自动初始化到用户文档目录下：
 
@@ -123,47 +111,39 @@ rules/
 logs/
 ```
 
-`artifacts.json` 位于：
+关键索引通常包括：
 
 ```text
-Documents/AI-Workspace/projects/default/manifests/artifacts.json
+manifests/artifacts.json
+manifests/context-index.json
+manifests/threads.json
+manifests/origins/<scopeId>.json
 ```
 
-现在这个默认目录不是固定死的，你也可以在应用内的 `Workspace` 面板里使用 `选择工作区` 改成你自己的文件夹。改完后会持久化，下次启动仍会继续使用该目录。
+默认目录不是固定死的，你也可以在应用内切换到自己的 Workspace 根目录。
 
-## 8. CLI 如何自动感知工作区
+## 8. CLI 如何自动感知上下文
 
-现在 `Codex CLI` / `Claude Code` 启动后会默认进入当前工作区根目录，并自动获得工作区检索能力。
+现在 `Codex CLI` / `Claude Code` 启动后会默认进入当前 Workspace，并自动获得工作区检索能力。
 
-正常使用时，你不需要手动整理 prompt、也不需要先把上下文打包再发给 CLI。
+正常使用时，你不需要手动整理 prompt，也不需要先去 Workspace 里打包上下文。
 
 更推荐的使用方式是直接自然语言描述任务，比如提到：
 
 1. 某个之前的 CLI 会话
 2. 某次网页对话
-3. 某个来源或上下文标签
+3. 某个线程、来源或上下文标签
+4. 某个已经保存的文件或结果
 
-在这种情况下，CLI 应该先根据工作区索引按需定位相关 scope，再决定是否读取具体 Artifact。
+在这种情况下，CLI 应该先根据工作区索引按需定位相关 scope 或 thread，再决定是否读取具体 Artifact。
 
-工作区里当前会维护这些核心索引文件：
-
-```text
-manifests/artifacts.json
-manifests/context-index.json
-manifests/origins/<scopeId>.json
-```
-
-其中：
-
-1. `artifacts.json` 是总索引。
-2. `context-index.json` 是按 `origin + contextLabel` 聚合后的上下文索引。
-3. `manifests/origins/<scopeId>.json` 是某一个具体来源/上下文的独立索引。
+## 9. PowerShell helper 有什么作用
 
 CLI 侧的 PowerShell helper 仍然可用，但它们主要用于：
 
 1. 显式检查当前索引
 2. 调试检索行为
-3. 在模型需要时提供结构化辅助
+3. 在模型或开发者需要时提供结构化辅助
 
 可用命令包括：
 
@@ -175,19 +155,35 @@ aw-origin <scopeId>
 aw-artifact <id>
 ```
 
-这些命令的作用分别是：
+也就是说，这套命令更像自动上下文感知的底层检索面，而不是要求你手工做上下文交接的操作界面。
 
-1. `aw-workspace`：查看当前工作区和核心 manifest 路径。
-2. `aw-origins`：列出所有来源/上下文索引。
-3. `aw-suggest "<natural-language query>"`：按自然语言请求对可疑相关的 scope 做排序。
-4. `aw-origin <scopeId>`：打开某个具体来源/上下文索引。
-5. `aw-artifact <id>`：查看某个具体 Artifact 的完整记录。
+## 10. 如果你只想确认代码能构建
 
-也就是说，这套命令现在更像 CLI 自动工作区感知的底层检索面，而不是要求你手工做上下文交接的操作界面。
+可以运行：
 
-## 9. 常见问题
+```powershell
+npm run build
+```
 
-### 9.1 `npm run dev` 前就报依赖缺失
+## 11. 验证怎么跑
+
+桌面应用当前把验证拆成几个 focused flows，不再假设一个超大的全量 E2E 套件能覆盖所有东西。
+
+常用命令：
+
+```powershell
+npm run typecheck -w @ai-workbench/desktop
+npm run validate:workspace-retrieval -w @ai-workbench/desktop
+npm run validate:workspace-regression -w @ai-workbench/desktop
+npm run validate:workspace-web-capture -w @ai-workbench/desktop
+npm run validate:terminal-panel-configuration -w @ai-workbench/desktop
+```
+
+如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。
+
+## 12. 常见问题
+
+### 12.1 `npm run dev` 前就报依赖缺失
 
 通常是还没安装依赖，重新执行：
 
@@ -195,17 +191,17 @@ aw-artifact <id>
 npm install
 ```
 
-### 9.2 `node-pty` 相关原生模块报错
+### 12.2 `node-pty` 相关原生模块报错
 
-项目里 Terminal Panel 依赖 `node-pty`。如果你更换了 Node / Electron 环境，或者本机原生模块 ABI 不匹配，可以尝试：
+项目里的 Terminal Panel 依赖 `node-pty`。如果你更换了 Node / Electron 环境，或者本机原生模块 ABI 不匹配，可以尝试：
 
 ```powershell
 npm run rebuild:native
 ```
 
-### 9.3 `npm run rebuild:native` 失败，提示 `MSB8040`
+### 12.3 `npm run rebuild:native` 失败，提示 `MSB8040`
 
-这不是仓库代码问题，而是本机 Visual Studio C++ 组件缺失。
+这通常不是仓库代码问题，而是本机 Visual Studio C++ 组件缺失。
 
 需要补装这个组件：
 
@@ -213,61 +209,16 @@ npm run rebuild:native
 MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs
 ```
 
-装完后再执行：
+### 12.4 为什么本地目录会很大
 
-```powershell
-npm run rebuild:native
-```
-
-### 9.4 应用能构建，但终端面板打不开
-
-先按顺序检查：
-
-1. 是否运行在 Windows 下
-2. 是否使用了 `npm run dev`
-3. 是否已经执行过 `npm install`
-4. 终端里是否出现 `node-pty` 相关错误
-5. 如果有原生模块错误，再执行 `npm run rebuild:native`
-
-### 9.5 为什么仓库本地会很大
-
-如果你发现本地目录接近 `1GB+`，通常不是源码本身，而是下面这些内容在占空间：
+如果你发现本地目录接近 `1GB+`，通常不是源码本身，而是这些内容在占空间：
 
 1. 根目录 `node_modules/`
 2. 根目录 `.npm-cache/`
 3. `tech-validation/.playwright-browsers/`
 4. `tech-validation/.npm-cache/`
 
-其中最大的通常是：
-
-1. Electron 运行时
-2. Playwright 下载的 Chromium
-3. npm 缓存
-
-源码本身只占很小一部分。
-
-## 10. 当前可用命令
-
-在项目根目录执行：
-
-```powershell
-npm run dev
-npm run typecheck
-npm run build
-npm run rebuild:native
-```
-
-如果你要做可选验证，还可以在 `tech-validation/` 下运行：
-
-```powershell
-npm run validate:web
-npm run validate:pty
-npm run validate:render
-```
-
-注意：这些命令需要你先单独安装 `tech-validation` 依赖；`validate:render` 还需要先安装 Playwright Chromium。
-
-## 11. 当前最短打开路径
+## 13. 当前最短打开路径
 
 如果你只想最快把应用跑起来，只做下面两步：
 

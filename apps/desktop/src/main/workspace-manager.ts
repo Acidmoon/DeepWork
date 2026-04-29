@@ -9,12 +9,15 @@ import {
 import type { ThreadContinuationPreference } from '@ai-workbench/core/desktop/settings'
 import { planImplicitThreadContinuation } from '@ai-workbench/core/desktop/workspace-continuity'
 import {
+  buildManagedSessionContinuitySummary,
   getArtifactScopeId,
   getArtifactThreadId,
   sanitizeOrigin,
   type ArtifactContentPayload,
   type ArtifactManifest,
   type ContextThreadSummary,
+  type ManagedSessionContinuityInput,
+  type ManagedSessionContinuitySummary,
   type SaveClipboardOptions,
   type SaveClipboardResult,
   type WorkspaceSnapshot
@@ -27,6 +30,7 @@ import {
   detectClipboardPayload,
   ensureDirectory,
   nowIso,
+  safeReadContextIndex,
   safeReadManifest,
   safeReadThreadIndex
 } from './workspace-manager/workspace-artifact-helpers'
@@ -275,6 +279,18 @@ export class WorkspaceManager {
 
   syncThreadContinuationPreference(preference: ThreadContinuationPreference): void {
     this.threadContinuationPreference = preference
+  }
+
+  getContinuitySummary(input: Omit<ManagedSessionContinuityInput, 'contextEntries' | 'threads'>): ManagedSessionContinuitySummary {
+    this.ensureInitialized()
+    const contextIndex = safeReadContextIndex(this.contextIndexPath, this.workspaceRoot)
+    const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
+
+    return buildManagedSessionContinuitySummary({
+      ...input,
+      contextEntries: contextIndex.origins,
+      threads: threadIndex.threads
+    })
   }
 
   deleteScope(scopeId: string): WorkspaceSnapshot {

@@ -184,6 +184,32 @@ function buildBootstrapScript(payload) {
 
     rebuildThreadState()
 
+    const buildTerminalSnapshot = () => ({
+      panelId: 'codex-cli',
+      title: 'Codex CLI',
+      shell: 'powershell.exe',
+      shellArgs: ['-NoLogo', '-ExecutionPolicy', 'Bypass'],
+      cwd: workspaceRoot,
+      startupCommand: 'codex',
+      status: 'running',
+      hasSession: true,
+      isRunning: true,
+      launchCount: 1,
+      pid: 4242,
+      cols: 120,
+      rows: 32,
+      bufferSize: 0,
+      logPath: \`\${workspaceRoot}/logs/log_0010.log\`,
+      lastExitCode: null,
+      lastExitSignal: null,
+      lastError: null,
+      contextLabel: 'session-0001',
+      sessionScopeId: 'codex-cli__session-0001',
+      threadId: 'thread-release-planning',
+      threadTitle: 'Release Planning Thread',
+      continuitySummary: null
+    })
+
     window.__workspaceRegressionValidation = {
       getState: () => clone({
         snapshot: currentSnapshot,
@@ -204,10 +230,10 @@ function buildBootstrapScript(payload) {
         onStateChanged() { return () => {} }
       },
       terminals: {
-        attach: async () => null,
-        getState: async () => ({ isRunning: false, status: 'idle' }),
-        start: async () => ({ isRunning: true, status: 'running' }),
-        restart: async () => null,
+        attach: async () => ({ snapshot: clone(buildTerminalSnapshot()), buffer: '' }),
+        getState: async () => clone(buildTerminalSnapshot()),
+        start: async () => clone(buildTerminalSnapshot()),
+        restart: async () => clone(buildTerminalSnapshot()),
         write: async () => null,
         resize: async () => null,
         clear: async () => null,

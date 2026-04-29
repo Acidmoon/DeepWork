@@ -4,7 +4,6 @@ import { asWebViewState, useWorkbenchStore } from '../store'
 import { getWebPanelUrlValidationMessage, validateWebPanelUrl } from '../web-panel-url'
 import { getElementBounds } from './shared'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
-import { ManagedSessionBar } from './managed-session-bar'
 
 export function WebPanel({
   panel,
@@ -194,14 +193,6 @@ export function WebPanel({
 
   return (
     <div className="immersive-panel immersive-panel--web">
-      <ManagedSessionBar
-        locale={locale}
-        contextLabel={state.contextLabel}
-        sessionScopeId={state.sessionScopeId}
-        threadId={state.threadId}
-        threadTitle={state.threadTitle}
-        defaultBucket="artifacts/"
-      />
       <div className="web-panel-stage web-panel-stage--immersive">
         {state.showDetails ? (
           <div className="stage-drawer">

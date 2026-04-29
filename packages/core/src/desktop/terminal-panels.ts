@@ -1,4 +1,5 @@
 import type { BuiltInTerminalPanelSettings, CustomTerminalPanelSettings } from './settings'
+import type { ManagedSessionContinuitySummary } from './workspace'
 
 export type TerminalPanelStatus = 'idle' | 'starting' | 'running' | 'exited' | 'error'
 
@@ -36,6 +37,7 @@ export interface TerminalPanelSnapshot {
   sessionScopeId: string | null
   threadId: string | null
   threadTitle: string | null
+  continuitySummary: ManagedSessionContinuitySummary | null
 }
 
 export interface TerminalPanelAttachPayload {

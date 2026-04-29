@@ -4,7 +4,6 @@ import { Terminal } from '@xterm/xterm'
 import { getTerminalStatusLabel, getUiText, resolveLocale } from '../i18n'
 import { asTerminalViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
-import { ManagedSessionBar } from './managed-session-bar'
 
 function parseShellArgs(editorText: string): string[] {
   return editorText
@@ -330,14 +329,6 @@ export function TerminalPanel({
 
   return (
     <div className="immersive-panel immersive-panel--terminal">
-      <ManagedSessionBar
-        locale={locale}
-        contextLabel={state.contextLabel}
-        sessionScopeId={state.sessionScopeId}
-        threadId={state.threadId}
-        threadTitle={state.threadTitle}
-        defaultBucket="logs/"
-      />
       <div className="terminal-stage terminal-stage--immersive">
         {state.showDetails ? (
           <div className="stage-drawer">

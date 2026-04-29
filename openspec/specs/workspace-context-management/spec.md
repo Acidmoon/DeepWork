@@ -1,7 +1,8 @@
 # workspace-context-management Specification
 
 ## Purpose
-Define how the shared workspace persists artifacts, maintains retrieval-safe indexes, and supports optional human inspection without making manual context packaging a prerequisite for CLI use.
+Define how the shared workspace persists artifacts, maintains retrieval-safe indexes, and supports secondary human inspection without turning workspace navigation into a routine prerequisite for web or CLI conversations.
+
 ## Requirements
 ### Requirement: Workspace initialization and structure
 The system SHALL initialize a writable workspace root containing stable bucket directories, manifest files, rules files, and origin index files for artifact retrieval.
@@ -40,6 +41,7 @@ The system SHALL write retrieval protocol files and helper PowerShell commands i
 - **THEN** it contains managed rule files that distinguish self-contained requests from context-dependent requests
 - **THEN** it contains a PowerShell helper script defining `aw-workspace`, `aw-origins`, `aw-origin`, `aw-artifact`, `aw-cat-artifact`, and `aw-suggest`
 - **THEN** `aw-suggest` returns scope-first retrieval candidates from indexed metadata before any raw artifact file is read
+- **THEN** the helper-command surface remains available for explicit inspection or debugging rather than mandatory daily context setup
 
 #### Scenario: Request structured scope suggestions
 - **WHEN** a CLI agent requests structured retrieval suggestions for a query
@@ -64,8 +66,21 @@ The system SHALL allow the renderer to read artifact content by ID, delete an in
 - **THEN** it rewrites manifest and context-index state without the removed records
 - **THEN** it emits an updated workspace snapshot
 
+### Requirement: Conversation-surface continuity metadata
+The workspace snapshot SHALL expose indexed thread, scope, and artifact summaries that active web and CLI surfaces can reuse as continuity metadata and retrieval input without reading raw artifact content or requiring dedicated primary-surface chrome.
+
+#### Scenario: Publish continuity metadata for a managed panel
+- **WHEN** the renderer receives workspace and managed-panel state for an active web or CLI surface
+- **THEN** the available continuity metadata includes the linked thread identity, session-scope identity, and summary-level hints derived from indexed workspace metadata
+- **THEN** the renderer and retrieval flows can reuse that metadata without loading a full workspace preview or opening raw artifact files
+
+#### Scenario: Represent a fresh session without forcing workspace inspection
+- **WHEN** a managed web or CLI surface has not yet linked to a saved scope or thread
+- **THEN** the workspace snapshot still provides an explicit fresh-session or no-linked-context state
+- **THEN** the user does not need to open the workspace panel just to understand that no prior context is attached yet
+
 ### Requirement: Workspace query-driven discovery
-The workspace panel SHALL allow users to narrow sessions and artifacts with a free-text query matched against indexed workspace metadata that is already available in renderer state.
+The workspace panel SHALL allow users to inspect saved sessions and artifacts through free-text search over indexed workspace metadata when they intentionally need audit, debugging, or recovery help.
 
 #### Scenario: Search artifacts by indexed metadata
 - **WHEN** the user enters a search query in the workspace panel
@@ -73,22 +88,22 @@ The workspace panel SHALL allow users to narrow sessions and artifacts with a fr
 - **THEN** the system does not require recursive file reads across the workspace to produce those results
 
 #### Scenario: Combine query with existing filters
-- **WHEN** the user has selected a bucket and/or origin filter and then enters a search query
+- **WHEN** the user has selected a bucket and or origin filter and then enters a search query
 - **THEN** the workspace panel applies the query together with the active bucket and origin constraints
 - **THEN** result counts and empty states reflect the combined filter state
 
-### Requirement: Workspace artifact result browsing
-The workspace panel SHALL present artifact and session result lists as search-aware discovery surfaces rather than fixed-size recent-only slices, and those browsing surfaces SHALL remain inspection-oriented instead of acting as manual CLI handoff builders.
+### Requirement: Workspace inspection remains secondary
+The workspace panel SHALL present artifact, scope, and thread browsing as optional inspection and debugging surfaces instead of making workspace navigation a required step for routine continuation in web or CLI conversations.
 
-#### Scenario: Browse filtered session results
-- **WHEN** the workspace contains indexed sessions and the user adjusts filters or search query
-- **THEN** the session list updates to reflect the filtered workspace state
-- **THEN** selecting a session continues to drive scope-level preview behavior
+#### Scenario: Continue work without opening Workspace
+- **WHEN** a managed web or CLI surface already carries enough thread or scope context for the current task
+- **THEN** the user can continue that line of work from the active conversation surface
+- **THEN** no workspace artifact or scope selection is required before the model can use bounded retrieval
 
-#### Scenario: Browse filtered artifact results
+#### Scenario: Browse filtered artifact results only when deeper inspection is needed
 - **WHEN** the workspace contains artifact records that match the active filter state
 - **THEN** the artifact list updates to reflect the filtered workspace state
-- **THEN** artifact review and optional manual inspection remain available from that filtered list without gating automatic CLI retrieval
+- **THEN** artifact review remains available from that filtered list without becoming the primary context-steering workflow
 
 #### Scenario: Keep artifact browsing separate from CLI handoff
 - **WHEN** the operator selects artifacts or sessions in the workspace panel
@@ -96,7 +111,7 @@ The workspace panel SHALL present artifact and session result lists as search-aw
 - **THEN** the panel does not expose prompt-draft generation or send-to-CLI actions as part of the browsing flow
 
 ### Requirement: On-demand artifact preview
-The workspace panel SHALL let users preview a selected artifact by loading its content on demand through the existing artifact read operation.
+The workspace panel SHALL let users preview a selected artifact by loading its content on demand through the existing artifact read operation when secondary inspection is intentionally requested.
 
 #### Scenario: Preview a text-compatible artifact
 - **WHEN** the user selects an artifact to preview
@@ -107,13 +122,26 @@ The workspace panel SHALL let users preview a selected artifact by loading its c
 - **WHEN** the preview target is loading, missing, or unsupported for text preview
 - **THEN** the workspace panel shows an explicit loading, unavailable, or fallback preview state instead of silently failing
 
-### Requirement: Validation-backed workspace search and preview flow
-The workspace search, artifact preview, and managed web-context resync flow SHALL be backed by a repeatable regression-validation path for their critical interactions.
+### Requirement: Conversation-first selected-scope detail
+The workspace panel SHALL present selected-scope detail in an order that emphasizes structured conversation context before raw logs or file inventories.
 
-#### Scenario: Revalidate workspace retrieval interactions after renderer changes
-- **WHEN** the workspace renderer implementation changes in ways that could affect search, filtering, selection, or preview behavior
+#### Scenario: Prefer structured conversation detail when it exists
+- **WHEN** the selected scope includes structured message artifacts together with transcript or log artifacts
+- **THEN** the workspace detail surface shows the structured message view first
+- **THEN** transcript or log excerpts remain available as lower-priority fallback inspection content
+
+#### Scenario: Keep file inventory secondary within selected-scope detail
+- **WHEN** the selected scope also includes many saved artifacts
+- **THEN** the workspace detail surface preserves access to the artifact inventory
+- **THEN** that inventory remains subordinate to the selected scope's conversation-shaped detail and summary context
+
+### Requirement: Validation-backed workspace search, preview, and continuity flow
+The workspace search, secondary inspection preview, managed web-context resync flow, and continuity-metadata propagation path SHALL be backed by repeatable regression-validation coverage for their critical interactions.
+
+#### Scenario: Revalidate workspace inspection interactions after renderer changes
+- **WHEN** the workspace renderer implementation changes in ways that could affect search, filtering, selection, selected-scope detail ordering, or preview behavior
 - **THEN** developers can rerun a repeatable validation flow covering those interactions
-- **THEN** regressions in the critical workspace retrieval path can be detected without reconstructing manual validation steps from scratch
+- **THEN** regressions in the critical workspace retrieval and inspection path can be detected without reconstructing manual validation steps from scratch
 
 #### Scenario: Revalidate managed web-context persistence after sync-path changes
 - **WHEN** main-process, preload, or renderer changes could affect managed web capture or manual workspace resync
@@ -161,20 +189,20 @@ The system SHALL persist thread-level manifests and summary indexes alongside th
 - **THEN** the workspace remains readable even before any manual rethreading occurs
 
 ### Requirement: Thread-aware workspace inspection
-The workspace panel SHALL let operators inspect threads as a first-class continuity surface while keeping artifact and scope inspection available underneath that thread layer.
+The workspace panel SHALL let operators inspect threads as a secondary continuity-audit surface while keeping artifact and scope inspection available underneath that thread layer.
 
-#### Scenario: Browse thread membership
+#### Scenario: Browse thread membership when deeper inspection is needed
 - **WHEN** the workspace contains saved thread records
 - **THEN** the renderer can show each thread with its member scopes, latest activity, and summary-level metadata
 - **THEN** selecting a thread narrows manual inspection to the scopes and artifacts linked to that thread
 
-#### Scenario: Rethread a saved scope from the workspace
+#### Scenario: Rethread a saved scope as an explicit repair action
 - **WHEN** the operator reassigns a saved scope to another thread from workspace inspection surfaces
 - **THEN** the workspace manager persists the new assignment
 - **THEN** the updated thread and scope state becomes visible through the next emitted workspace snapshot
 
 ### Requirement: Thread-aware helper-command support
-The system SHALL expose thread inspection data through managed workspace helper commands without requiring recursive raw-file scanning across unrelated scopes.
+The system SHALL expose thread inspection data through managed workspace helper commands for explicit debugging or ambiguity resolution without requiring recursive raw-file scanning across unrelated scopes.
 
 #### Scenario: List saved threads from helper commands
 - **WHEN** a workspace-aware CLI session inspects available threads
@@ -198,4 +226,3 @@ The workspace SHALL persist thread-linked artifacts using a consistent metadata 
 - **WHEN** existing workspace artifacts do not yet carry every normalized inspection field
 - **THEN** workspace-managed manifest or index rebuilds derive the missing inspection metadata during rebuild
 - **THEN** the raw artifact files remain unchanged while later browsing and retrieval use consistent derived summaries and tags
-
