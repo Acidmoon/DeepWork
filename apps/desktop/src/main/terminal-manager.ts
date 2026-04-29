@@ -128,6 +128,24 @@ interface PersistTerminalTranscriptPayload {
   content: string
 }
 
+function attachSessionContinuity(
+  snapshot: TerminalPanelSnapshot,
+  continuity: {
+    contextLabel: string | null
+    sessionScopeId: string | null
+    threadId: string | null
+    threadTitle: string | null
+  }
+): TerminalPanelSnapshot {
+  return {
+    ...snapshot,
+    contextLabel: continuity.contextLabel,
+    sessionScopeId: continuity.sessionScopeId,
+    threadId: continuity.threadId,
+    threadTitle: continuity.threadTitle
+  }
+}
+
 function trimBuffer(buffer: string): string {
   if (buffer.length <= MAX_BUFFER_SIZE) {
     return buffer
@@ -168,7 +186,11 @@ function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath
     logPath,
     lastExitCode: null,
     lastExitSignal: null,
-    lastError: null
+    lastError: null,
+    contextLabel: null,
+    sessionScopeId: null,
+    threadId: null,
+    threadTitle: null
   }
 }
 
@@ -272,6 +294,12 @@ export class TerminalManager {
         ...session.config.env
       }
 
+      session.contextLabel = contextLabel
+      session.sessionScopeId = sessionIdentity.sessionScopeId
+      session.threadId = sessionIdentity.threadId
+      session.threadTitle = sessionIdentity.threadTitle
+      session.retrievalAuditPath = sessionIdentity.retrievalAuditPath
+      session.retrievalStatePath = sessionIdentity.retrievalStatePath
       session.ptyProcess = pty.spawn(session.config.shell, session.config.shellArgs, {
         name: 'xterm-color',
         cols: session.snapshot.cols,
@@ -286,30 +314,27 @@ export class TerminalManager {
       session.captureBuffer = ''
       session.sessionToken = sessionToken
       session.captureArtifactId = null
-      session.contextLabel = contextLabel
-      session.sessionScopeId = sessionIdentity.sessionScopeId
-      session.threadId = sessionIdentity.threadId
-      session.threadTitle = sessionIdentity.threadTitle
-      session.retrievalAuditPath = sessionIdentity.retrievalAuditPath
-      session.retrievalStatePath = sessionIdentity.retrievalStatePath
 
-      session.snapshot = {
-        ...session.snapshot,
-        title: session.config.title,
-        shell: session.config.shell,
-        shellArgs: session.config.shellArgs,
-        cwd,
-        startupCommand: session.config.startupCommand,
-        status: 'starting',
-        hasSession: true,
-        isRunning: false,
-        launchCount: nextLaunchCount,
-        pid: session.ptyProcess.pid,
-        bufferSize: 0,
-        lastExitCode: null,
-        lastExitSignal: null,
-        lastError: null
-      }
+      session.snapshot = attachSessionContinuity(
+        {
+          ...session.snapshot,
+          title: session.config.title,
+          shell: session.config.shell,
+          shellArgs: session.config.shellArgs,
+          cwd,
+          startupCommand: session.config.startupCommand,
+          status: 'starting',
+          hasSession: true,
+          isRunning: false,
+          launchCount: nextLaunchCount,
+          pid: session.ptyProcess.pid,
+          bufferSize: 0,
+          lastExitCode: null,
+          lastExitSignal: null,
+          lastError: null
+        },
+        session
+      )
 
       appendLog(session.logPath, `\n\n=== SESSION ${new Date().toISOString()} (${session.config.id}) ===\n`)
       this.publishState(session.snapshot)
@@ -335,14 +360,17 @@ export class TerminalManager {
 
       return session.snapshot
     } catch (error) {
-      session.snapshot = {
-        ...session.snapshot,
-        status: 'error',
-        hasSession: false,
-        isRunning: false,
-        pid: null,
-        lastError: error instanceof Error ? error.message : String(error)
-      }
+      session.snapshot = attachSessionContinuity(
+        {
+          ...session.snapshot,
+          status: 'error',
+          hasSession: false,
+          isRunning: false,
+          pid: null,
+          lastError: error instanceof Error ? error.message : String(error)
+        },
+        session
+      )
       this.publishState(session.snapshot)
       return session.snapshot
     }
@@ -496,6 +524,7 @@ export class TerminalManager {
         )
       }
 
+      session.snapshot = attachSessionContinuity(session.snapshot, session)
       this.publishState(session.snapshot)
     }
   }
@@ -713,6 +742,7 @@ export class TerminalManager {
       startupCommand: config.startupCommand
     }
 
+    existingSession.snapshot = attachSessionContinuity(existingSession.snapshot, existingSession)
     this.publishState(existingSession.snapshot)
   }
 

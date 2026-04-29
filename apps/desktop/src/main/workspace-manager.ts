@@ -342,7 +342,14 @@ export class WorkspaceManager {
     return result.artifact?.id ?? null
   }
 
-  upsertWebContext(input: SaveWebContextOptions): { transcriptArtifactId: string | null; messagesArtifactId: string | null } {
+  upsertWebContext(input: SaveWebContextOptions): {
+    transcriptArtifactId: string | null
+    messagesArtifactId: string | null
+    contextLabel: string | null
+    sessionScopeId: string | null
+    threadId: string | null
+    threadTitle: string | null
+  } {
     const thread = input.threadId?.trim()
       ? this.ensureThreadSelection(input.threadId, input.threadTitle || input.title || input.url)
       : this.resolveImplicitThread(
@@ -434,9 +441,18 @@ export class WorkspaceManager {
       this.emitSnapshot()
     }
 
+    const persistedContextLabel =
+      typeof transcriptArtifact.artifact?.metadata?.contextLabel === 'string'
+        ? transcriptArtifact.artifact.metadata.contextLabel
+        : input.contextLabel
+
     return {
       transcriptArtifactId: transcriptArtifact.artifact?.id ?? null,
-      messagesArtifactId: messagesArtifact?.artifact?.id ?? input.messagesArtifactId ?? null
+      messagesArtifactId: messagesArtifact?.artifact?.id ?? input.messagesArtifactId ?? null,
+      contextLabel: persistedContextLabel,
+      sessionScopeId: transcriptArtifact.artifact ? getArtifactScopeId(transcriptArtifact.artifact) : null,
+      threadId: thread.threadId,
+      threadTitle: thread.title
     }
   }
 

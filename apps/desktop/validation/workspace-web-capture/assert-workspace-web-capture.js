@@ -59,9 +59,40 @@ async page => {
 
   await page.locator('.nav-item__button').filter({ hasText: 'DeepSeek Web' }).click()
   await page.waitForTimeout(400)
-  const webThreadBadgeVisible = await page.getByText('当前线程: Workspace Sync Thread').count()
-  if (webThreadBadgeVisible < 1) {
-    throw new Error(`Web surface did not reflect the active thread after resync. count=${webThreadBadgeVisible}`)
+
+  const sessionThreadVisible = await page.getByText('当前会话线程').count()
+  const sessionScopeVisible = await page.getByText('会话范围: deepseek-web__sync-regression-chat').count()
+  if (sessionThreadVisible < 1 || sessionScopeVisible < 1) {
+    throw new Error(
+      `Managed web continuity state did not render after resync. sessionThreadVisible=${sessionThreadVisible}, sessionScopeVisible=${sessionScopeVisible}`
+    )
+  }
+
+  await page.getByLabel('当前线程').selectOption('thread-side-research')
+  await page.waitForTimeout(250)
+
+  const afterThreadSwitch = await page.evaluate(() => window.__workspaceWebCaptureValidation.getState())
+  const stableSessionThreadVisible = await page.getByText('Workspace Sync Thread').count()
+  if (
+    afterThreadSwitch.snapshot.activeThreadTitle !== 'Side Research' ||
+    afterThreadSwitch.webSnapshot.threadTitle !== 'Workspace Sync Thread' ||
+    stableSessionThreadVisible < 1
+  ) {
+    throw new Error(
+      `Managed web continuity drifted after switching the active thread: ${JSON.stringify({
+        activeThreadTitle: afterThreadSwitch.snapshot.activeThreadTitle,
+        linkedThreadTitle: afterThreadSwitch.webSnapshot.threadTitle,
+        stableSessionThreadVisible
+      })}`
+    )
+  }
+
+  await page.getByRole('button', { name: '在 Workspace 中打开' }).click()
+  await page.waitForTimeout(400)
+
+  const jumpedSessionVisible = await page.getByRole('button', { name: /Workspace sync regression chat/ }).count()
+  if (jumpedSessionVisible !== 1) {
+    throw new Error(`Workspace jump did not reopen the linked scope under a non-active thread. count=${jumpedSessionVisible}`)
   }
 
   await page.screenshot({ path: screenshotPath, fullPage: true })
@@ -77,7 +108,11 @@ async page => {
       assistantMessageVisible,
       searchedSessionVisible,
       transcriptPreviewVisible,
-      webThreadBadgeVisible
+      sessionThreadVisible,
+      sessionScopeVisible,
+      switchedActiveThreadTitle: afterThreadSwitch.snapshot.activeThreadTitle,
+      linkedThreadTitle: afterThreadSwitch.webSnapshot.threadTitle,
+      jumpedSessionVisible
     })
   )
 }

@@ -59,6 +59,10 @@ export interface WebPanelViewState {
   sessionPersisted: boolean
   showDetails: boolean
   lastError: string | null
+  contextLabel: string | null
+  sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
 }
 
 export interface TerminalPanelViewState {
@@ -89,12 +93,17 @@ export interface TerminalPanelViewState {
   lastExitCode: number | null
   lastExitSignal: number | null
   lastError: string | null
+  contextLabel: string | null
+  sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
 }
 
 export interface WorkspacePanelViewState {
   kind: 'workspace'
   selectedBucket: string
   selectedOrigin: string
+  threadFilterMode: 'active' | 'all'
   searchQuery: string
   draftContextLabel: string
   selectedArtifactIds: string[]
@@ -367,7 +376,11 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         enabled: config?.enabled ?? false,
         sessionPersisted: (config?.partition ?? '').startsWith('persist:'),
         showDetails: false,
-        lastError: config?.enabled === false ? DISABLED_WEB_PANEL_ERROR : null
+        lastError: config?.enabled === false ? DISABLED_WEB_PANEL_ERROR : null,
+        contextLabel: null,
+        sessionScopeId: null,
+        threadId: null,
+        threadTitle: null
       }
     }
     case 'terminal': {
@@ -400,7 +413,11 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         showDetails: false,
         lastExitCode: null,
         lastExitSignal: null,
-        lastError: null
+        lastError: null,
+        contextLabel: null,
+        sessionScopeId: null,
+        threadId: null,
+        threadTitle: null
       }
     }
     case 'workspace':
@@ -408,6 +425,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         kind: 'workspace',
         selectedBucket: panel.id === 'artifacts' ? 'artifacts/' : 'logs/',
         selectedOrigin: 'all',
+        threadFilterMode: 'active',
         searchQuery: '',
         draftContextLabel: '',
         selectedArtifactIds: [],
@@ -529,7 +547,11 @@ export function createCustomWebPanelViewState(config: CustomWebPanelSettings): W
     enabled: config.enabled,
     sessionPersisted: config.partition.startsWith('persist:'),
     showDetails: false,
-    lastError: config.enabled ? null : DISABLED_WEB_PANEL_ERROR
+    lastError: config.enabled ? null : DISABLED_WEB_PANEL_ERROR,
+    contextLabel: null,
+    sessionScopeId: null,
+    threadId: null,
+    threadTitle: null
   }
 }
 
@@ -561,7 +583,11 @@ export function createCustomTerminalPanelViewState(config: CustomTerminalPanelSe
     showDetails: false,
     lastExitCode: null,
     lastExitSignal: null,
-    lastError: null
+    lastError: null,
+    contextLabel: null,
+    sessionScopeId: null,
+    threadId: null,
+    threadTitle: null
   }
 }
 

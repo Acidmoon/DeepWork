@@ -707,6 +707,10 @@ select {
   gap: 2px;
 }
 
+.immersive-panel__identity strong {
+  overflow-wrap: anywhere;
+}
+
 .immersive-panel__identity span,
 .immersive-panel__identity small,
 .web-panel-stage__meta span,
@@ -1129,11 +1133,13 @@ select {
 .session-badge {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   padding: 4px 10px;
   border: 1px solid var(--panel-border);
   border-radius: 999px;
   color: var(--panel-muted);
   font-size: 0.76rem;
+  overflow-wrap: anywhere;
 }
 
 .session-timeline {

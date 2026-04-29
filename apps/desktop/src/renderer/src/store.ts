@@ -517,7 +517,11 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         enabled: snapshot.enabled,
         sessionPersisted: snapshot.partition.startsWith('persist:'),
         showDetails: activePanel.viewState.showDetails,
-        lastError: snapshot.lastError
+        lastError: snapshot.lastError,
+        contextLabel: snapshot.contextLabel,
+        sessionScopeId: snapshot.sessionScopeId,
+        threadId: snapshot.threadId,
+        threadTitle: snapshot.threadTitle
       }
 
       const locale = getCurrentLocale(state.panels)
@@ -562,7 +566,11 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           activePanel.viewState.pendingRestart && snapshot.hasSession && snapshot.launchCount === activePanel.viewState.launchCount,
         lastExitCode: snapshot.lastExitCode,
         lastExitSignal: snapshot.lastExitSignal,
-        lastError: snapshot.lastError
+        lastError: snapshot.lastError,
+        contextLabel: snapshot.contextLabel,
+        sessionScopeId: snapshot.sessionScopeId,
+        threadId: snapshot.threadId,
+        threadTitle: snapshot.threadTitle
       }
 
       const locale = getCurrentLocale(state.panels)
@@ -612,6 +620,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           recentArtifacts: snapshot.recentArtifacts,
           lastSavedArtifactId: snapshot.lastSavedArtifactId,
           lastError: snapshot.lastError
+        }
+
+        if (nextViewState.threadFilterMode !== 'all') {
+          nextViewState.threadFilterMode = 'active'
         }
 
         const scopeStillExists =

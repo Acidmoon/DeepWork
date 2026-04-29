@@ -3,6 +3,12 @@ async page => {
 
   await page.getByRole('button', { name: 'Codex CLI' }).click()
   await page.waitForTimeout(300)
+
+  const initialContinuityVisible = await page.getByText('Session Scope: codex-cli__session-0001').count()
+  if (initialContinuityVisible < 1) {
+    throw new Error(`Managed terminal continuity badge did not render before editing. count=${initialContinuityVisible}`)
+  }
+
   await page.getByRole('button', { name: 'Show Details' }).click()
   await page.getByLabel('Working Directory').fill('D:\\agent-work')
   await page.getByLabel('Startup Command').fill('codex --model gpt-5.5')
@@ -15,7 +21,15 @@ async page => {
   if (!builtInOverride || builtInOverride.cwd !== 'D:\\agent-work' || builtInOverride.startupCommand !== 'codex --model gpt-5.5') {
     throw new Error(`Built-in terminal override did not persist correctly: ${JSON.stringify(builtInOverride)}`)
   }
-  if (!builtInSnapshot || builtInSnapshot.launchCount !== 1 || builtInSnapshot.pid !== 4101 || builtInSnapshot.status !== 'running') {
+  if (
+    !builtInSnapshot ||
+    builtInSnapshot.launchCount !== 1 ||
+    builtInSnapshot.pid !== 4101 ||
+    builtInSnapshot.status !== 'running' ||
+    builtInSnapshot.contextLabel !== 'session-0001' ||
+    builtInSnapshot.sessionScopeId !== 'codex-cli__session-0001' ||
+    builtInSnapshot.threadId !== 'thread-release-planning'
+  ) {
     throw new Error(`Built-in save unexpectedly disturbed the running PTY session: ${JSON.stringify(builtInSnapshot)}`)
   }
 
@@ -29,8 +43,35 @@ async page => {
 
   const afterBuiltInRestart = await page.evaluate(() => window.__terminalConfigValidation.getState())
   const restartedBuiltIn = afterBuiltInRestart.snapshots['codex-cli']
-  if (!restartedBuiltIn || restartedBuiltIn.launchCount !== 2 || restartedBuiltIn.pid !== 6201 || restartedBuiltIn.startupCommand !== 'codex --model gpt-5.5') {
+  if (
+    !restartedBuiltIn ||
+    restartedBuiltIn.launchCount !== 2 ||
+    restartedBuiltIn.pid !== 6201 ||
+    restartedBuiltIn.startupCommand !== 'codex --model gpt-5.5' ||
+    restartedBuiltIn.contextLabel !== 'session-0002' ||
+    restartedBuiltIn.sessionScopeId !== 'codex-cli__session-0002' ||
+    restartedBuiltIn.threadTitle !== 'Release Planning'
+  ) {
     throw new Error(`Built-in restart did not relaunch with the updated config: ${JSON.stringify(restartedBuiltIn)}`)
+  }
+
+  await page.getByLabel('Active Thread').selectOption('thread-side-research')
+  await page.waitForTimeout(250)
+
+  const afterThreadSwitch = await page.evaluate(() => window.__terminalConfigValidation.getState())
+  const stableSessionScopeVisible = await page.getByText('Session Scope: codex-cli__session-0002').count()
+  if (
+    afterThreadSwitch.workspaceSnapshot.activeThreadTitle !== 'Side Research' ||
+    afterThreadSwitch.snapshots['codex-cli']?.threadTitle !== 'Release Planning' ||
+    stableSessionScopeVisible < 1
+  ) {
+    throw new Error(
+      `Running terminal continuity drifted after switching the active thread: ${JSON.stringify({
+        activeThreadTitle: afterThreadSwitch.workspaceSnapshot.activeThreadTitle,
+        sessionThreadTitle: afterThreadSwitch.snapshots['codex-cli']?.threadTitle,
+        stableSessionScopeVisible
+      })}`
+    )
   }
 
   await page.getByRole('button', { name: 'Custom CLI 1' }).click()
@@ -64,6 +105,9 @@ async page => {
     JSON.stringify({
       builtInOverride,
       builtInRestartLaunchCount: restartedBuiltIn.launchCount,
+      builtInSessionScopeId: restartedBuiltIn.sessionScopeId,
+      switchedActiveThreadTitle: afterThreadSwitch.workspaceSnapshot.activeThreadTitle,
+      stableSessionThreadTitle: afterThreadSwitch.snapshots['codex-cli']?.threadTitle,
       customShell: customSettings.shell,
       customShellArgs: customSettings.shellArgs,
       customWorkingDirectory: customSettings.cwd,

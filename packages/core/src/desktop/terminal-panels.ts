@@ -32,6 +32,10 @@ export interface TerminalPanelSnapshot {
   lastExitCode: number | null
   lastExitSignal: number | null
   lastError: string | null
+  contextLabel: string | null
+  sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
 }
 
 export interface TerminalPanelAttachPayload {

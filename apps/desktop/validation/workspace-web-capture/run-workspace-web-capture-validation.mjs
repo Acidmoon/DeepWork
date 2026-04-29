@@ -74,8 +74,10 @@ function buildBootstrapScript(payload) {
     const clone = value => JSON.parse(JSON.stringify(value))
     let currentSnapshot = clone(injected.beforeSnapshot)
     let currentContents = clone(injected.beforeContents)
+    let webSnapshot = clone(injected.webBeforeSnapshot)
     let resyncCount = 0
     const workspaceListeners = new Set()
+    const webListeners = new Set()
 
     const publishWorkspaceSnapshot = () => {
       const snapshot = clone(currentSnapshot)
@@ -85,11 +87,20 @@ function buildBootstrapScript(payload) {
       return snapshot
     }
 
+    const publishWebSnapshot = () => {
+      const snapshot = clone(webSnapshot)
+      for (const listener of webListeners) {
+        listener(snapshot)
+      }
+      return snapshot
+    }
+
     window.__workspaceWebCaptureValidation = {
       getState: () => clone({
         resyncCount,
         snapshot: currentSnapshot,
-        contents: currentContents
+        contents: currentContents,
+        webSnapshot
       })
     }
 
@@ -98,13 +109,18 @@ function buildBootstrapScript(payload) {
       versions: { electron: 'test', chrome: 'test', node: 'test' },
       clipboard: { writeText() {}, readText() { return '' } },
       webPanels: {
-        getState: async () => null,
-        show: async () => null,
+        getState: async panelId => panelId === webSnapshot.panelId ? clone(webSnapshot) : null,
+        show: async panelId => panelId === webSnapshot.panelId ? publishWebSnapshot() : null,
         hide: async () => null,
         updateBounds: async () => null,
-        navigate: async () => null,
-        updateConfig: async () => null,
-        onStateChanged() { return () => {} }
+        navigate: async panelId => panelId === webSnapshot.panelId ? publishWebSnapshot() : null,
+        updateConfig: async panelId => panelId === webSnapshot.panelId ? publishWebSnapshot() : null,
+        onStateChanged(listener) {
+          webListeners.add(listener)
+          return () => {
+            webListeners.delete(listener)
+          }
+        }
       },
       terminals: {
         attach: async () => null,
@@ -124,11 +140,26 @@ function buildBootstrapScript(payload) {
           return artifact ? { artifact: clone(artifact), content: currentContents[artifactId] ?? '' } : null
         },
         deleteScope: async () => clone(currentSnapshot),
+        createThread: async () => clone(currentSnapshot),
+        selectThread: async threadId => {
+          const nextThread = currentSnapshot.threads.find(thread => thread.threadId === threadId) ?? null
+          currentSnapshot = {
+            ...currentSnapshot,
+            activeThreadId: nextThread?.threadId ?? null,
+            activeThreadTitle: nextThread?.title ?? null
+          }
+          publishWorkspaceSnapshot()
+          return clone(currentSnapshot)
+        },
+        renameThread: async () => clone(currentSnapshot),
+        reassignScopeThread: async () => clone(currentSnapshot),
         resync: async () => {
           resyncCount += 1
           currentSnapshot = clone(injected.afterSnapshot)
           currentContents = clone(injected.afterContents)
+          webSnapshot = clone(injected.webAfterSnapshot)
           publishWorkspaceSnapshot()
+          publishWebSnapshot()
           return clone(currentSnapshot)
         },
         chooseRoot: async () => clone(currentSnapshot),
@@ -180,11 +211,57 @@ async function main() {
   const afterSnapshot = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'workspace-snapshot.after.json'), 'utf8'))
   const beforeContents = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'artifact-contents.before.json'), 'utf8'))
   const afterContents = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'artifact-contents.after.json'), 'utf8'))
+  afterSnapshot.threads.push({
+    threadId: 'thread-side-research',
+    title: 'Side Research',
+    derived: false,
+    scopeIds: [],
+    artifactIds: [],
+    scopeCount: 0,
+    artifactCount: 0,
+    latestArtifactId: null,
+    latestUpdatedAt: null,
+    originHints: [],
+    searchTerms: ['thread-side-research', 'side research'],
+    summary: ''
+  })
   const payload = {
     beforeSnapshot,
     afterSnapshot,
     beforeContents,
-    afterContents
+    afterContents,
+    webBeforeSnapshot: {
+      panelId: 'deepseek-web',
+      title: 'DeepSeek Web',
+      homeUrl: 'https://chat.deepseek.com/',
+      currentUrl: 'https://chat.deepseek.com/',
+      partition: 'persist:deepseek-web',
+      canGoBack: false,
+      canGoForward: false,
+      isLoading: false,
+      enabled: true,
+      lastError: null,
+      contextLabel: null,
+      sessionScopeId: null,
+      threadId: null,
+      threadTitle: null
+    },
+    webAfterSnapshot: {
+      panelId: 'deepseek-web',
+      title: 'Workspace sync regression chat',
+      homeUrl: 'https://chat.deepseek.com/',
+      currentUrl: 'https://chat.deepseek.com/a/chat/s/sync-regression-chat',
+      partition: 'persist:deepseek-web',
+      canGoBack: false,
+      canGoForward: false,
+      isLoading: false,
+      enabled: true,
+      lastError: null,
+      contextLabel: 'sync-regression-chat',
+      sessionScopeId: 'deepseek-web__sync-regression-chat',
+      threadId: 'thread-workspace-sync',
+      threadTitle: 'Workspace Sync Thread'
+    }
   }
   const assertTemplate = readFileSync(join(__dirname, 'assert-workspace-web-capture.js'), 'utf8')
 

@@ -28,6 +28,10 @@ export interface WebPanelSnapshot {
   isLoading: boolean
   enabled: boolean
   lastError: string | null
+  contextLabel: string | null
+  sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
 }
 
 export type WebPanelUrlValidationError = 'empty' | 'invalid' | 'unsupported-protocol'

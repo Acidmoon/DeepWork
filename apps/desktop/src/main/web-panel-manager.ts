@@ -173,6 +173,9 @@ interface ManagedWebPanel {
   transcriptArtifactId: string | null
   messagesArtifactId: string | null
   captureContextLabel: string | null
+  sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
   captureUnlocked: boolean
   pendingConversationUnlock: boolean
   pendingUserMessageBaseline: number
@@ -203,6 +206,15 @@ interface PersistWebContextPayload {
     role: string
     text: string
   }>
+}
+
+interface PersistWebContextResult {
+  transcriptArtifactId: string | null
+  messagesArtifactId: string | null
+  contextLabel: string | null
+  sessionScopeId: string | null
+  threadId: string | null
+  threadTitle: string | null
 }
 
 function toBounds(bounds: PanelBounds): PanelBounds {
@@ -251,6 +263,24 @@ function createCaptureSignature(input: { url: string; title: string; rawText: st
   })
 }
 
+function attachWebContinuity(
+  snapshot: WebPanelSnapshot,
+  continuity: {
+    contextLabel: string | null
+    sessionScopeId: string | null
+    threadId: string | null
+    threadTitle: string | null
+  }
+): WebPanelSnapshot {
+  return {
+    ...snapshot,
+    contextLabel: continuity.contextLabel,
+    sessionScopeId: continuity.sessionScopeId,
+    threadId: continuity.threadId,
+    threadTitle: continuity.threadTitle
+  }
+}
+
 export class WebPanelManager {
   private readonly panels = new Map<string, ManagedWebPanel>()
   private readonly configs = new Map<string, WebPanelConfig>()
@@ -263,7 +293,7 @@ export class WebPanelManager {
     customPanels: CustomWebPanelSettings[] = [],
     private readonly persistWebContext?: (
       payload: PersistWebContextPayload
-    ) => { transcriptArtifactId: string | null; messagesArtifactId: string | null } | null
+    ) => PersistWebContextResult | null
   ) {
     for (const config of webPanelConfigs) {
       const resolvedConfig: WebPanelConfig = {
@@ -301,7 +331,11 @@ export class WebPanelManager {
         canGoForward: false,
         isLoading: false,
         enabled: false,
-        lastError: 'Disabled until enabled'
+        lastError: 'Disabled until enabled',
+        contextLabel: null,
+        sessionScopeId: null,
+        threadId: null,
+        threadTitle: null
       }
     }
 
@@ -557,6 +591,9 @@ export class WebPanelManager {
       transcriptArtifactId: null,
       messagesArtifactId: null,
       captureContextLabel: null,
+      sessionScopeId: null,
+      threadId: null,
+      threadTitle: null,
       captureUnlocked: false,
       pendingConversationUnlock: false,
       pendingUserMessageBaseline: 0,
@@ -577,7 +614,11 @@ export class WebPanelManager {
         canGoForward: false,
         isLoading: false,
         enabled: true,
-        lastError: null
+        lastError: null,
+        contextLabel: null,
+        sessionScopeId: null,
+        threadId: null,
+        threadTitle: null
       }
     }
 
@@ -800,6 +841,9 @@ export class WebPanelManager {
     panel.transcriptArtifactId = null
     panel.messagesArtifactId = null
     panel.captureContextLabel = null
+    panel.sessionScopeId = null
+    panel.threadId = null
+    panel.threadTitle = null
     panel.captureUnlocked = false
     panel.pendingConversationUnlock = false
     panel.pendingUserMessageBaseline = 0
@@ -808,6 +852,12 @@ export class WebPanelManager {
     panel.lastObservedContentSignature = null
     panel.lastMeaningfulInputAt = null
     panel.lastPersistedCaptureSignature = null
+    panel.snapshot = attachWebContinuity(panel.snapshot, {
+      contextLabel: null,
+      sessionScopeId: null,
+      threadId: null,
+      threadTitle: null
+    })
   }
 
   private async captureCurrentContext(
@@ -900,6 +950,15 @@ export class WebPanelManager {
         panel.transcriptArtifactId = null
         panel.messagesArtifactId = null
         panel.lastPersistedCaptureSignature = null
+        panel.sessionScopeId = null
+        panel.threadId = null
+        panel.threadTitle = null
+        panel.snapshot = attachWebContinuity(panel.snapshot, {
+          contextLabel,
+          sessionScopeId: null,
+          threadId: null,
+          threadTitle: null
+        })
       }
       panel.captureContextLabel = contextLabel
 
@@ -921,7 +980,17 @@ export class WebPanelManager {
 
       panel.transcriptArtifactId = persisted?.transcriptArtifactId ?? panel.transcriptArtifactId
       panel.messagesArtifactId = persisted?.messagesArtifactId ?? panel.messagesArtifactId
+      panel.sessionScopeId = persisted?.sessionScopeId ?? panel.sessionScopeId
+      panel.threadId = persisted?.threadId ?? panel.threadId
+      panel.threadTitle = persisted?.threadTitle ?? panel.threadTitle
+      panel.snapshot = attachWebContinuity(panel.snapshot, {
+        contextLabel: persisted?.contextLabel ?? panel.captureContextLabel,
+        sessionScopeId: panel.sessionScopeId,
+        threadId: panel.threadId,
+        threadTitle: panel.threadTitle
+      })
       panel.lastPersistedCaptureSignature = currentCaptureSignature
+      this.publish(panel.snapshot)
     } catch {
       // Ignore transient script failures while remote apps are hydrating.
     }

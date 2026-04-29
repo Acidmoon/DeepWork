@@ -71,10 +71,25 @@ function buildBootstrapScript() {
     const clone = value => JSON.parse(JSON.stringify(value))
     const terminalListeners = new Set()
     const outputListeners = new Set()
+    const workspaceListeners = new Set()
     const terminalBuffers = {
       'codex-cli': 'Codex session attached\\r\\n',
       'claude-code': '',
       'custom-cli-alpha': 'Custom CLI attached\\r\\n'
+    }
+    const linkedThreads = {
+      'codex-cli': {
+        threadId: 'thread-release-planning',
+        threadTitle: 'Release Planning'
+      },
+      'claude-code': {
+        threadId: 'thread-release-planning',
+        threadTitle: 'Release Planning'
+      },
+      'custom-cli-alpha': {
+        threadId: 'thread-side-research',
+        threadTitle: 'Side Research'
+      }
     }
     const builtInConfigs = {
       'codex-cli': {
@@ -115,6 +130,26 @@ function buildBootstrapScript() {
       ]
     }
 
+    const resolveSessionIdentity = (panelId, launchCount) => {
+      const linkedThread = linkedThreads[panelId] ?? null
+      if (!linkedThread || launchCount <= 0) {
+        return {
+          contextLabel: null,
+          sessionScopeId: null,
+          threadId: null,
+          threadTitle: null
+        }
+      }
+
+      const contextLabel = 'session-' + String(launchCount).padStart(4, '0')
+      return {
+        contextLabel,
+        sessionScopeId: panelId + '__' + contextLabel,
+        threadId: linkedThread.threadId,
+        threadTitle: linkedThread.threadTitle
+      }
+    }
+
     const createSnapshot = ({
       panelId,
       title,
@@ -146,7 +181,8 @@ function buildBootstrapScript() {
       logPath: 'C:\\\\validation\\\\terminal.log',
       lastExitCode: null,
       lastExitSignal: null,
-      lastError: null
+      lastError: null,
+      ...resolveSessionIdentity(panelId, launchCount)
     })
 
     const resolveBuiltInConfig = panelId => {
@@ -205,6 +241,91 @@ function buildBootstrapScript() {
         launchCount: 2,
         pid: 5101
       })
+    }
+
+    let workspaceSnapshot = {
+      projectId: 'default',
+      workspaceRoot: 'C:\\\\Workspace',
+      manifestPath: 'C:\\\\Workspace\\\\manifests\\\\artifacts.json',
+      contextIndexPath: 'C:\\\\Workspace\\\\manifests\\\\context-index.json',
+      originManifestsPath: 'C:\\\\Workspace\\\\manifests\\\\origins',
+      threadIndexPath: 'C:\\\\Workspace\\\\manifests\\\\thread-index.json',
+      threadManifestsPath: 'C:\\\\Workspace\\\\manifests\\\\threads',
+      rulesPath: 'C:\\\\Workspace\\\\rules',
+      initialized: true,
+      artifactCount: 0,
+      bucketCounts: {
+        'artifacts/': 0,
+        'outputs/': 0,
+        'logs/': 0
+      },
+      contextEntries: [
+        {
+          origin: 'codex-cli',
+          contextLabel: 'session-0001',
+          scopeId: 'codex-cli__session-0001',
+          threadId: 'thread-release-planning',
+          artifactCount: 0,
+          artifactIds: [],
+          latestArtifactId: null,
+          latestUpdatedAt: null,
+          retrieval: {
+            normalizedOrigin: 'codex-cli',
+            normalizedContextLabel: 'session-0001',
+            latestArtifactSummary: null,
+            latestArtifactType: null,
+            artifactTypes: [],
+            tags: [],
+            searchTerms: ['codex-cli', 'session-0001'],
+            scopeSummary: ''
+          }
+        }
+      ],
+      threads: [
+        {
+          threadId: 'thread-release-planning',
+          title: 'Release Planning',
+          derived: false,
+          scopeIds: ['codex-cli__session-0001'],
+          artifactIds: [],
+          scopeCount: 1,
+          artifactCount: 0,
+          latestArtifactId: null,
+          latestUpdatedAt: null,
+          originHints: ['codex-cli'],
+          searchTerms: ['thread-release-planning', 'release planning'],
+          summary: ''
+        },
+        {
+          threadId: 'thread-side-research',
+          title: 'Side Research',
+          derived: false,
+          scopeIds: [],
+          artifactIds: [],
+          scopeCount: 0,
+          artifactCount: 0,
+          latestArtifactId: null,
+          latestUpdatedAt: null,
+          originHints: [],
+          searchTerms: ['thread-side-research', 'side research'],
+          summary: ''
+        }
+      ],
+      activeThreadId: 'thread-release-planning',
+      activeThreadTitle: 'Release Planning',
+      artifacts: [],
+      recentArtifacts: [],
+      lastSavedArtifactId: null,
+      lastError: null
+    }
+
+    const publishWorkspaceSnapshot = () => {
+      const snapshot = clone(workspaceSnapshot)
+      for (const listener of workspaceListeners) {
+        listener(snapshot)
+      }
+
+      return snapshot
     }
 
     const syncCustomSnapshots = () => {
@@ -302,14 +423,15 @@ function buildBootstrapScript() {
         pid: nextPid,
         lastExitCode: null,
         lastExitSignal: null,
-        lastError: null
+        lastError: null,
+        ...resolveSessionIdentity(panelId, previous.launchCount + 1)
       }
 
       return publishTerminalSnapshot(panelId)
     }
 
     window.__terminalConfigValidation = {
-      getState: () => clone({ settings, snapshots })
+      getState: () => clone({ settings, snapshots, workspaceSnapshot })
     }
 
     window.workbenchShell = {
@@ -386,17 +508,30 @@ function buildBootstrapScript() {
         }
       },
       workspace: {
-        getState: async () => null,
+        getState: async () => clone(workspaceSnapshot),
         readArtifact: async () => null,
         deleteScope: async () => null,
-        createThread: async () => null,
-        selectThread: async () => null,
-        renameThread: async () => null,
-        reassignScopeThread: async () => null,
+        createThread: async () => clone(workspaceSnapshot),
+        selectThread: async threadId => {
+          const nextThread = workspaceSnapshot.threads.find(thread => thread.threadId === threadId) ?? null
+          workspaceSnapshot = {
+            ...workspaceSnapshot,
+            activeThreadId: nextThread?.threadId ?? null,
+            activeThreadTitle: nextThread?.title ?? null
+          }
+          return publishWorkspaceSnapshot()
+        },
+        renameThread: async () => clone(workspaceSnapshot),
+        reassignScopeThread: async () => clone(workspaceSnapshot),
         resync: async () => null,
         chooseRoot: async () => null,
         saveClipboard: async () => null,
-        onStateChanged() { return () => {} }
+        onStateChanged(listener) {
+          workspaceListeners.add(listener)
+          return () => {
+            workspaceListeners.delete(listener)
+          }
+        }
       },
       settings: {
         getState: async () => clone(settings),

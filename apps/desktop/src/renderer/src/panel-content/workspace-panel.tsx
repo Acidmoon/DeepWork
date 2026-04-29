@@ -38,7 +38,6 @@ export function WorkspacePanel({
   const [sessionLogExcerpt, setSessionLogExcerpt] = useState<string>('')
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable' | 'unsupported'>('idle')
   const [previewContent, setPreviewContent] = useState('')
-  const [threadFilterMode, setThreadFilterMode] = useState<'active' | 'all'>('active')
   const [scopeThreadTargetId, setScopeThreadTargetId] = useState('')
 
   useEffect(() => {
@@ -51,7 +50,7 @@ export function WorkspacePanel({
 
   const normalizedQuery = normalizeWorkspaceSearchQuery(state.searchQuery)
   const activeThread = state.threads.find((thread) => thread.threadId === state.activeThreadId) ?? null
-  const visibleThreadId = threadFilterMode === 'active' ? state.activeThreadId : null
+  const visibleThreadId = state.threadFilterMode === 'active' ? state.activeThreadId : null
   const visibleContextEntries = visibleThreadId
     ? state.contextEntries.filter((entry) => entry.threadId === visibleThreadId)
     : state.contextEntries
@@ -143,12 +142,18 @@ export function WorkspacePanel({
       return
     }
 
-    setThreadFilterMode('active')
+    updateWorkspaceViewState((currentState) => ({
+      ...currentState,
+      threadFilterMode: 'active'
+    }))
     syncSnapshot(await window.workbenchShell.workspace.createThread(requestedTitle.trim() || null))
   }
 
   const continueThread = async (threadId: string): Promise<void> => {
-    setThreadFilterMode('active')
+    updateWorkspaceViewState((currentState) => ({
+      ...currentState,
+      threadFilterMode: 'active'
+    }))
     syncSnapshot(await window.workbenchShell.workspace.selectThread(threadId))
   }
 
@@ -320,9 +325,14 @@ export function WorkspacePanel({
           <button
             type="button"
             className="action-button action-button--ghost"
-            onClick={() => setThreadFilterMode(threadFilterMode === 'active' ? 'all' : 'active')}
+            onClick={() =>
+              updateWorkspaceViewState({
+                ...state,
+                threadFilterMode: state.threadFilterMode === 'active' ? 'all' : 'active'
+              })
+            }
           >
-            {threadFilterMode === 'active' ? ui.threadShowAll : ui.activeThread}
+            {state.threadFilterMode === 'active' ? ui.threadShowAll : ui.activeThread}
           </button>
         </div>
 
@@ -403,7 +413,7 @@ export function WorkspacePanel({
               }
             >
               <option value="all">{ui.allSources}</option>
-              {state.contextEntries.map((entry) => (
+              {visibleContextEntries.map((entry) => (
                 <option key={entry.scopeId} value={entry.scopeId}>
                   {formatContextEntryLabel(entry)}
                 </option>
