@@ -19,7 +19,7 @@ import {
   type SaveClipboardResult,
   type WorkspaceSnapshot
 } from '@ai-workbench/core/desktop/workspace'
-import { syncManagedInstructionFile } from './workspace-manager/managed-workspace-content'
+import { syncManagedInstructionFile } from './workspace-manager/managed-workspace-file-sync'
 import {
   createThreadId,
   deriveThreadTitleFromSeed,
