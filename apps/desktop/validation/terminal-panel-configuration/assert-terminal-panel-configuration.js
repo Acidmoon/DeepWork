@@ -55,8 +55,24 @@ async page => {
     throw new Error(`Built-in restart did not relaunch with the updated config: ${JSON.stringify(restartedBuiltIn)}`)
   }
 
-  await page.getByLabel('Active Thread').selectOption('thread-side-research')
+  const manageThreadsVisible = await page.getByRole('button', { name: 'Manage Threads In Workspace' }).count()
+  const activeThreadSelectVisible = await page.getByRole('combobox', { name: 'Active Thread' }).count()
+  if (manageThreadsVisible < 1 || activeThreadSelectVisible !== 0) {
+    throw new Error(
+      `Managed terminal toolbar exposed unexpected thread mutation controls: ${JSON.stringify({
+        manageThreadsVisible,
+        activeThreadSelectVisible
+      })}`
+    )
+  }
+
+  await page.getByRole('button', { name: 'Manage Threads In Workspace' }).click()
+  await page.waitForTimeout(400)
+  await page.locator('.artifact-row--thread').filter({ hasText: 'Side Research' }).getByRole('button', { name: 'Continue' }).click()
+  await page.waitForFunction(() => window.__terminalConfigValidation.getState().workspaceSnapshot.activeThreadTitle === 'Side Research')
   await page.waitForTimeout(250)
+  await page.getByRole('button', { name: 'Codex CLI' }).click()
+  await page.waitForTimeout(300)
 
   const afterThreadSwitch = await page.evaluate(() => window.__terminalConfigValidation.getState())
   const stableSessionScopeVisible = await page.getByText('Session Scope: codex-cli__session-0002').count()
@@ -106,6 +122,8 @@ async page => {
       builtInOverride,
       builtInRestartLaunchCount: restartedBuiltIn.launchCount,
       builtInSessionScopeId: restartedBuiltIn.sessionScopeId,
+      manageThreadsVisible,
+      activeThreadSelectVisible,
       switchedActiveThreadTitle: afterThreadSwitch.workspaceSnapshot.activeThreadTitle,
       stableSessionThreadTitle: afterThreadSwitch.snapshots['codex-cli']?.threadTitle,
       customShell: customSettings.shell,

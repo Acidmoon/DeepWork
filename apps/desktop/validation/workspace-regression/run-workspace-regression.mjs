@@ -76,7 +76,6 @@ function buildBootstrapScript(payload) {
     let currentSnapshot = clone(injected.snapshot)
     let currentContents = clone(injected.contents)
     const workspaceListeners = new Set()
-    const promptQueue = []
     let threadCounter = (currentSnapshot.threads ?? []).length
     const threadRegistry = new Map((currentSnapshot.threads ?? []).map(thread => [
       thread.threadId,
@@ -186,21 +185,10 @@ function buildBootstrapScript(payload) {
     rebuildThreadState()
 
     window.__workspaceRegressionValidation = {
-      enqueuePrompts: (...responses) => {
-        promptQueue.push(...responses)
-      },
       getState: () => clone({
         snapshot: currentSnapshot,
         contents: currentContents
       })
-    }
-
-    window.prompt = (_message, defaultValue = '') => {
-      if (promptQueue.length > 0) {
-        return promptQueue.shift()
-      }
-
-      return defaultValue
     }
 
     window.workbenchShell = {

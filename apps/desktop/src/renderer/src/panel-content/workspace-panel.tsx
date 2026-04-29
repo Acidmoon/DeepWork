@@ -39,6 +39,12 @@ export function WorkspacePanel({
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable' | 'unsupported'>('idle')
   const [previewContent, setPreviewContent] = useState('')
   const [scopeThreadTargetId, setScopeThreadTargetId] = useState('')
+  const [threadCreateDraft, setThreadCreateDraft] = useState('')
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null)
+  const [editingThreadTitle, setEditingThreadTitle] = useState('')
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [threadActionFeedback, setThreadActionFeedback] = useState<string | null>(null)
+  const [deleteScopeArmedId, setDeleteScopeArmedId] = useState<string | null>(null)
 
   useEffect(() => {
     void window.workbenchShell.workspace.getState().then((snapshot) => {
@@ -130,26 +136,51 @@ export function WorkspacePanel({
     setScopeThreadTargetId(selectedScope.threadId)
   }, [selectedScope?.scopeId, selectedScope?.threadId])
 
+  useEffect(() => {
+    if (editingThreadId && !state.threads.some((thread) => thread.threadId === editingThreadId)) {
+      setEditingThreadId(null)
+      setEditingThreadTitle('')
+    }
+  }, [editingThreadId, state.threads])
+
+  useEffect(() => {
+    if (deleteScopeArmedId && deleteScopeArmedId !== selectedScope?.scopeId) {
+      setDeleteScopeArmedId(null)
+    }
+  }, [deleteScopeArmedId, selectedScope?.scopeId])
+
   const syncSnapshot = (snapshot: Awaited<ReturnType<typeof window.workbenchShell.workspace.selectThread>>): void => {
     if (snapshot) {
       syncWorkspaceState(snapshot)
     }
   }
 
-  const createThread = async (): Promise<void> => {
-    const requestedTitle = window.prompt(ui.threadCreatePrompt, activeThread?.title ?? '')
-    if (requestedTitle === null) {
-      return
-    }
+  const beginThreadMutation = (actionKey: string): void => {
+    setPendingAction(actionKey)
+    setThreadActionFeedback(null)
+  }
 
+  const finishThreadMutation = (message?: string): void => {
+    setPendingAction(null)
+    if (message) {
+      setThreadActionFeedback(message)
+    }
+  }
+
+  const createThread = async (): Promise<void> => {
+    beginThreadMutation('create-thread')
     updateWorkspaceViewState((currentState) => ({
       ...currentState,
       threadFilterMode: 'active'
     }))
-    syncSnapshot(await window.workbenchShell.workspace.createThread(requestedTitle.trim() || null))
+    syncSnapshot(await window.workbenchShell.workspace.createThread(threadCreateDraft.trim() || null))
+    setThreadCreateDraft('')
+    setDeleteScopeArmedId(null)
+    finishThreadMutation(ui.threadCreateSaved)
   }
 
   const continueThread = async (threadId: string): Promise<void> => {
+    setThreadActionFeedback(null)
     updateWorkspaceViewState((currentState) => ({
       ...currentState,
       threadFilterMode: 'active'
@@ -157,17 +188,30 @@ export function WorkspacePanel({
     syncSnapshot(await window.workbenchShell.workspace.selectThread(threadId))
   }
 
-  const renameActiveThread = async (): Promise<void> => {
-    if (!activeThread) {
+  const startRenameThread = (threadId: string, title: string): void => {
+    setEditingThreadId(threadId)
+    setEditingThreadTitle(title)
+    setThreadActionFeedback(null)
+  }
+
+  const cancelRenameThread = (): void => {
+    setEditingThreadId(null)
+    setEditingThreadTitle('')
+    setPendingAction(null)
+  }
+
+  const saveThreadTitle = async (threadId: string, currentTitle: string): Promise<void> => {
+    const nextTitle = editingThreadTitle.trim()
+    if (!nextTitle || nextTitle === currentTitle) {
+      cancelRenameThread()
       return
     }
 
-    const requestedTitle = window.prompt(ui.threadRenamePrompt, activeThread.title)
-    if (!requestedTitle || requestedTitle.trim() === activeThread.title) {
-      return
-    }
-
-    syncSnapshot(await window.workbenchShell.workspace.renameThread(activeThread.threadId, requestedTitle.trim()))
+    beginThreadMutation(`rename-thread:${threadId}`)
+    syncSnapshot(await window.workbenchShell.workspace.renameThread(threadId, nextTitle))
+    setEditingThreadId(null)
+    setEditingThreadTitle('')
+    finishThreadMutation(ui.threadRenameSaved)
   }
 
   const reassignSelectedScope = async (): Promise<void> => {
@@ -175,7 +219,10 @@ export function WorkspacePanel({
       return
     }
 
+    beginThreadMutation('reassign-scope')
     syncSnapshot(await window.workbenchShell.workspace.reassignScopeThread(selectedScope.scopeId, scopeThreadTargetId))
+    setDeleteScopeArmedId(null)
+    finishThreadMutation(ui.threadReassignSaved)
   }
 
   const deleteSelectedScope = async (): Promise<void> => {
@@ -183,15 +230,13 @@ export function WorkspacePanel({
       return
     }
 
-    const confirmed = window.confirm(ui.deleteSessionConfirm)
-    if (!confirmed) {
-      return
-    }
-
+    beginThreadMutation('delete-scope')
     const snapshot = await window.workbenchShell.workspace.deleteScope(selectedScope.scopeId)
     if (snapshot) {
       syncWorkspaceState(snapshot)
     }
+    setDeleteScopeArmedId(null)
+    finishThreadMutation(ui.deleteSessionDone)
   }
 
   useEffect(() => {
@@ -310,18 +355,28 @@ export function WorkspacePanel({
           <span>{activeThread?.title ?? ui.noActiveThread}</span>
         </div>
 
-        <div className="action-row">
-          <button type="button" className="action-button" onClick={() => void createThread()}>
+        <form
+          className="workspace-thread-composer"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void createThread()
+          }}
+        >
+          <label className="field field--wide">
+            <span>{ui.threadCreateTitle}</span>
+            <input
+              aria-label={ui.threadCreateTitle}
+              value={threadCreateDraft}
+              placeholder={ui.threadCreatePlaceholder}
+              onChange={(event) => setThreadCreateDraft(event.target.value)}
+            />
+          </label>
+          <button type="submit" className="action-button" disabled={pendingAction === 'create-thread'}>
             {ui.threadCreate}
           </button>
-          <button
-            type="button"
-            className="action-button action-button--ghost"
-            disabled={!activeThread}
-            onClick={() => void renameActiveThread()}
-          >
-            {ui.threadRename}
-          </button>
+        </form>
+
+        <div className="action-row">
           <button
             type="button"
             className="action-button action-button--ghost"
@@ -336,6 +391,8 @@ export function WorkspacePanel({
           </button>
         </div>
 
+        {threadActionFeedback ? <p className="thread-feedback">{threadActionFeedback}</p> : null}
+
         {state.threads.length === 0 ? (
           <p className="section-empty">{ui.threadEmptyHint}</p>
         ) : (
@@ -346,7 +403,47 @@ export function WorkspacePanel({
                 className={`artifact-row artifact-row--thread${state.activeThreadId === thread.threadId ? ' artifact-row--active' : ''}`}
               >
                 <div className="artifact-row__body">
-                  <strong>{thread.title}</strong>
+                  {editingThreadId === thread.threadId ? (
+                    <form
+                      className="workspace-thread-inline-form"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        void saveThreadTitle(thread.threadId, thread.title)
+                      }}
+                    >
+                      <label className="field field--wide">
+                        <span>{ui.threadTitle}</span>
+                        <input
+                          aria-label={ui.threadTitle}
+                          value={editingThreadTitle}
+                          placeholder={ui.threadTitlePlaceholder}
+                          onChange={(event) => setEditingThreadTitle(event.target.value)}
+                        />
+                      </label>
+                      <div className="artifact-row__actions artifact-row__actions--inline">
+                        <button
+                          type="submit"
+                          className="action-button action-button--compact"
+                          disabled={
+                            pendingAction === `rename-thread:${thread.threadId}` ||
+                            !editingThreadTitle.trim() ||
+                            editingThreadTitle.trim() === thread.title
+                          }
+                        >
+                          {ui.save}
+                        </button>
+                        <button
+                          type="button"
+                          className="action-button action-button--ghost action-button--compact"
+                          onClick={cancelRenameThread}
+                        >
+                          {ui.cancel}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <strong>{thread.title}</strong>
+                  )}
                   <p>{thread.summary || thread.threadId}</p>
                   <div className="session-badges">
                     <span className="session-badge">{thread.scopeCount} {ui.threadScopeCount}</span>
@@ -362,9 +459,18 @@ export function WorkspacePanel({
                   <button
                     type="button"
                     className="action-button action-button--ghost action-button--compact"
+                    disabled={state.activeThreadId === thread.threadId}
                     onClick={() => void continueThread(thread.threadId)}
                   >
                     {ui.threadContinue}
+                  </button>
+                  <button
+                    type="button"
+                    className="action-button action-button--ghost action-button--compact"
+                    disabled={editingThreadId === thread.threadId}
+                    onClick={() => startRenameThread(thread.threadId, thread.title)}
+                  >
+                    {ui.rename}
                   </button>
                 </div>
               </article>
@@ -439,6 +545,9 @@ export function WorkspacePanel({
           <div className="workspace-inline-note">
             <div className="workspace-inline-note__copy">
               <span>{formatContextEntryDescription(selectedScope, locale)}</span>
+              {deleteScopeArmedId === selectedScope.scopeId ? (
+                <p className="workspace-inline-note__warning">{ui.deleteSessionWarning}</p>
+              ) : null}
             </div>
             <div className="workspace-inline-note__actions">
               <label className="field field--compact">
@@ -459,13 +568,36 @@ export function WorkspacePanel({
               >
                 {ui.reassignScopeThread}
               </button>
-              <button
-                type="button"
-                className="action-button action-button--ghost action-button--danger"
-                onClick={() => void deleteSelectedScope()}
-              >
-                {ui.deleteSession}
-              </button>
+              {deleteScopeArmedId === selectedScope.scopeId ? (
+                <>
+                  <button
+                    type="button"
+                    className="action-button action-button--danger"
+                    disabled={pendingAction === 'delete-scope'}
+                    onClick={() => void deleteSelectedScope()}
+                  >
+                    {ui.confirmDelete}
+                  </button>
+                  <button
+                    type="button"
+                    className="action-button action-button--ghost"
+                    onClick={() => setDeleteScopeArmedId(null)}
+                  >
+                    {ui.cancel}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="action-button action-button--ghost action-button--danger"
+                  onClick={() => {
+                    setDeleteScopeArmedId(selectedScope.scopeId)
+                    setThreadActionFeedback(null)
+                  }}
+                >
+                  {ui.deleteSession}
+                </button>
+              )}
             </div>
           </div>
         ) : (

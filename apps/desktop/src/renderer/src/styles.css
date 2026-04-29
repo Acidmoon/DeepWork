@@ -534,6 +534,7 @@ select {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .thread-select {
@@ -1000,6 +1001,13 @@ select {
   gap: 4px;
 }
 
+.workspace-inline-note__warning,
+.thread-feedback {
+  margin: 0;
+  color: #b45309;
+  font-size: 0.9rem;
+}
+
 .workspace-inline-note__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1121,6 +1129,23 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.artifact-row__actions--inline {
+  justify-content: flex-start;
+}
+
+.workspace-thread-composer,
+.workspace-thread-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.workspace-thread-composer .field,
+.workspace-thread-inline-form .field {
+  flex: 1 1 280px;
 }
 
 .session-badges {

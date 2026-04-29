@@ -347,7 +347,13 @@ function App(): JSX.Element {
                 <div className="toolbar-meta">
                   {activeWorkspaceState ? <WorkspacePanelActions panel={activePanel} locale={locale} /> : null}
                   {activeWebState || activeTerminalState ? (
-                    <ThreadToolbarControls locale={locale} workspaceState={sharedWorkspaceState} />
+                    <ThreadToolbarControls
+                      locale={locale}
+                      workspaceState={sharedWorkspaceState}
+                      onManageInWorkspace={() => {
+                        startTransition(() => openPanel('artifacts'))
+                      }}
+                    />
                   ) : null}
                   {!activeWebState && !activeTerminalState ? (
                     <button
@@ -774,10 +780,12 @@ function WorkspacePanelActions({
 
 function ThreadToolbarControls({
   locale,
-  workspaceState
+  workspaceState,
+  onManageInWorkspace
 }: {
   locale: ReturnType<typeof resolveLocale>
   workspaceState: WorkspacePanelViewState | null
+  onManageInWorkspace: () => void
 }): JSX.Element | null {
   const ui = getUiText(locale)
 
@@ -787,45 +795,18 @@ function ThreadToolbarControls({
 
   const activeThread = workspaceState.threads.find((thread) => thread.threadId === workspaceState.activeThreadId) ?? null
 
-  const syncSnapshot = (snapshot: Awaited<ReturnType<typeof window.workbenchShell.workspace.selectThread>>): void => {
-    if (snapshot) {
-      useWorkbenchStore.getState().syncWorkspaceState(snapshot)
-    }
-  }
-
   return (
     <div className="thread-toolbar">
       <span className="mini-pill">
         {ui.activeThread}: {activeThread?.title ?? ui.noActiveThread}
       </span>
-      <select
-        className="thread-select"
-        aria-label={ui.activeThread}
-        value={workspaceState.activeThreadId ?? ''}
-        onChange={async (event) => {
-          syncSnapshot(await window.workbenchShell.workspace.selectThread(event.target.value || null))
-        }}
-      >
-        <option value="">{ui.noActiveThread}</option>
-        {workspaceState.threads.map((thread) => (
-          <option key={thread.threadId} value={thread.threadId}>
-            {thread.title}
-          </option>
-        ))}
-      </select>
+      <span className="mini-pill">{ui.threadMutationWorkspaceOnly}</span>
       <button
         type="button"
         className="action-button action-button--ghost action-button--compact"
-        onClick={async () => {
-          const requestedTitle = window.prompt(ui.threadCreatePrompt, activeThread?.title ?? '')
-          if (requestedTitle === null) {
-            return
-          }
-
-          syncSnapshot(await window.workbenchShell.workspace.createThread(requestedTitle.trim() || null))
-        }}
+        onClick={onManageInWorkspace}
       >
-        {ui.threadCreate}
+        {ui.manageThreadsInWorkspace}
       </button>
     </div>
   )

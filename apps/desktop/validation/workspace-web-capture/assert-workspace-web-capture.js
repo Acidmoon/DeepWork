@@ -68,8 +68,24 @@ async page => {
     )
   }
 
-  await page.getByLabel('当前线程').selectOption('thread-side-research')
+  const manageThreadsVisible = await page.getByRole('button', { name: '在 Workspace 中管理线程' }).count()
+  const webThreadSelectVisible = await page.getByRole('combobox', { name: '当前线程' }).count()
+  if (manageThreadsVisible < 1 || webThreadSelectVisible !== 0) {
+    throw new Error(
+      `Managed web toolbar exposed unexpected thread mutation controls: ${JSON.stringify({
+        manageThreadsVisible,
+        webThreadSelectVisible
+      })}`
+    )
+  }
+
+  await page.getByRole('button', { name: '在 Workspace 中管理线程' }).click()
+  await page.waitForTimeout(400)
+  await page.locator('.artifact-row--thread').filter({ hasText: 'Side Research' }).getByRole('button', { name: '继续' }).click()
+  await page.waitForFunction(() => window.__workspaceWebCaptureValidation.getState().snapshot.activeThreadTitle === 'Side Research')
   await page.waitForTimeout(250)
+  await page.locator('.nav-item__button').filter({ hasText: 'DeepSeek Web' }).click()
+  await page.waitForTimeout(400)
 
   const afterThreadSwitch = await page.evaluate(() => window.__workspaceWebCaptureValidation.getState())
   const stableSessionThreadVisible = await page.getByText('Workspace Sync Thread').count()
@@ -110,6 +126,8 @@ async page => {
       transcriptPreviewVisible,
       sessionThreadVisible,
       sessionScopeVisible,
+      manageThreadsVisible,
+      webThreadSelectVisible,
       switchedActiveThreadTitle: afterThreadSwitch.snapshot.activeThreadTitle,
       linkedThreadTitle: afterThreadSwitch.webSnapshot.threadTitle,
       jumpedSessionVisible

@@ -67,31 +67,94 @@ async page => {
     throw new Error(`Expected three sessions after reassigning MiniMax into the active thread, received ${activeThreadSessionCount}`)
   }
 
-  await page.locator('.nav-item__button').filter({ hasText: 'Codex CLI' }).click()
-  await page.waitForTimeout(400)
-
-  const activeThreadBadgeVisible = await page.getByText('当前线程: Release Planning Thread').count()
-  if (activeThreadBadgeVisible < 1) {
-    throw new Error(`Terminal toolbar did not show the active thread badge. count=${activeThreadBadgeVisible}`)
-  }
-
-  await page.evaluate(() => {
-    window.__workspaceRegressionValidation.enqueuePrompts('CLI Follow Up')
-  })
+  await page.getByRole('textbox', { name: '新线程标题' }).fill('CLI Follow Up')
   await page.getByRole('button', { name: '新建线程' }).click()
   await page.waitForFunction(() => window.__workspaceRegressionValidation.getState().snapshot.activeThreadTitle === 'CLI Follow Up')
   await page.waitForTimeout(300)
 
-  const newThreadBadgeVisible = await page.getByText('当前线程: CLI Follow Up').count()
-  if (newThreadBadgeVisible < 1) {
-    throw new Error(`New thread creation from terminal toolbar did not update the active thread badge. count=${newThreadBadgeVisible}`)
-  }
-
-  await page.locator('.nav-item__button').filter({ hasText: 'Artifacts' }).click()
-  await page.waitForTimeout(400)
-  const createdThreadVisible = await page.getByText('CLI Follow Up').count()
+  const createdThreadState = await page.evaluate(() => {
+    const snapshot = window.__workspaceRegressionValidation.getState().snapshot
+    return {
+      activeThreadId: snapshot.activeThreadId,
+      threadCount: snapshot.threads.length
+    }
+  })
+  const createdThreadVisible = await page.locator('.artifact-row--thread').filter({ hasText: 'CLI Follow Up' }).count()
   if (createdThreadVisible < 1) {
     throw new Error(`Created thread was not visible in the workspace thread list. count=${createdThreadVisible}`)
+  }
+
+  const createdThreadRow = page.locator('.artifact-row--thread').filter({ hasText: 'CLI Follow Up' })
+  await createdThreadRow.getByRole('button', { name: '重命名' }).click()
+  await page.getByRole('textbox', { name: '线程标题' }).fill('CLI Follow Up Renamed')
+  await page.getByRole('button', { name: '保存' }).click()
+  await page.waitForFunction(() => window.__workspaceRegressionValidation.getState().snapshot.activeThreadTitle === 'CLI Follow Up Renamed')
+  await page.waitForTimeout(300)
+
+  const renamedThreadState = await page.evaluate(() => {
+    const snapshot = window.__workspaceRegressionValidation.getState().snapshot
+    const renamedThread = snapshot.threads.find(thread => thread.title === 'CLI Follow Up Renamed') ?? null
+    return {
+      activeThreadId: snapshot.activeThreadId,
+      activeThreadTitle: snapshot.activeThreadTitle,
+      renamedThreadId: renamedThread?.threadId ?? null
+    }
+  })
+  const renamedThreadVisible = await page.locator('.artifact-row--thread').filter({ hasText: 'CLI Follow Up Renamed' }).count()
+  if (
+    renamedThreadVisible < 1 ||
+    renamedThreadState.activeThreadId !== createdThreadState.activeThreadId ||
+    renamedThreadState.renamedThreadId !== createdThreadState.activeThreadId
+  ) {
+    throw new Error(
+      `Inline rename did not preserve the created thread identity: ${JSON.stringify({
+        createdThreadId: createdThreadState.activeThreadId,
+        activeThreadId: renamedThreadState.activeThreadId,
+        renamedThreadId: renamedThreadState.renamedThreadId,
+        renamedThreadVisible
+      })}`
+    )
+  }
+
+  const releasePlanningThreadRow = page.locator('.artifact-row--thread').filter({ hasText: 'Release Planning Thread' })
+  await releasePlanningThreadRow.getByRole('button', { name: '继续' }).click()
+  await page.waitForFunction(() => window.__workspaceRegressionValidation.getState().snapshot.activeThreadTitle === 'Release Planning Thread')
+  await page.waitForTimeout(300)
+
+  const afterActivation = await page.evaluate(() => {
+    const snapshot = window.__workspaceRegressionValidation.getState().snapshot
+    const releasePlanningThread = snapshot.threads.find(thread => thread.threadId === 'thread-release-planning') ?? null
+    const renamedThread = snapshot.threads.find(thread => thread.threadId === snapshot.threads.find(item => item.title === 'CLI Follow Up Renamed')?.threadId) ?? null
+    return {
+      activeThreadTitle: snapshot.activeThreadTitle,
+      threadCount: snapshot.threads.length,
+      releasePlanningScopeCount: releasePlanningThread?.scopeCount ?? null,
+      renamedThreadTitle: renamedThread?.title ?? null
+    }
+  })
+  if (
+    afterActivation.activeThreadTitle !== 'Release Planning Thread' ||
+    afterActivation.threadCount !== createdThreadState.threadCount ||
+    afterActivation.releasePlanningScopeCount !== 3 ||
+    afterActivation.renamedThreadTitle !== 'CLI Follow Up Renamed'
+  ) {
+    throw new Error(`Workspace snapshot drifted after create/rename/activate flows: ${JSON.stringify(afterActivation)}`)
+  }
+
+  await page.locator('.nav-item__button').filter({ hasText: 'Codex CLI' }).click()
+  await page.waitForTimeout(400)
+
+  const activeThreadBadgeVisible = await page.getByText('当前线程: Release Planning Thread').count()
+  const manageThreadsButtonVisible = await page.getByRole('button', { name: '在 Workspace 中管理线程' }).count()
+  const terminalThreadSelectVisible = await page.getByRole('combobox', { name: '当前线程' }).count()
+  if (activeThreadBadgeVisible < 1 || manageThreadsButtonVisible < 1 || terminalThreadSelectVisible !== 0) {
+    throw new Error(
+      `Terminal toolbar did not stay read-only after workspace-driven mutations: ${JSON.stringify({
+        activeThreadBadgeVisible,
+        manageThreadsButtonVisible,
+        terminalThreadSelectVisible
+      })}`
+    )
   }
 
   await page.screenshot({ path: screenshotPath, fullPage: true })
@@ -107,9 +170,12 @@ async page => {
       logPreviewVisible,
       minimaxSessionVisibleBefore,
       activeThreadSessionCount,
+      createdThreadId: createdThreadState.activeThreadId,
+      renamedThreadTitle: renamedThreadState.activeThreadTitle,
+      releasePlanningScopeCount: afterActivation.releasePlanningScopeCount,
       activeThreadBadgeVisible,
-      newThreadBadgeVisible,
-      createdThreadVisible
+      manageThreadsButtonVisible,
+      terminalThreadSelectVisible
     })
   )
 }
