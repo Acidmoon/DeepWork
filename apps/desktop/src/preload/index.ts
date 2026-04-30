@@ -84,6 +84,12 @@ contextBridge.exposeInMainWorld('workbenchShell', {
       ipcRenderer.invoke('workspace:reassign-scope-thread', scopeId, threadId) as Promise<WorkspaceSnapshot | null>,
     resync: (panelId?: string) => ipcRenderer.invoke('workspace:resync', panelId) as Promise<WorkspaceSnapshot | null>,
     chooseRoot: () => ipcRenderer.invoke('workspace:choose-root') as Promise<WorkspaceSnapshot | null>,
+    openProfile: (profileId: string) =>
+      ipcRenderer.invoke('workspace:open-profile', profileId) as Promise<{
+        settings: AppSettingsSnapshot
+        workspace: WorkspaceSnapshot | null
+        error: string | null
+      } | null>,
     saveClipboard: (options: SaveClipboardOptions) =>
       ipcRenderer.invoke('workspace:save-clipboard', options) as Promise<SaveClipboardResult | null>,
     onStateChanged: (listener: (snapshot: WorkspaceSnapshot) => void) => {

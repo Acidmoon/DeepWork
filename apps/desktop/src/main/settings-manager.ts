@@ -10,7 +10,9 @@ import type {
 import {
   defaultAppSettings,
   normalizeCliRetrievalPreference,
-  normalizeThreadContinuationPreference
+  normalizeThreadContinuationPreference,
+  normalizeWorkspaceProfileRoot,
+  normalizeWorkspaceProfiles
 } from '@ai-workbench/core/desktop/settings'
 
 function normalizeNonEmptyString(value: unknown): string | undefined {
@@ -31,6 +33,15 @@ function normalizeStringList(value: unknown): string[] {
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
+}
+
+function normalizeWorkspaceRoot(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const normalizedRoot = normalizeWorkspaceProfileRoot(value)
+  return normalizedRoot.length > 0 ? normalizedRoot : null
 }
 
 function normalizeBuiltInTerminalPanels(value: unknown): Record<string, BuiltInTerminalPanelSettings> {
@@ -119,20 +130,10 @@ export class SettingsManager {
   }
 
   update(update: AppSettingsUpdate): AppSettingsSnapshot {
-    const nextSnapshot = {
+    this.snapshot = this.normalizeSettingsSnapshot({
       ...this.snapshot,
       ...update
-    }
-    this.snapshot = {
-      ...nextSnapshot,
-      terminalPreludeCommands: Array.isArray(nextSnapshot.terminalPreludeCommands)
-        ? normalizeStringList(nextSnapshot.terminalPreludeCommands)
-        : this.snapshot.terminalPreludeCommands,
-      threadContinuationPreference: normalizeThreadContinuationPreference(nextSnapshot.threadContinuationPreference),
-      cliRetrievalPreference: normalizeCliRetrievalPreference(nextSnapshot.cliRetrievalPreference),
-      builtInTerminalPanels: normalizeBuiltInTerminalPanels(nextSnapshot.builtInTerminalPanels),
-      customTerminalPanels: normalizeCustomTerminalPanels(nextSnapshot.customTerminalPanels)
-    }
+    })
 
     this.writeSettings(this.snapshot)
     return this.snapshot
@@ -178,24 +179,33 @@ export class SettingsManager {
       const raw = readFileSync(this.filePath, 'utf8')
       const parsed = JSON.parse(raw) as Partial<AppSettingsSnapshot>
 
-      return {
-        ...defaultAppSettings,
-        ...parsed,
-        theme: parsed.theme ?? defaultAppSettings.theme,
-        workspaceRoot: parsed.workspaceRoot ?? defaultAppSettings.workspaceRoot,
-        terminalPreludeCommands: Array.isArray(parsed.terminalPreludeCommands)
-          ? normalizeStringList(parsed.terminalPreludeCommands)
-          : defaultAppSettings.terminalPreludeCommands,
-        threadContinuationPreference: normalizeThreadContinuationPreference(parsed.threadContinuationPreference),
-        cliRetrievalPreference: normalizeCliRetrievalPreference(parsed.cliRetrievalPreference),
-        webPanels: parsed.webPanels ?? defaultAppSettings.webPanels,
-        builtInTerminalPanels: normalizeBuiltInTerminalPanels(parsed.builtInTerminalPanels),
-        customWebPanels: parsed.customWebPanels ?? defaultAppSettings.customWebPanels,
-        customTerminalPanels: normalizeCustomTerminalPanels(parsed.customTerminalPanels)
-      }
+      return this.normalizeSettingsSnapshot(parsed)
     } catch {
       this.writeSettings(defaultAppSettings)
       return defaultAppSettings
+    }
+  }
+
+  private normalizeSettingsSnapshot(value: Partial<AppSettingsSnapshot>): AppSettingsSnapshot {
+    const profileState = normalizeWorkspaceProfiles(value.workspaceProfiles, value.defaultWorkspaceProfileId)
+
+    return {
+      ...defaultAppSettings,
+      ...value,
+      language: value.language ?? defaultAppSettings.language,
+      theme: value.theme ?? defaultAppSettings.theme,
+      workspaceRoot: normalizeWorkspaceRoot(value.workspaceRoot),
+      workspaceProfiles: profileState.workspaceProfiles,
+      defaultWorkspaceProfileId: profileState.defaultWorkspaceProfileId,
+      terminalPreludeCommands: Array.isArray(value.terminalPreludeCommands)
+        ? normalizeStringList(value.terminalPreludeCommands)
+        : defaultAppSettings.terminalPreludeCommands,
+      threadContinuationPreference: normalizeThreadContinuationPreference(value.threadContinuationPreference),
+      cliRetrievalPreference: normalizeCliRetrievalPreference(value.cliRetrievalPreference),
+      webPanels: value.webPanels ?? defaultAppSettings.webPanels,
+      builtInTerminalPanels: normalizeBuiltInTerminalPanels(value.builtInTerminalPanels),
+      customWebPanels: value.customWebPanels ?? defaultAppSettings.customWebPanels,
+      customTerminalPanels: normalizeCustomTerminalPanels(value.customTerminalPanels)
     }
   }
 

@@ -81,9 +81,9 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     settings: {
       title: '设置',
       group: '系统',
-      summary: '设置面板已经开始承接应用级偏好项，当前版本已支持语言、主题、CLI 前置命令与跨会话连续性设置。',
-      nextStep: '继续把默认工作区和更细粒度的终端行为扩展成可配置项。',
-      delivery: '设置面板：基础外观配置 + 跨会话连续性设置。',
+      summary: '设置面板承接应用级偏好项，当前版本已支持工作区档案、语言、主题、CLI 前置命令与跨会话连续性设置。',
+      nextStep: '继续把更细粒度的终端行为扩展成可配置项。',
+      delivery: '设置面板：工作区档案 + 基础外观配置 + 跨会话连续性设置。',
       signal: '偏好设置在线'
     }
   },
@@ -155,9 +155,9 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     settings: {
       title: 'Settings',
       group: 'System',
-      summary: 'The settings panel now owns app-level preferences for language, theme, CLI prelude commands, and cross-session continuity defaults.',
-      nextStep: 'Continue wiring default workspace selection and deeper terminal behavior into real settings.',
-      delivery: 'Settings panel: baseline appearance controls plus continuity defaults.',
+      summary: 'The settings panel owns app-level preferences for workspace profiles, language, theme, CLI prelude commands, and cross-session continuity defaults.',
+      nextStep: 'Continue wiring deeper terminal behavior into real settings.',
+      delivery: 'Settings panel: workspace profiles plus baseline appearance and continuity defaults.',
       signal: 'Preferences live'
     }
   }
@@ -187,7 +187,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     system: {
       title: '系统',
-      caption: '应用级配置集中在这里，当前已支持连续性设置，并保留后续偏好扩展位。'
+      caption: '应用级配置集中在这里，当前已支持工作区档案与连续性设置，并保留后续偏好扩展位。'
     }
   },
   'en-US': {
@@ -213,7 +213,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     system: {
       title: 'System',
-      caption: 'App-level configuration lives here, including live continuity defaults and placeholder space for later preferences.'
+      caption: 'App-level configuration lives here, including workspace profiles, live continuity defaults, and placeholder space for later preferences.'
     }
   }
 }
@@ -237,10 +237,6 @@ const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<Sett
       label: 'CLI 工作区检索',
       description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。'
     },
-    'default-workspace': {
-      label: '工作区档案',
-      description: '首页已负责当前工作区选择；后续这里可扩展多个工作区档案和启动时加载策略。'
-    },
     'terminal-behavior': {
       label: '终端行为',
       description: '后续允许自定义 shell、启动命令、复制策略和终端交互偏好。'
@@ -250,10 +246,6 @@ const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<Sett
     'cli-prompt-template': {
       label: 'CLI Workspace Retrieval',
       description: 'Later this will allow retrieval defaults, session disambiguation hints, and automatic indexing behavior for Codex and Claude.'
-    },
-    'default-workspace': {
-      label: 'Workspace Profiles',
-      description: 'Home now owns the current workspace selection. Later this can add named workspace profiles and startup loading behavior.'
     },
     'terminal-behavior': {
       label: 'Terminal Behavior',
@@ -478,7 +470,27 @@ const uiText = {
     lastArtifact: '最近工件',
     renderNotes: '渲染备注',
     applicationSettings: '应用设置',
-    settingsIntro: '这里可以配置应用级偏好项。当前版本已支持语言、浅色/深色/跟随系统、CLI 启动前置命令，以及跨会话连续性设置。',
+    settingsIntro: '这里可以配置应用级偏好项。当前版本已支持工作区档案、语言、浅色/深色/跟随系统、CLI 启动前置命令，以及跨会话连续性设置。',
+    workspaceProfiles: '工作区档案',
+    workspaceProfilesHint: '保存常用工作区，按项目切换，并指定下次启动时自动恢复的工作区。',
+    activeWorkspace: '当前工作区',
+    addWorkspaceProfile: '保存当前工作区',
+    updateWorkspaceProfile: '更新档案',
+    openWorkspaceProfile: '打开',
+    setDefaultWorkspaceProfile: '设为启动默认',
+    defaultWorkspaceProfile: '启动默认',
+    removeWorkspaceProfile: '移除档案',
+    workspaceProfileName: '档案名称',
+    workspaceProfileNamePlaceholder: '例如：DeepWork 默认项目',
+    workspaceProfilesEmpty: '还没有保存的工作区档案。',
+    workspaceProfileCurrent: '当前',
+    workspaceProfileUnavailable: '工作区路径不可用。',
+    workspaceProfileSaved: '工作区档案已保存。',
+    workspaceProfileRemoved: '工作区档案已移除。',
+    workspaceProfileDefaultSaved: '启动默认工作区已更新。',
+    workspaceProfileOpened: '工作区档案已打开。',
+    workspaceProfileNeedsRoot: '请先选择一个工作区。',
+    workspaceProfileNeedsName: '请输入档案名称。',
     language: '语言',
     uiLocalePreference: '界面语言偏好',
     displayLanguage: '显示语言',
@@ -753,7 +765,27 @@ const uiText = {
     lastArtifact: 'Last Artifact',
     renderNotes: 'Render Notes',
     applicationSettings: 'Application Settings',
-    settingsIntro: 'Configure app-level preferences here. This version already supports language, light/dark/system appearance, CLI startup prelude commands, and cross-session continuity defaults.',
+    settingsIntro: 'Configure app-level preferences here. This version supports workspace profiles, language, light/dark/system appearance, CLI startup prelude commands, and cross-session continuity defaults.',
+    workspaceProfiles: 'Workspace Profiles',
+    workspaceProfilesHint: 'Save common workspaces, switch by project, and choose which workspace should reopen on startup.',
+    activeWorkspace: 'Active Workspace',
+    addWorkspaceProfile: 'Save Current Workspace',
+    updateWorkspaceProfile: 'Update Profile',
+    openWorkspaceProfile: 'Open',
+    setDefaultWorkspaceProfile: 'Set Startup Default',
+    defaultWorkspaceProfile: 'Startup Default',
+    removeWorkspaceProfile: 'Remove Profile',
+    workspaceProfileName: 'Profile Name',
+    workspaceProfileNamePlaceholder: 'For example: DeepWork default project',
+    workspaceProfilesEmpty: 'No workspace profiles saved yet.',
+    workspaceProfileCurrent: 'Current',
+    workspaceProfileUnavailable: 'Workspace path is unavailable.',
+    workspaceProfileSaved: 'Workspace profile saved.',
+    workspaceProfileRemoved: 'Workspace profile removed.',
+    workspaceProfileDefaultSaved: 'Startup default workspace updated.',
+    workspaceProfileOpened: 'Workspace profile opened.',
+    workspaceProfileNeedsRoot: 'Choose a workspace first.',
+    workspaceProfileNeedsName: 'Enter a profile name.',
     language: 'Language',
     uiLocalePreference: 'UI locale preference',
     displayLanguage: 'Display Language',

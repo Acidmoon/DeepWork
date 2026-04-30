@@ -114,6 +114,8 @@ function buildBootstrapScript() {
       language: 'en-US',
       theme: 'light',
       workspaceRoot: 'C:\\\\Workspace',
+      workspaceProfiles: [],
+      defaultWorkspaceProfileId: null,
       terminalPreludeCommands: ['proxy_on'],
       threadContinuationPreference: 'continue-active-thread',
       cliRetrievalPreference: 'thread-first',
@@ -528,6 +530,7 @@ function buildBootstrapScript() {
         reassignScopeThread: async () => clone(workspaceSnapshot),
         resync: async () => null,
         chooseRoot: async () => null,
+        openProfile: async () => ({ settings: clone(settings), workspace: clone(workspaceSnapshot), error: 'Workspace profile is unavailable.' }),
         saveClipboard: async () => null,
         onStateChanged(listener) {
           workspaceListeners.add(listener)
@@ -542,6 +545,11 @@ function buildBootstrapScript() {
           settings = {
             ...settings,
             ...update,
+            workspaceProfiles: update.workspaceProfiles ?? settings.workspaceProfiles,
+            defaultWorkspaceProfileId:
+              Object.prototype.hasOwnProperty.call(update, 'defaultWorkspaceProfileId')
+                ? update.defaultWorkspaceProfileId
+                : settings.defaultWorkspaceProfileId,
             webPanels: update.webPanels ?? settings.webPanels,
             builtInTerminalPanels: update.builtInTerminalPanels ?? settings.builtInTerminalPanels,
             customWebPanels: update.customWebPanels ?? settings.customWebPanels,

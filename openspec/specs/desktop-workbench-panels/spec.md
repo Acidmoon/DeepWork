@@ -2,7 +2,6 @@
 
 ## Purpose
 Define the desktop workbench shell, navigation model, and managed web or terminal panel lifecycle that let the Electron app host stable work surfaces while keeping web and CLI conversations as the primary continuity entry points.
-
 ## Requirements
 ### Requirement: DeepWork desktop shell
 The system SHALL launch a single DeepWork desktop window that hosts the renderer shell through the preload bridge and prevents arbitrary secondary window creation from both the main window and managed web panels.
@@ -185,7 +184,7 @@ The Web and Terminal panel surfaces SHALL remain immersive primary work surfaces
 - **THEN** the terminal viewport remains the primary visual focus
 
 ### Requirement: Scannable secondary Workspace and Settings surfaces
-Workspace and Settings SHALL use scannable inspector-style layouts that support audit, debugging, repair, and configuration without becoming card-heavy dashboards.
+Workspace and Settings SHALL use scannable inspector-style layouts that support audit, debugging, repair, configuration, and workspace profile management without becoming card-heavy dashboards.
 
 #### Scenario: Inspect workspace records with clear hierarchy
 - **WHEN** the user opens Workspace
@@ -195,4 +194,11 @@ Workspace and Settings SHALL use scannable inspector-style layouts that support 
 #### Scenario: Edit settings in a concise form layout
 - **WHEN** the user opens Settings
 - **THEN** implemented preferences appear in predictable form rows with clear labels and controls
-- **THEN** deferred preference placeholders remain visible without reading like active configuration controls
+- **THEN** workspace profile controls are presented as active settings for saved workspace roots and startup default behavior
+- **THEN** remaining deferred preference placeholders remain visible without reading like active configuration controls
+
+#### Scenario: Keep Home focused on current workspace status
+- **WHEN** the user opens Home after workspace profile management is available
+- **THEN** Home continues to show the active workspace root, initialization state, saved context counts, and quick choose-workspace action
+- **THEN** detailed profile list management remains in Settings rather than turning Home into a profile administration screen
+

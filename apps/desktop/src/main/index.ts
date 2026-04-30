@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TerminalManager } from './terminal-manager'
@@ -7,7 +8,7 @@ import { WorkspaceManager } from './workspace-manager'
 import { SettingsManager } from './settings-manager'
 import type { PanelBounds, WebPanelConfig, WebPanelNavigationAction } from '@ai-workbench/core/desktop/web-panels'
 import type { TerminalResizePayload } from '@ai-workbench/core/desktop/terminal-panels'
-import type { AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
+import { resolveStartupWorkspaceRoot, type AppSettingsSnapshot, type AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
 import type { SaveClipboardOptions } from '@ai-workbench/core/desktop/workspace'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -16,6 +17,26 @@ let webPanelManager: WebPanelManager | null = null
 let terminalManager: TerminalManager | null = null
 let workspaceManager: WorkspaceManager | null = null
 let settingsManager: SettingsManager | null = null
+
+function getResolvedWorkspaceRoot(snapshot: AppSettingsSnapshot): string | null {
+  return resolveStartupWorkspaceRoot(snapshot)
+}
+
+function syncWorkspaceRoot(root: string | null): void {
+  const workspaceSnapshot = workspaceManager?.setWorkspaceRoot(root) ?? null
+  if (workspaceSnapshot) {
+    terminalManager?.syncWorkspaceRoot(workspaceSnapshot.workspaceRoot)
+  }
+}
+
+function syncRuntimeSettings(snapshot: AppSettingsSnapshot): void {
+  webPanelManager?.syncCustomPanels(snapshot.customWebPanels)
+  terminalManager?.syncBuiltInOverrides(snapshot.builtInTerminalPanels)
+  terminalManager?.syncCustomPanels(snapshot.customTerminalPanels)
+  terminalManager?.syncStartupPreludeCommands(snapshot.terminalPreludeCommands)
+  terminalManager?.syncCliRetrievalPreference(snapshot.cliRetrievalPreference)
+  workspaceManager?.syncThreadContinuationPreference(snapshot.threadContinuationPreference)
+}
 
 function createMainWindow(): BrowserWindow {
   const rendererUrl = process.env.ELECTRON_RENDERER_URL
@@ -49,11 +70,13 @@ function createMainWindow(): BrowserWindow {
 app.whenReady().then(() => {
   app.setName('DeepWork')
   settingsManager = new SettingsManager(app.getPath('userData'))
+  const initialSettings = settingsManager.getSnapshot()
+  const initialWorkspaceRoot = getResolvedWorkspaceRoot(initialSettings)
   mainWindow = createMainWindow()
   workspaceManager = new WorkspaceManager(
     app.getPath('documents'),
-    settingsManager.getSnapshot().workspaceRoot,
-    settingsManager.getSnapshot().threadContinuationPreference,
+    initialWorkspaceRoot,
+    initialSettings.threadContinuationPreference,
     (snapshot) => {
       if (!mainWindow || mainWindow.isDestroyed()) {
         return
@@ -64,19 +87,19 @@ app.whenReady().then(() => {
   )
   webPanelManager = new WebPanelManager(
     mainWindow,
-    settingsManager.getSnapshot().webPanels,
-    settingsManager.getSnapshot().customWebPanels,
+    initialSettings.webPanels,
+    initialSettings.customWebPanels,
     (payload) => workspaceManager?.upsertWebContext(payload) ?? null,
     (input) => workspaceManager?.getContinuitySummary(input) ?? null
   )
   terminalManager = new TerminalManager(
     mainWindow,
     app.getPath('userData'),
-    settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
-    settingsManager.getSnapshot().builtInTerminalPanels,
-    settingsManager.getSnapshot().customTerminalPanels,
-    settingsManager.getSnapshot().terminalPreludeCommands,
-    settingsManager.getSnapshot().cliRetrievalPreference,
+    initialWorkspaceRoot ?? process.cwd(),
+    initialSettings.builtInTerminalPanels,
+    initialSettings.customTerminalPanels,
+    initialSettings.terminalPreludeCommands,
+    initialSettings.cliRetrievalPreference,
     (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
     (sessionScopeId) => {
       workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })
@@ -160,6 +183,50 @@ app.whenReady().then(() => {
     terminalManager?.syncWorkspaceRoot(snapshot.workspaceRoot)
     return snapshot
   })
+  ipcMain.handle('workspace:open-profile', (_event, profileId: string) => {
+    if (!settingsManager || !workspaceManager) {
+      return null
+    }
+
+    const currentSettings = settingsManager.getSnapshot()
+    const profile = currentSettings.workspaceProfiles.find((item) => item.id === profileId)
+    if (!profile || !profile.root.trim()) {
+      return {
+        settings: currentSettings,
+        workspace: workspaceManager.getSnapshot(),
+        error: 'Workspace profile is unavailable.'
+      }
+    }
+
+    if (!existsSync(profile.root)) {
+      return {
+        settings: currentSettings,
+        workspace: workspaceManager.getSnapshot(),
+        error: 'Workspace profile root is unavailable.'
+      }
+    }
+
+    const now = new Date().toISOString()
+    const settings = settingsManager.update({
+      workspaceRoot: profile.root,
+      workspaceProfiles: currentSettings.workspaceProfiles.map((item) =>
+        item.id === profile.id
+          ? {
+              ...item,
+              lastUsedAt: now
+            }
+          : item
+      )
+    })
+    const workspace = workspaceManager.setWorkspaceRoot(settings.workspaceRoot)
+    terminalManager?.syncWorkspaceRoot(workspace.workspaceRoot)
+
+    return {
+      settings,
+      workspace,
+      error: null
+    }
+  })
   ipcMain.handle('workspace:save-clipboard', (_event, options: SaveClipboardOptions) =>
     workspaceManager?.saveClipboardAsArtifact(options) ?? null
   )
@@ -170,15 +237,9 @@ app.whenReady().then(() => {
       return null
     }
 
-    webPanelManager?.syncCustomPanels(snapshot.customWebPanels)
-    terminalManager?.syncBuiltInOverrides(snapshot.builtInTerminalPanels)
-    terminalManager?.syncCustomPanels(snapshot.customTerminalPanels)
-    terminalManager?.syncStartupPreludeCommands(snapshot.terminalPreludeCommands)
-    terminalManager?.syncCliRetrievalPreference(snapshot.cliRetrievalPreference)
-    workspaceManager?.syncThreadContinuationPreference(snapshot.threadContinuationPreference)
+    syncRuntimeSettings(snapshot)
     if (workspaceManager && Object.prototype.hasOwnProperty.call(update, 'workspaceRoot')) {
-      const workspaceSnapshot = workspaceManager.setWorkspaceRoot(snapshot.workspaceRoot)
-      terminalManager?.syncWorkspaceRoot(workspaceSnapshot.workspaceRoot)
+      syncWorkspaceRoot(snapshot.workspaceRoot)
     }
     return snapshot
   })
@@ -196,11 +257,13 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       settingsManager = new SettingsManager(app.getPath('userData'))
+      const activatedSettings = settingsManager.getSnapshot()
+      const activatedWorkspaceRoot = getResolvedWorkspaceRoot(activatedSettings)
       mainWindow = createMainWindow()
       workspaceManager = new WorkspaceManager(
         app.getPath('documents'),
-        settingsManager.getSnapshot().workspaceRoot,
-        settingsManager.getSnapshot().threadContinuationPreference,
+        activatedWorkspaceRoot,
+        activatedSettings.threadContinuationPreference,
         (snapshot) => {
           if (!mainWindow || mainWindow.isDestroyed()) {
             return
@@ -211,19 +274,19 @@ app.whenReady().then(() => {
       )
       webPanelManager = new WebPanelManager(
         mainWindow,
-        settingsManager.getSnapshot().webPanels,
-        settingsManager.getSnapshot().customWebPanels,
+        activatedSettings.webPanels,
+        activatedSettings.customWebPanels,
         (payload) => workspaceManager?.upsertWebContext(payload) ?? null,
         (input) => workspaceManager?.getContinuitySummary(input) ?? null
       )
       terminalManager = new TerminalManager(
         mainWindow,
         app.getPath('userData'),
-        settingsManager.getSnapshot().workspaceRoot ?? process.cwd(),
-        settingsManager.getSnapshot().builtInTerminalPanels,
-        settingsManager.getSnapshot().customTerminalPanels,
-        settingsManager.getSnapshot().terminalPreludeCommands,
-        settingsManager.getSnapshot().cliRetrievalPreference,
+        activatedWorkspaceRoot ?? process.cwd(),
+        activatedSettings.builtInTerminalPanels,
+        activatedSettings.customTerminalPanels,
+        activatedSettings.terminalPreludeCommands,
+        activatedSettings.cliRetrievalPreference,
         (payload) => workspaceManager?.upsertTerminalTranscript(payload) ?? null,
         (sessionScopeId) => {
           workspaceManager?.syncRetrievalAuditArtifacts({ sessionScopeId, emitSnapshot: true })

@@ -49,6 +49,11 @@ interface WorkbenchShellApi {
     reassignScopeThread: (scopeId: string, threadId: string) => Promise<WorkspaceSnapshot | null>
     resync: (panelId?: string) => Promise<WorkspaceSnapshot | null>
     chooseRoot: () => Promise<WorkspaceSnapshot | null>
+    openProfile: (profileId: string) => Promise<{
+      settings: AppSettingsSnapshot
+      workspace: WorkspaceSnapshot | null
+      error: string | null
+    } | null>
     saveClipboard: (options: SaveClipboardOptions) => Promise<SaveClipboardResult | null>
     onStateChanged: (listener: (snapshot: WorkspaceSnapshot) => void) => () => void
   }

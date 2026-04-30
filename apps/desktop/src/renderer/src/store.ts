@@ -421,6 +421,11 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             ...settingsPanel.viewState,
             language: snapshot.language,
             theme: snapshot.theme,
+            workspaceRoot: snapshot.workspaceRoot,
+            workspaceProfiles: snapshot.workspaceProfiles,
+            defaultWorkspaceProfileId: snapshot.defaultWorkspaceProfileId,
+            workspaceProfileDraftName: '',
+            workspaceProfileError: null,
             terminalPreludeText: snapshot.terminalPreludeCommands.join('\n'),
             threadContinuationPreference: snapshot.threadContinuationPreference,
             cliRetrievalPreference: snapshot.cliRetrievalPreference

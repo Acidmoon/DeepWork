@@ -309,6 +309,24 @@ function buildBootstrapScript(payload) {
         },
         resync: async () => clone(currentSnapshot),
         chooseRoot: async () => clone(currentSnapshot),
+        openProfile: async () => ({
+          settings: {
+            language: 'zh-CN',
+            theme: 'light',
+            workspaceRoot,
+            workspaceProfiles: [],
+            defaultWorkspaceProfileId: null,
+            terminalPreludeCommands: ['proxy_on'],
+            threadContinuationPreference: 'continue-active-thread',
+            cliRetrievalPreference: 'thread-first',
+            webPanels: {},
+            builtInTerminalPanels: {},
+            customWebPanels: [],
+            customTerminalPanels: []
+          },
+          workspace: clone(currentSnapshot),
+          error: 'Workspace profile is unavailable.'
+        }),
         saveClipboard: async () => ({ snapshot: clone(currentSnapshot), artifact: null }),
         onStateChanged(listener) {
           workspaceListeners.add(listener)
@@ -322,10 +340,13 @@ function buildBootstrapScript(payload) {
           language: 'zh-CN',
           theme: 'light',
           workspaceRoot,
+          workspaceProfiles: [],
+          defaultWorkspaceProfileId: null,
           terminalPreludeCommands: ['proxy_on'],
           threadContinuationPreference: 'continue-active-thread',
           cliRetrievalPreference: 'thread-first',
           webPanels: {},
+          builtInTerminalPanels: {},
           customWebPanels: [],
           customTerminalPanels: []
         }),
@@ -333,10 +354,14 @@ function buildBootstrapScript(payload) {
           language: update.language ?? 'zh-CN',
           theme: update.theme ?? 'light',
           workspaceRoot,
+          workspaceProfiles: update.workspaceProfiles ?? [],
+          defaultWorkspaceProfileId:
+            Object.prototype.hasOwnProperty.call(update, 'defaultWorkspaceProfileId') ? update.defaultWorkspaceProfileId : null,
           terminalPreludeCommands: ['proxy_on'],
           threadContinuationPreference: update.threadContinuationPreference ?? 'continue-active-thread',
           cliRetrievalPreference: update.cliRetrievalPreference ?? 'thread-first',
           webPanels: {},
+          builtInTerminalPanels: {},
           customWebPanels: [],
           customTerminalPanels: []
         })

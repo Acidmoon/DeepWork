@@ -1469,6 +1469,49 @@ summary:focus-visible {
   align-items: start;
 }
 
+.settings-profile-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.settings-profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+}
+
+.settings-profile-row__main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-profile-row__main input {
+  width: min(100%, 360px);
+}
+
+.settings-profile-row__main > span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.settings-profile-row__badges,
+.settings-profile-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-profile-row__actions {
+  justify-content: flex-end;
+}
+
 .settings-placeholder-list {
   display: flex;
   flex-direction: column;
@@ -1679,9 +1722,14 @@ summary:focus-visible {
   .section-line,
   .workspace-inline-note,
   .settings-placeholder-row,
+  .settings-profile-row,
   .artifact-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .settings-profile-row {
+    grid-template-columns: 1fr;
   }
 
   .artifact-row__meta {

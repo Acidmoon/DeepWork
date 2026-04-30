@@ -5,7 +5,8 @@ import {
   type CustomWebPanelSettings,
   type LanguagePreference,
   type ThemePreference,
-  type ThreadContinuationPreference
+  type ThreadContinuationPreference,
+  type WorkspaceProfileSettings
 } from './settings'
 import { getTerminalPanelConfig } from './terminal-panels'
 import type { TerminalPanelSnapshot, TerminalPanelStatus } from './terminal-panels'
@@ -155,6 +156,11 @@ export interface SettingsPanelViewState {
   kind: 'settings'
   language: LanguagePreference
   theme: ThemePreference
+  workspaceRoot: string | null
+  workspaceProfiles: WorkspaceProfileSettings[]
+  defaultWorkspaceProfileId: string | null
+  workspaceProfileDraftName: string
+  workspaceProfileError: string | null
   terminalPreludeText: string
   threadContinuationPreference: ThreadContinuationPreference
   cliRetrievalPreference: CliRetrievalPreference
@@ -347,12 +353,6 @@ function shellArgsToEditorText(shellArgs: string[]): string {
 
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
   {
-    id: 'default-workspace',
-    label: 'Workspace Profiles',
-    description: 'Home owns the current workspace selection. Future settings can add named workspace profiles and startup behavior.',
-    status: 'placeholder'
-  },
-  {
     id: 'terminal-behavior',
     label: 'Terminal Behavior',
     description: '后续允许自定义 shell、启动命令、复制策略和终端交互偏好。',
@@ -476,11 +476,16 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         kind: 'settings',
         language: defaultAppSettings.language,
         theme: defaultAppSettings.theme,
+        workspaceRoot: defaultAppSettings.workspaceRoot,
+        workspaceProfiles: defaultAppSettings.workspaceProfiles,
+        defaultWorkspaceProfileId: defaultAppSettings.defaultWorkspaceProfileId,
+        workspaceProfileDraftName: '',
+        workspaceProfileError: null,
         terminalPreludeText: defaultAppSettings.terminalPreludeCommands.join('\n'),
         threadContinuationPreference: defaultAppSettings.threadContinuationPreference,
         cliRetrievalPreference: defaultAppSettings.cliRetrievalPreference,
         placeholders: defaultSettingsPlaceholders,
-        notes: 'Settings panel now includes continuity defaults and keeps later preferences visible as placeholders.'
+        notes: 'Settings panel now includes workspace profiles, continuity defaults, and later terminal preferences as placeholders.'
       }
   }
 }

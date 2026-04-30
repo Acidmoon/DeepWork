@@ -95,11 +95,7 @@ Web / CLI 对话面才是主操作面。
 
 ## 7. Workspace 文件会写到哪里
 
-应用启动后，Workspace 会自动初始化到用户文档目录下：
-
-```text
-Documents/AI-Workspace/projects/default
-```
+首次启动时，Workspace 不会自动写入某个默认目录。你需要先在 Home 里选择一个工作区根目录，或者在 Settings 里打开已经保存的 Workspace Profile。
 
 其中会自动生成：
 
@@ -121,6 +117,8 @@ manifests/origins/<scopeId>.json
 ```
 
 默认目录不是固定死的，你也可以在应用内切换到自己的 Workspace 根目录。
+
+如果某个工作区经常使用，可以在 Settings 里把当前工作区保存为 Workspace Profile。Profile 只保存名称、路径和最近使用信息，不会接管或删除目录本身。你也可以把某个 Profile 设为启动默认；后续打开应用时会优先恢复这个 Profile 指向的工作区。如果没有设置启动默认，也没有已保存的当前工作区，应用会保持未选择工作区状态，直到你手动选择。
 
 ## 8. CLI 如何自动感知上下文
 
@@ -180,6 +178,7 @@ npm run validate:workspace-regression -w @ai-workbench/desktop
 npm run validate:workspace-web-capture -w @ai-workbench/desktop
 npm run validate:custom-web-panels -w @ai-workbench/desktop
 npm run validate:terminal-panel-configuration -w @ai-workbench/desktop
+npm run validate:workspace-profiles -w @ai-workbench/desktop
 ```
 
 内部 alpha 回归可以直接跑完整序列：

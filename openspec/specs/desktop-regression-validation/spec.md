@@ -2,7 +2,6 @@
 
 ## Purpose
 Define the repeatable validation assets, scripted regression flows, and execution guidance that protect critical desktop workspace, retrieval, and managed panel continuity behavior from regressions.
-
 ## Requirements
 ### Requirement: Repeatable desktop regression validation assets
 The repository SHALL provide repeatable validation assets for focused desktop validation flows without requiring a live user workspace or ad hoc inline scripting.
@@ -31,7 +30,7 @@ The repository SHALL provide a deterministic renderer validation entrypoint that
 - **THEN** the default documented path remains the deterministic repo-managed entrypoint
 
 ### Requirement: Scripted verification of critical desktop interactions
-The repository SHALL provide scripted validation paths for the critical desktop interactions introduced in the application, including renderer-side workspace inspection, conversation-first selected-scope detail, managed web capture plus Workspace Sync, CLI retrieval helper behavior, managed panel configuration persistence flows, and the absence of deprecated current-session chrome on primary managed surfaces.
+The repository SHALL provide scripted validation paths for the critical desktop interactions introduced in the application, including renderer-side workspace inspection, conversation-first selected-scope detail, managed web capture plus Workspace Sync, CLI retrieval helper behavior, managed panel configuration persistence flows, workspace profile persistence and switching, and the absence of deprecated current-session chrome on primary managed surfaces.
 
 #### Scenario: Verify secondary workspace inspection behavior
 - **WHEN** the scripted validation runs against the desktop renderer workspace panel
@@ -60,6 +59,13 @@ The repository SHALL provide scripted validation paths for the critical desktop 
 - **WHEN** the scripted validation runs against managed panel configuration surfaces
 - **THEN** it verifies persisted configuration synchronization for the targeted panel workflow
 - **THEN** it verifies any explicit restart-to-apply or reserved-state behavior that the product promises for that workflow
+
+#### Scenario: Verify workspace profile flows
+- **WHEN** the scripted validation runs against workspace profile behavior
+- **THEN** it verifies profile creation or update from a selected workspace root
+- **THEN** it verifies opening a saved profile updates the active workspace snapshot and settings state
+- **THEN** it verifies marking a default profile affects startup root resolution
+- **THEN** it verifies a fresh unprofiled state does not create workspace files implicitly
 
 ### Requirement: Internal alpha regression workflow
 The repository SHALL document and script the internal-alpha regression workflow that combines renderer typechecking, retrieval-helper validation, and browser-driven panel-validation flows.
@@ -90,3 +96,4 @@ The repository SHALL provide validation guidance or checks that protect the mode
 - **WHEN** developers inspect or automate the redesigned renderer at constrained viewport widths
 - **THEN** navigation, toolbar, forms, lists, drawers, and preview areas do not overlap or clip important text
 - **THEN** validation evidence is captured through screenshots, DOM checks, or documented manual acceptance steps
+
