@@ -9,6 +9,7 @@ The desktop app keeps focused validation flows under this directory instead of o
 - `workspace-retrieval/`: PowerShell validation for retrieval helpers, scope ranking, and retrieval-audit persistence
 - `custom-web-panels/`: renderer and settings synchronization for built-in and custom web panels
 - `terminal-panel-configuration/`: terminal panel configuration persistence, settings sync, and restart-to-apply semantics
+- `terminal-behavior/`: global terminal behavior settings, scrollback synchronization, copy-on-selection, and multi-line paste confirmation
 - `workspace-profiles/`: workspace profile persistence, default startup selection, profile switching, and non-destructive profile removal
 - `visual-smoke/`: modern minimal UI smoke coverage for Web, Terminal, Workspace, Settings, light/dark theme, and constrained viewport screenshots
 
@@ -20,7 +21,7 @@ For the internal alpha gate, run the scripted sequence from the repository root:
 npm run validate:internal-alpha
 ```
 
-The sequence runs typecheck, retrieval-helper validation, a deterministic desktop build, an entrypoint precheck, the visual smoke flow, and then the browser-driven validation flows for workspace browsing, managed web capture, custom web panels, terminal panel configuration, and workspace profiles.
+The sequence runs typecheck, retrieval-helper validation, a deterministic desktop build, an entrypoint precheck, the visual smoke flow, and then the browser-driven validation flows for workspace browsing, managed web capture, custom web panels, terminal panel configuration, terminal behavior, and workspace profiles.
 
 For narrower changes, run the matching focused flow after refreshing the deterministic renderer build:
 
@@ -30,6 +31,7 @@ npm run build -w @ai-workbench/desktop
 npm run validate:renderer-entrypoint -w @ai-workbench/desktop
 npm run validate:visual-smoke -w @ai-workbench/desktop
 npm run validate:workspace-regression -w @ai-workbench/desktop
+npm run validate:terminal-behavior -w @ai-workbench/desktop
 npm run validate:workspace-profiles -w @ai-workbench/desktop
 ```
 

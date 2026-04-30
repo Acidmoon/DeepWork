@@ -1469,6 +1469,42 @@ summary:focus-visible {
   align-items: start;
 }
 
+.settings-toggle-row {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.settings-toggle-row > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-toggle-row strong {
+  color: var(--text-strong);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.settings-toggle-row small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.settings-toggle-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
 .settings-profile-list {
   display: flex;
   flex-direction: column;
@@ -1746,6 +1782,10 @@ summary:focus-visible {
   }
 
   .settings-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-toggle-row {
     grid-template-columns: 1fr;
   }
 

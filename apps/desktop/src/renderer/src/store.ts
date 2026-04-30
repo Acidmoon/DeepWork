@@ -427,6 +427,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             workspaceProfileDraftName: '',
             workspaceProfileError: null,
             terminalPreludeText: snapshot.terminalPreludeCommands.join('\n'),
+            terminalBehavior: snapshot.terminalBehavior,
             threadContinuationPreference: snapshot.threadContinuationPreference,
             cliRetrievalPreference: snapshot.cliRetrievalPreference
           }
@@ -465,6 +466,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             savedShellArgs: builtInConfig.shellArgs,
             savedCwd,
             savedStartupCommand,
+            terminalBehavior: snapshot.terminalBehavior,
             draftShell: builtInConfig.shell,
             draftShellArgsText: shellArgsToEditorText(builtInConfig.shellArgs),
             draftCwd: syncDraftValue(panel.viewState.draftCwd, panel.viewState.savedCwd, savedCwd),
@@ -522,6 +524,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
                   savedShellArgs: customConfig.shellArgs,
                   savedCwd,
                   savedStartupCommand: customConfig.startupCommand,
+                  terminalBehavior: snapshot.terminalBehavior,
                   draftShell: syncDraftValue(
                     existingPanel.viewState.draftShell,
                     existingPanel.viewState.savedShell,
@@ -538,7 +541,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
                   ),
                   pendingRestart: existingPanel.viewState.pendingRestart || (configChanged && existingPanel.viewState.isRunning)
                 }
-            : createCustomTerminalPanelViewState(customConfig)
+            : createCustomTerminalPanelViewState(customConfig, snapshot.terminalBehavior)
         }
 
         if (!nextPanelOrder.includes(customConfig.id)) {

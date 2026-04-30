@@ -17,6 +17,17 @@ function areStringListsEqual(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((item, index) => item === right[index])
 }
 
+function isMultilineTerminalInput(data: string): boolean {
+  const normalizedData = data.replace(/\x1b\[200~/gu, '').replace(/\x1b\[201~/gu, '')
+
+  if (normalizedData.includes('\n')) {
+    return true
+  }
+
+  const carriageReturns = normalizedData.match(/\r/gu)?.length ?? 0
+  return carriageReturns > 1 || (carriageReturns === 1 && normalizedData.trim().length > 1)
+}
+
 export function TerminalPanel({
   panel,
   locale
@@ -25,6 +36,7 @@ export function TerminalPanel({
   locale: ReturnType<typeof resolveLocale>
 }): JSX.Element {
   const terminalHostRef = useRef<HTMLDivElement | null>(null)
+  const terminalInstanceRef = useRef<Terminal | null>(null)
   const launchCountRef = useRef(0)
   const lastSizeRef = useRef<{ cols: number; rows: number } | null>(null)
   const resizeFrameRef = useRef<number | null>(null)
@@ -34,6 +46,8 @@ export function TerminalPanel({
   const syncSettingsState = useWorkbenchStore((state) => state.syncSettingsState)
   const state = asTerminalViewState(panel.viewState)
   const ui = getUiText(locale)
+  const terminalBehaviorRef = useRef(state.terminalBehavior)
+  const pasteConfirmationPromptRef = useRef(ui.confirmMultilinePastePrompt)
   const inspectorLabel = `${panel.definition.title} ${ui.showDetails}`
   const isCustomPanel = panel.definition.userDefined === true
   const normalizedDraftShell = state.draftShell.trim()
@@ -51,6 +65,24 @@ export function TerminalPanel({
   useEffect(() => {
     setIsSaving(false)
   }, [panel.definition.id, state.savedShell, state.savedCwd, state.savedStartupCommand, state.pendingRestart])
+
+  useEffect(() => {
+    terminalBehaviorRef.current = state.terminalBehavior
+
+    if (terminalInstanceRef.current) {
+      terminalInstanceRef.current.options.scrollback = state.terminalBehavior.scrollbackLines
+    }
+
+    if (terminalHostRef.current) {
+      terminalHostRef.current.dataset.scrollbackLines = String(state.terminalBehavior.scrollbackLines)
+      terminalHostRef.current.dataset.copyOnSelection = String(state.terminalBehavior.copyOnSelection)
+      terminalHostRef.current.dataset.confirmMultilinePaste = String(state.terminalBehavior.confirmMultilinePaste)
+    }
+  }, [state.terminalBehavior])
+
+  useEffect(() => {
+    pasteConfirmationPromptRef.current = ui.confirmMultilinePastePrompt
+  }, [ui.confirmMultilinePastePrompt])
 
   const runTerminalAction = async (): Promise<void> => {
     if (state.isRunning || state.status === 'starting') {
@@ -139,6 +171,7 @@ export function TerminalPanel({
       fontSize: 13,
       lineHeight: 1.2,
       rescaleOverlappingGlyphs: true,
+      scrollback: terminalBehaviorRef.current.scrollbackLines,
       windowsMode: window.workbenchShell.platform === 'win32',
       theme: {
         background: '#08111f',
@@ -170,6 +203,7 @@ export function TerminalPanel({
     terminal.loadAddon(unicode11Addon)
     terminal.unicode.activeVersion = '11'
     terminal.open(host)
+    terminalInstanceRef.current = terminal
     terminal.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') {
         return true
@@ -283,10 +317,32 @@ export function TerminalPanel({
     })
 
     const dataSubscription = terminal.onData((data) => {
+      if (
+        terminalBehaviorRef.current.confirmMultilinePaste &&
+        isMultilineTerminalInput(data) &&
+        !window.confirm(pasteConfirmationPromptRef.current)
+      ) {
+        return
+      }
+
       void window.workbenchShell.terminals.write(panel.definition.id, data)
     })
 
+    const selectionSubscription = terminal.onSelectionChange(() => {
+      if (!terminalBehaviorRef.current.copyOnSelection || !terminal.hasSelection()) {
+        return
+      }
+
+      const selection = terminal.getSelection()
+      if (selection) {
+        window.workbenchShell.clipboard.writeText(selection)
+      }
+    })
+
     host.classList.add('terminal-host--ready')
+    host.dataset.scrollbackLines = String(terminalBehaviorRef.current.scrollbackLines)
+    host.dataset.copyOnSelection = String(terminalBehaviorRef.current.copyOnSelection)
+    host.dataset.confirmMultilinePaste = String(terminalBehaviorRef.current.confirmMultilinePaste)
 
     const handleContextMenu = (event: MouseEvent): void => {
       event.preventDefault()
@@ -330,8 +386,12 @@ export function TerminalPanel({
       }
       resizeObserver.disconnect()
       dataSubscription.dispose()
+      selectionSubscription.dispose()
       outputCleanup()
       stateCleanup()
+      if (terminalInstanceRef.current === terminal) {
+        terminalInstanceRef.current = null
+      }
       terminal.dispose()
     }
   }, [panel.definition.id, syncTerminalPanelState])

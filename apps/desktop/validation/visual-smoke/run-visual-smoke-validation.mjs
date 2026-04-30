@@ -127,6 +127,7 @@ function buildBootstrapScript(payload) {
       workspaceProfiles: [],
       defaultWorkspaceProfileId: null,
       terminalPreludeCommands: ['proxy_on'],
+      terminalBehavior: { scrollbackLines: 1000, copyOnSelection: false, confirmMultilinePaste: true },
       threadContinuationPreference: 'continue-active-thread',
       cliRetrievalPreference: 'thread-first',
       webPanels: {},
@@ -307,6 +308,7 @@ function buildBootstrapScript(payload) {
             customWebPanels: update.customWebPanels ?? settings.customWebPanels,
             customTerminalPanels: update.customTerminalPanels ?? settings.customTerminalPanels,
             terminalPreludeCommands: update.terminalPreludeCommands ?? settings.terminalPreludeCommands,
+            terminalBehavior: update.terminalBehavior ? { ...settings.terminalBehavior, ...update.terminalBehavior } : settings.terminalBehavior,
             threadContinuationPreference:
               update.threadContinuationPreference ?? settings.threadContinuationPreference,
             cliRetrievalPreference: update.cliRetrievalPreference ?? settings.cliRetrievalPreference

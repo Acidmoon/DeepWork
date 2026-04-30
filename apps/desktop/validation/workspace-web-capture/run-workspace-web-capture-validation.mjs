@@ -174,6 +174,7 @@ function buildBootstrapScript(payload) {
             workspaceProfiles: [],
             defaultWorkspaceProfileId: null,
             terminalPreludeCommands: ['proxy_on'],
+            terminalBehavior: { scrollbackLines: 1000, copyOnSelection: false, confirmMultilinePaste: true },
             threadContinuationPreference: 'continue-active-thread',
             cliRetrievalPreference: 'thread-first',
             webPanels: {},
@@ -200,6 +201,7 @@ function buildBootstrapScript(payload) {
           workspaceProfiles: [],
           defaultWorkspaceProfileId: null,
           terminalPreludeCommands: ['proxy_on'],
+          terminalBehavior: { scrollbackLines: 1000, copyOnSelection: false, confirmMultilinePaste: true },
           threadContinuationPreference: 'continue-active-thread',
           cliRetrievalPreference: 'thread-first',
           webPanels: {},
@@ -215,6 +217,7 @@ function buildBootstrapScript(payload) {
           defaultWorkspaceProfileId:
             Object.prototype.hasOwnProperty.call(update, 'defaultWorkspaceProfileId') ? update.defaultWorkspaceProfileId : null,
           terminalPreludeCommands: ['proxy_on'],
+          terminalBehavior: { scrollbackLines: 1000, copyOnSelection: false, confirmMultilinePaste: true },
           threadContinuationPreference: update.threadContinuationPreference ?? 'continue-active-thread',
           cliRetrievalPreference: update.cliRetrievalPreference ?? 'thread-first',
           webPanels: {},

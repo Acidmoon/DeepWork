@@ -81,9 +81,9 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     settings: {
       title: '设置',
       group: '系统',
-      summary: '设置面板承接应用级偏好项，当前版本已支持工作区档案、语言、主题、CLI 前置命令与跨会话连续性设置。',
-      nextStep: '继续把更细粒度的终端行为扩展成可配置项。',
-      delivery: '设置面板：工作区档案 + 基础外观配置 + 跨会话连续性设置。',
+      summary: '设置面板承接应用级偏好项，当前版本已支持工作区档案、语言、主题、CLI 前置命令、终端行为与跨会话连续性设置。',
+      nextStep: '继续根据真实使用补充更细粒度的应用偏好。',
+      delivery: '设置面板：工作区档案 + 基础外观配置 + 终端行为 + 跨会话连续性设置。',
       signal: '偏好设置在线'
     }
   },
@@ -155,9 +155,9 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     settings: {
       title: 'Settings',
       group: 'System',
-      summary: 'The settings panel owns app-level preferences for workspace profiles, language, theme, CLI prelude commands, and cross-session continuity defaults.',
-      nextStep: 'Continue wiring deeper terminal behavior into real settings.',
-      delivery: 'Settings panel: workspace profiles plus baseline appearance and continuity defaults.',
+      summary: 'The settings panel owns app-level preferences for workspace profiles, language, theme, CLI prelude commands, terminal behavior, and cross-session continuity defaults.',
+      nextStep: 'Continue adding narrower app preferences as real usage calls for them.',
+      delivery: 'Settings panel: workspace profiles plus appearance, terminal behavior, and continuity defaults.',
       signal: 'Preferences live'
     }
   }
@@ -187,7 +187,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     system: {
       title: '系统',
-      caption: '应用级配置集中在这里，当前已支持工作区档案与连续性设置，并保留后续偏好扩展位。'
+      caption: '应用级配置集中在这里，当前已支持工作区档案、终端行为与连续性设置。'
     }
   },
   'en-US': {
@@ -213,7 +213,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     system: {
       title: 'System',
-      caption: 'App-level configuration lives here, including workspace profiles, live continuity defaults, and placeholder space for later preferences.'
+      caption: 'App-level configuration lives here, including workspace profiles, terminal behavior, and live continuity defaults.'
     }
   }
 }
@@ -470,7 +470,7 @@ const uiText = {
     lastArtifact: '最近工件',
     renderNotes: '渲染备注',
     applicationSettings: '应用设置',
-    settingsIntro: '这里可以配置应用级偏好项。当前版本已支持工作区档案、语言、浅色/深色/跟随系统、CLI 启动前置命令，以及跨会话连续性设置。',
+    settingsIntro: '这里可以配置应用级偏好项。当前版本已支持工作区档案、语言、浅色/深色/跟随系统、CLI 启动前置命令、终端行为，以及跨会话连续性设置。',
     workspaceProfiles: '工作区档案',
     workspaceProfilesHint: '保存常用工作区，按项目切换，并指定下次启动时自动恢复的工作区。',
     activeWorkspace: '当前工作区',
@@ -510,6 +510,14 @@ const uiText = {
     retrievalActiveThreadFirst: '先查当前线程',
     retrievalGlobalFirst: '直接全局检索',
     retrievalSettingsNote: '设置会在后续检索中生效，并保留在检索审计记录里。',
+    terminalBehavior: '终端行为',
+    terminalBehaviorHint: '控制所有受管终端的滚动缓冲和剪贴板交互，不会重启正在运行的 PTY。',
+    terminalScrollbackLines: '滚动缓冲行数',
+    copyOnSelection: '选中文本时自动复制',
+    copyOnSelectionHint: '开启后，在终端中选中文本会自动写入剪贴板。',
+    confirmMultilinePaste: '多行粘贴前确认',
+    confirmMultilinePasteHint: '开启后，多行内容写入终端前会先请求确认。',
+    confirmMultilinePastePrompt: '将多行内容粘贴到终端？',
     cliStartupPrelude: 'CLI 启动前置命令',
     cliStartupPreludeHint: '这些命令会在启动 Codex / Claude 之前依次执行。',
     cliStartupPreludePlaceholder: '每行一条命令，例如：\nproxy_on',
@@ -765,7 +773,7 @@ const uiText = {
     lastArtifact: 'Last Artifact',
     renderNotes: 'Render Notes',
     applicationSettings: 'Application Settings',
-    settingsIntro: 'Configure app-level preferences here. This version supports workspace profiles, language, light/dark/system appearance, CLI startup prelude commands, and cross-session continuity defaults.',
+    settingsIntro: 'Configure app-level preferences here. This version supports workspace profiles, language, light/dark/system appearance, CLI startup prelude commands, terminal behavior, and cross-session continuity defaults.',
     workspaceProfiles: 'Workspace Profiles',
     workspaceProfilesHint: 'Save common workspaces, switch by project, and choose which workspace should reopen on startup.',
     activeWorkspace: 'Active Workspace',
@@ -805,6 +813,14 @@ const uiText = {
     retrievalActiveThreadFirst: 'Active Thread First',
     retrievalGlobalFirst: 'Whole Workspace First',
     retrievalSettingsNote: 'The selected mode applies to later retrievals and remains visible in retrieval audit records.',
+    terminalBehavior: 'Terminal Behavior',
+    terminalBehaviorHint: 'Controls scrollback and clipboard interaction across managed terminals without restarting running PTYs.',
+    terminalScrollbackLines: 'Scrollback Lines',
+    copyOnSelection: 'Copy On Selection',
+    copyOnSelectionHint: 'When enabled, selecting terminal text writes it to the clipboard automatically.',
+    confirmMultilinePaste: 'Confirm Multi-line Paste',
+    confirmMultilinePasteHint: 'When enabled, multi-line text asks for confirmation before it is written to the terminal.',
+    confirmMultilinePastePrompt: 'Paste multi-line text into this terminal?',
     cliStartupPrelude: 'CLI Startup Prelude',
     cliStartupPreludeHint: 'These commands run before Codex or Claude starts.',
     cliStartupPreludePlaceholder: 'One command per line, for example:\nproxy_on',

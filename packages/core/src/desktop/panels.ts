@@ -4,6 +4,7 @@ import {
   type CustomTerminalPanelSettings,
   type CustomWebPanelSettings,
   type LanguagePreference,
+  type TerminalBehaviorSettings,
   type ThemePreference,
   type ThreadContinuationPreference,
   type WorkspaceProfileSettings
@@ -97,6 +98,7 @@ export interface TerminalPanelViewState {
   rows: number
   bufferSize: number
   logPath: string
+  terminalBehavior: TerminalBehaviorSettings
   showDetails: boolean
   lastExitCode: number | null
   lastExitSignal: number | null
@@ -162,6 +164,7 @@ export interface SettingsPanelViewState {
   workspaceProfileDraftName: string
   workspaceProfileError: string | null
   terminalPreludeText: string
+  terminalBehavior: TerminalBehaviorSettings
   threadContinuationPreference: ThreadContinuationPreference
   cliRetrievalPreference: CliRetrievalPreference
   placeholders: SettingsOptionPlaceholder[]
@@ -352,12 +355,6 @@ function shellArgsToEditorText(shellArgs: string[]): string {
 }
 
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
-  {
-    id: 'terminal-behavior',
-    label: 'Terminal Behavior',
-    description: '后续允许自定义 shell、启动命令、复制策略和终端交互偏好。',
-    status: 'placeholder'
-  }
 ]
 
 export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewState {
@@ -419,6 +416,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         rows: DEFAULT_TERMINAL_ROWS,
         bufferSize: 0,
         logPath: '',
+        terminalBehavior: defaultAppSettings.terminalBehavior,
         showDetails: false,
         lastExitCode: null,
         lastExitSignal: null,
@@ -482,6 +480,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         workspaceProfileDraftName: '',
         workspaceProfileError: null,
         terminalPreludeText: defaultAppSettings.terminalPreludeCommands.join('\n'),
+        terminalBehavior: defaultAppSettings.terminalBehavior,
         threadContinuationPreference: defaultAppSettings.threadContinuationPreference,
         cliRetrievalPreference: defaultAppSettings.cliRetrievalPreference,
         placeholders: defaultSettingsPlaceholders,
@@ -571,7 +570,10 @@ export function createCustomWebPanelViewState(config: CustomWebPanelSettings): W
   }
 }
 
-export function createCustomTerminalPanelViewState(config: CustomTerminalPanelSettings): TerminalPanelViewState {
+export function createCustomTerminalPanelViewState(
+  config: CustomTerminalPanelSettings,
+  terminalBehavior: TerminalBehaviorSettings = defaultAppSettings.terminalBehavior
+): TerminalPanelViewState {
   return {
     kind: 'terminal',
     shell: config.shell,
@@ -596,6 +598,7 @@ export function createCustomTerminalPanelViewState(config: CustomTerminalPanelSe
     rows: DEFAULT_TERMINAL_ROWS,
     bufferSize: 0,
     logPath: '',
+    terminalBehavior,
     showDetails: false,
     lastExitCode: null,
     lastExitSignal: null,

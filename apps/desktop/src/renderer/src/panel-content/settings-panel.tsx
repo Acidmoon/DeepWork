@@ -8,6 +8,8 @@ import {
 import { asSettingsViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel, SettingsPanelViewState } from '@ai-workbench/core/desktop/panels'
 import {
+  MAX_TERMINAL_SCROLLBACK_LINES,
+  MIN_TERMINAL_SCROLLBACK_LINES,
   createWorkspaceProfile,
   getWorkspaceProfileNameFromRoot,
   normalizeWorkspaceProfileKey,
@@ -47,6 +49,16 @@ export function SettingsPanel({
       ...currentState,
       workspaceProfileError: message
     })
+  }
+
+  const updateTerminalBehavior = async (
+    terminalBehavior: SettingsPanelViewState['terminalBehavior']
+  ): Promise<void> => {
+    updateSettingsState({
+      ...state,
+      terminalBehavior
+    })
+    syncSettingsSnapshot(await window.workbenchShell.settings.update({ terminalBehavior }))
   }
 
   const saveCurrentWorkspaceProfile = async (): Promise<void> => {
@@ -361,6 +373,75 @@ export function SettingsPanel({
 
       <div className="panel-section settings-section">
         <div className="section-line">
+          <strong>{ui.terminalBehavior}</strong>
+          <span>{ui.terminalBehaviorHint}</span>
+        </div>
+
+        <label className="field settings-form-row">
+          <span>{ui.terminalScrollbackLines}</span>
+          <input
+            type="number"
+            min={MIN_TERMINAL_SCROLLBACK_LINES}
+            max={MAX_TERMINAL_SCROLLBACK_LINES}
+            step={100}
+            value={state.terminalBehavior.scrollbackLines}
+            onChange={(event) => {
+              const scrollbackLines = Number(event.target.value)
+              updateSettingsState({
+                ...state,
+                terminalBehavior: {
+                  ...state.terminalBehavior,
+                  scrollbackLines: Number.isFinite(scrollbackLines) ? scrollbackLines : state.terminalBehavior.scrollbackLines
+                }
+              })
+            }}
+            onBlur={(event) => {
+              const scrollbackLines = Number(event.target.value)
+              void updateTerminalBehavior({
+                ...state.terminalBehavior,
+                scrollbackLines
+              })
+            }}
+          />
+        </label>
+
+        <label className="settings-toggle-row">
+          <span>
+            <strong>{ui.copyOnSelection}</strong>
+            <small>{ui.copyOnSelectionHint}</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={state.terminalBehavior.copyOnSelection}
+            onChange={(event) =>
+              void updateTerminalBehavior({
+                ...state.terminalBehavior,
+                copyOnSelection: event.target.checked
+              })
+            }
+          />
+        </label>
+
+        <label className="settings-toggle-row">
+          <span>
+            <strong>{ui.confirmMultilinePaste}</strong>
+            <small>{ui.confirmMultilinePasteHint}</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={state.terminalBehavior.confirmMultilinePaste}
+            onChange={(event) =>
+              void updateTerminalBehavior({
+                ...state.terminalBehavior,
+                confirmMultilinePaste: event.target.checked
+              })
+            }
+          />
+        </label>
+      </div>
+
+      <div className="panel-section settings-section">
+        <div className="section-line">
           <strong>{ui.cliStartupPrelude}</strong>
           <span>{ui.cliStartupPreludeHint}</span>
         </div>
@@ -401,45 +482,47 @@ export function SettingsPanel({
         </div>
       </div>
 
-      <div className="panel-section settings-section settings-section--deferred">
-        <div className="section-line">
-          <strong>{ui.upcomingPreferences}</strong>
-          <span>{ui.scaffoldedPlaceholders}</span>
+      {state.placeholders.length > 0 ? (
+        <div className="panel-section settings-section settings-section--deferred">
+          <div className="section-line">
+            <strong>{ui.upcomingPreferences}</strong>
+            <span>{ui.scaffoldedPlaceholders}</span>
+          </div>
+
+          <div className="settings-placeholder-list">
+            {state.placeholders.map((placeholder) => {
+              const localizedPlaceholder = localizeSettingsPlaceholder(placeholder, locale)
+
+              return (
+                <article key={placeholder.id} className="settings-placeholder-row">
+                  <div className="settings-placeholder-row__copy">
+                    <strong>{localizedPlaceholder.label}</strong>
+                    <p>{localizedPlaceholder.description}</p>
+                  </div>
+                  <span className="state-pill state-pill--planned">
+                    {getPlaceholderStatusLabel(placeholder.status, locale)}
+                  </span>
+                </article>
+              )
+            })}
+          </div>
+
+          <label className="field settings-form-row settings-form-row--textarea">
+            <span>{ui.settingsRoadmapNotes}</span>
+            <textarea
+              rows={3}
+              value={state.notes}
+              placeholder={ui.freeFormPlaceholder}
+              onChange={(event) =>
+                updatePanelViewState(panel.definition.id, {
+                  ...state,
+                  notes: event.target.value
+                })
+              }
+            />
+          </label>
         </div>
-
-        <div className="settings-placeholder-list">
-          {state.placeholders.map((placeholder) => {
-            const localizedPlaceholder = localizeSettingsPlaceholder(placeholder, locale)
-
-            return (
-              <article key={placeholder.id} className="settings-placeholder-row">
-                <div className="settings-placeholder-row__copy">
-                  <strong>{localizedPlaceholder.label}</strong>
-                  <p>{localizedPlaceholder.description}</p>
-                </div>
-                <span className="state-pill state-pill--planned">
-                  {getPlaceholderStatusLabel(placeholder.status, locale)}
-                </span>
-              </article>
-            )
-          })}
-        </div>
-
-        <label className="field settings-form-row settings-form-row--textarea">
-          <span>{ui.settingsRoadmapNotes}</span>
-          <textarea
-            rows={3}
-            value={state.notes}
-            placeholder={ui.freeFormPlaceholder}
-            onChange={(event) =>
-              updatePanelViewState(panel.definition.id, {
-                ...state,
-                notes: event.target.value
-              })
-            }
-          />
-        </label>
-      </div>
+      ) : null}
     </div>
   )
 }

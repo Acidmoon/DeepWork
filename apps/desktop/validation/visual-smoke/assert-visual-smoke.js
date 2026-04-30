@@ -136,7 +136,9 @@ async page => {
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await requireVisible('.settings-surface', 'settings surface')
-  await requireVisible('.settings-placeholder-list', 'settings deferred placeholders')
+  await page.getByLabel('Scrollback Lines').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByLabel('Copy On Selection').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByLabel('Confirm Multi-line Paste').waitFor({ state: 'visible', timeout: 5000 })
   await assertToolbarStable('settings')
   await assertNoCriticalOverlap('.settings-surface', 'settings surface')
   await page.getByLabel('Display Theme').selectOption('dark')

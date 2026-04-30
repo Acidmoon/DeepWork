@@ -3,6 +3,10 @@ export type ThemePreference = 'system' | 'light' | 'dark'
 export type ThreadContinuationPreference = 'continue-active-thread' | 'start-new-thread-per-scope'
 export type CliRetrievalPreference = 'thread-first' | 'global-first'
 
+export const DEFAULT_TERMINAL_SCROLLBACK_LINES = 1000
+export const MIN_TERMINAL_SCROLLBACK_LINES = 100
+export const MAX_TERMINAL_SCROLLBACK_LINES = 50000
+
 export interface WorkspaceProfileSettings {
   id: string
   name: string
@@ -35,6 +39,12 @@ export interface BuiltInTerminalPanelSettings {
   startupCommand?: string
 }
 
+export interface TerminalBehaviorSettings {
+  scrollbackLines: number
+  copyOnSelection: boolean
+  confirmMultilinePaste: boolean
+}
+
 export interface StoredWebPanelSettings {
   homeUrl: string
   partition: string
@@ -48,6 +58,7 @@ export interface AppSettingsSnapshot {
   workspaceProfiles: WorkspaceProfileSettings[]
   defaultWorkspaceProfileId: string | null
   terminalPreludeCommands: string[]
+  terminalBehavior: TerminalBehaviorSettings
   threadContinuationPreference: ThreadContinuationPreference
   cliRetrievalPreference: CliRetrievalPreference
   webPanels: Record<string, StoredWebPanelSettings>
@@ -63,6 +74,7 @@ export interface AppSettingsUpdate {
   workspaceProfiles?: WorkspaceProfileSettings[]
   defaultWorkspaceProfileId?: string | null
   terminalPreludeCommands?: string[]
+  terminalBehavior?: Partial<TerminalBehaviorSettings>
   threadContinuationPreference?: ThreadContinuationPreference
   cliRetrievalPreference?: CliRetrievalPreference
   webPanels?: Record<string, StoredWebPanelSettings>
@@ -77,6 +89,38 @@ export function normalizeThreadContinuationPreference(value: unknown): ThreadCon
 
 export function normalizeCliRetrievalPreference(value: unknown): CliRetrievalPreference {
   return value === 'global-first' ? 'global-first' : 'thread-first'
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function normalizeIntegerInRange(value: unknown, fallback: number, min: number, max: number): number {
+  const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value.trim()) : Number.NaN
+
+  if (!Number.isFinite(numberValue)) {
+    return fallback
+  }
+
+  return Math.min(max, Math.max(min, Math.round(numberValue)))
+}
+
+export function normalizeTerminalBehaviorSettings(value: unknown): TerminalBehaviorSettings {
+  const rawValue = value && typeof value === 'object' && !Array.isArray(value) ? (value as Partial<TerminalBehaviorSettings>) : {}
+
+  return {
+    scrollbackLines: normalizeIntegerInRange(
+      rawValue.scrollbackLines,
+      defaultTerminalBehaviorSettings.scrollbackLines,
+      MIN_TERMINAL_SCROLLBACK_LINES,
+      MAX_TERMINAL_SCROLLBACK_LINES
+    ),
+    copyOnSelection: normalizeBoolean(rawValue.copyOnSelection, defaultTerminalBehaviorSettings.copyOnSelection),
+    confirmMultilinePaste: normalizeBoolean(
+      rawValue.confirmMultilinePaste,
+      defaultTerminalBehaviorSettings.confirmMultilinePaste
+    )
+  }
 }
 
 export function normalizeWorkspaceProfileRoot(root: string): string {
@@ -214,6 +258,12 @@ export function resolveStartupWorkspaceRoot(settings: Pick<AppSettingsSnapshot, 
   return defaultRoot || activeRoot || null
 }
 
+export const defaultTerminalBehaviorSettings: TerminalBehaviorSettings = {
+  scrollbackLines: DEFAULT_TERMINAL_SCROLLBACK_LINES,
+  copyOnSelection: false,
+  confirmMultilinePaste: true
+}
+
 export const defaultAppSettings: AppSettingsSnapshot = {
   language: 'system',
   theme: 'system',
@@ -221,6 +271,7 @@ export const defaultAppSettings: AppSettingsSnapshot = {
   workspaceProfiles: [],
   defaultWorkspaceProfileId: null,
   terminalPreludeCommands: ['proxy_on'],
+  terminalBehavior: defaultTerminalBehaviorSettings,
   threadContinuationPreference: 'continue-active-thread',
   cliRetrievalPreference: 'thread-first',
   webPanels: {},

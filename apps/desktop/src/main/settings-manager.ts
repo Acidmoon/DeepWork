@@ -10,6 +10,7 @@ import type {
 import {
   defaultAppSettings,
   normalizeCliRetrievalPreference,
+  normalizeTerminalBehaviorSettings,
   normalizeThreadContinuationPreference,
   normalizeWorkspaceProfileRoot,
   normalizeWorkspaceProfiles
@@ -132,7 +133,13 @@ export class SettingsManager {
   update(update: AppSettingsUpdate): AppSettingsSnapshot {
     this.snapshot = this.normalizeSettingsSnapshot({
       ...this.snapshot,
-      ...update
+      ...update,
+      terminalBehavior: update.terminalBehavior
+        ? {
+            ...this.snapshot.terminalBehavior,
+            ...update.terminalBehavior
+          }
+        : this.snapshot.terminalBehavior
     })
 
     this.writeSettings(this.snapshot)
@@ -200,6 +207,7 @@ export class SettingsManager {
       terminalPreludeCommands: Array.isArray(value.terminalPreludeCommands)
         ? normalizeStringList(value.terminalPreludeCommands)
         : defaultAppSettings.terminalPreludeCommands,
+      terminalBehavior: normalizeTerminalBehaviorSettings(value.terminalBehavior),
       threadContinuationPreference: normalizeThreadContinuationPreference(value.threadContinuationPreference),
       cliRetrievalPreference: normalizeCliRetrievalPreference(value.cliRetrievalPreference),
       webPanels: value.webPanels ?? defaultAppSettings.webPanels,

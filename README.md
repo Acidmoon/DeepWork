@@ -178,6 +178,7 @@ npm run validate:workspace-regression -w @ai-workbench/desktop
 npm run validate:workspace-web-capture -w @ai-workbench/desktop
 npm run validate:custom-web-panels -w @ai-workbench/desktop
 npm run validate:terminal-panel-configuration -w @ai-workbench/desktop
+npm run validate:terminal-behavior -w @ai-workbench/desktop
 npm run validate:workspace-profiles -w @ai-workbench/desktop
 ```
 

@@ -15,10 +15,11 @@
     "validate:workspace-retrieval": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File validation/workspace-retrieval/run-workspace-retrieval-validation.ps1",
     "validate:custom-web-panels": "node validation/custom-web-panels/run-custom-web-panels-validation.mjs",
     "validate:terminal-panel-configuration": "node validation/terminal-panel-configuration/run-terminal-panel-configuration-validation.mjs",
+    "validate:terminal-behavior": "node validation/terminal-behavior/run-terminal-behavior-validation.mjs",
     "validate:workspace-profiles": "node validation/workspace-profiles/run-workspace-profiles-validation.mjs",
     "validate:visual-smoke": "node validation/visual-smoke/run-visual-smoke-validation.mjs",
     "validate:renderer-entrypoint": "node validation/renderer-entrypoint.mjs",
-    "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:visual-smoke && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration && npm run validate:workspace-profiles"
+    "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:visual-smoke && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration && npm run validate:terminal-behavior && npm run validate:workspace-profiles"
   },
   "dependencies": {
     "@ai-workbench/core": "0.1.0",

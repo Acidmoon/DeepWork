@@ -1,33 +1,4 @@
-# desktop-regression-validation Specification
-
-## Purpose
-Define the repeatable validation assets, scripted regression flows, and execution guidance that protect critical desktop workspace, retrieval, and managed panel continuity behavior from regressions.
-## Requirements
-### Requirement: Repeatable desktop regression validation assets
-The repository SHALL provide repeatable validation assets for focused desktop validation flows without requiring a live user workspace or ad hoc inline scripting.
-
-#### Scenario: Load deterministic workspace fixtures
-- **WHEN** a developer runs the workspace regression validation flow
-- **THEN** the validation uses repo-owned fixture data for workspace snapshot metadata and artifact contents
-- **THEN** the flow does not depend on the operator's current local workspace records under `Documents`
-
-#### Scenario: Run panel validation against stubbed runtime surfaces
-- **WHEN** a developer runs a focused managed-panel validation flow
-- **THEN** the validation can inject deterministic runtime stubs instead of requiring a live Electron main-process session
-- **THEN** the pass or fail result remains reproducible from repo-owned assets and scripted assertions
-
-### Requirement: Deterministic renderer validation entrypoint
-The repository SHALL provide a deterministic renderer validation entrypoint that browser-driven validation flows can open without requiring a separately started localhost dev server.
-
-#### Scenario: Prepare the shared renderer validation entrypoint
-- **WHEN** a developer prepares to run a browser-driven desktop validation flow
-- **THEN** the repository can produce or locate a shared renderer entrypoint from repo-owned assets
-- **THEN** the validation flow does not depend on a manually started `http://localhost:5173` server
-
-#### Scenario: Allow explicit renderer URL overrides for debugging
-- **WHEN** a developer explicitly provides a validation renderer URL override for debugging
-- **THEN** the browser-driven validation flows accept that override
-- **THEN** the default documented path remains the deterministic repo-managed entrypoint
+## MODIFIED Requirements
 
 ### Requirement: Scripted verification of critical desktop interactions
 The repository SHALL provide scripted validation paths for the critical desktop interactions introduced in the application, including renderer-side workspace inspection, conversation-first selected-scope detail, managed web capture plus Workspace Sync, CLI retrieval helper behavior, managed panel configuration persistence flows, workspace profile persistence and switching, terminal behavior settings persistence, and the absence of deprecated current-session chrome on primary managed surfaces.
@@ -88,17 +59,3 @@ The repository SHALL document how to execute the focused regression validation f
 - **THEN** the workflow includes renderer typechecking as a required precheck
 - **THEN** the workflow includes the exact command path needed to execute each documented validation flow
 - **THEN** the workflow distinguishes the workspace inspection, managed web capture resync, retrieval-helper, panel-configuration, workspace-profile, and terminal-behavior flows when they run as separate scripts
-
-### Requirement: Visual smoke validation for redesigned renderer surfaces
-The repository SHALL provide validation guidance or checks that protect the modern minimal renderer redesign from blank surfaces, overlapping controls, clipped text, and broken primary work-surface framing.
-
-#### Scenario: Validate representative desktop surfaces
-- **WHEN** developers run the focused renderer validation set after the UI redesign
-- **THEN** validation covers representative Web, Terminal, Workspace, and Settings surfaces against the deterministic renderer entrypoint
-- **THEN** the checks confirm the primary canvas is nonblank and key toolbar/sidebar controls are visible
-
-#### Scenario: Validate constrained viewport layout
-- **WHEN** developers inspect or automate the redesigned renderer at constrained viewport widths
-- **THEN** navigation, toolbar, forms, lists, drawers, and preview areas do not overlap or clip important text
-- **THEN** validation evidence is captured through screenshots, DOM checks, or documented manual acceptance steps
-
