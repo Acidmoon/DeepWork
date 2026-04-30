@@ -1,4 +1,10 @@
-import { getUiText, localizePanelDefinition, resolveLocale } from '../i18n'
+import {
+  getPlaceholderStatusLabel,
+  getUiText,
+  localizePanelDefinition,
+  localizeSettingsPlaceholder,
+  resolveLocale
+} from '../i18n'
 import { asSettingsViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel, SettingsPanelViewState } from '@ai-workbench/core/desktop/panels'
 
@@ -15,18 +21,19 @@ export function SettingsPanel({
   const definition = localizePanelDefinition(panel.definition, locale)
 
   return (
-    <div className="panel-layout">
+    <div className="panel-layout settings-surface">
       <section className="panel-header">
         <p className="eyebrow">{ui.applicationSettings}</p>
         <h3>{definition.title}</h3>
       </section>
 
-      <div className="panel-section">
+      <div className="panel-section settings-section">
         <div className="section-line">
           <strong>{ui.language}</strong>
+          <span>{ui.languageSwitchNote}</span>
         </div>
 
-        <label className="field">
+        <label className="field settings-form-row">
           <span>{ui.displayLanguage}</span>
           <select
             value={state.language}
@@ -51,12 +58,13 @@ export function SettingsPanel({
         </label>
       </div>
 
-      <div className="panel-section">
+      <div className="panel-section settings-section">
         <div className="section-line">
           <strong>{ui.theme}</strong>
+          <span>{ui.themePreference}</span>
         </div>
 
-        <label className="field">
+        <label className="field settings-form-row">
           <span>{ui.displayTheme}</span>
           <select
             value={state.theme}
@@ -81,12 +89,13 @@ export function SettingsPanel({
         </label>
       </div>
 
-      <div className="panel-section">
+      <div className="panel-section settings-section">
         <div className="section-line">
           <strong>{ui.sessionContinuityDefaults}</strong>
+          <span>{ui.continuitySettingsNote}</span>
         </div>
 
-        <label className="field">
+        <label className="field settings-form-row">
           <span>{ui.defaultThreadContinuation}</span>
           <select
             value={state.threadContinuationPreference}
@@ -110,12 +119,13 @@ export function SettingsPanel({
         </label>
       </div>
 
-      <div className="panel-section">
+      <div className="panel-section settings-section">
         <div className="section-line">
           <strong>{ui.cliRetrievalPreference}</strong>
+          <span>{ui.retrievalSettingsNote}</span>
         </div>
 
-        <label className="field">
+        <label className="field settings-form-row">
           <span>{ui.cliRetrievalPreference}</span>
           <select
             value={state.cliRetrievalPreference}
@@ -139,12 +149,13 @@ export function SettingsPanel({
         </label>
       </div>
 
-      <div className="panel-section">
+      <div className="panel-section settings-section">
         <div className="section-line">
           <strong>{ui.cliStartupPrelude}</strong>
+          <span>{ui.cliStartupPreludeHint}</span>
         </div>
 
-        <label className="field">
+        <label className="field settings-form-row settings-form-row--textarea">
           <span>{ui.cliStartupPrelude}</span>
           <textarea
             rows={4}
@@ -178,6 +189,46 @@ export function SettingsPanel({
             {ui.saveConfig}
           </button>
         </div>
+      </div>
+
+      <div className="panel-section settings-section settings-section--deferred">
+        <div className="section-line">
+          <strong>{ui.upcomingPreferences}</strong>
+          <span>{ui.scaffoldedPlaceholders}</span>
+        </div>
+
+        <div className="settings-placeholder-list">
+          {state.placeholders.map((placeholder) => {
+            const localizedPlaceholder = localizeSettingsPlaceholder(placeholder, locale)
+
+            return (
+              <article key={placeholder.id} className="settings-placeholder-row">
+                <div className="settings-placeholder-row__copy">
+                  <strong>{localizedPlaceholder.label}</strong>
+                  <p>{localizedPlaceholder.description}</p>
+                </div>
+                <span className="state-pill state-pill--planned">
+                  {getPlaceholderStatusLabel(placeholder.status, locale)}
+                </span>
+              </article>
+            )
+          })}
+        </div>
+
+        <label className="field settings-form-row settings-form-row--textarea">
+          <span>{ui.settingsRoadmapNotes}</span>
+          <textarea
+            rows={3}
+            value={state.notes}
+            placeholder={ui.freeFormPlaceholder}
+            onChange={(event) =>
+              updatePanelViewState(panel.definition.id, {
+                ...state,
+                notes: event.target.value
+              })
+            }
+          />
+        </label>
       </div>
     </div>
   )

@@ -17,6 +17,7 @@
     "validate:workspace-retrieval": "npm run validate:workspace-retrieval -w @ai-workbench/desktop",
     "validate:custom-web-panels": "npm run validate:custom-web-panels -w @ai-workbench/desktop",
     "validate:terminal-panel-configuration": "npm run validate:terminal-panel-configuration -w @ai-workbench/desktop",
+    "validate:visual-smoke": "npm run validate:visual-smoke -w @ai-workbench/desktop",
     "validate:renderer-entrypoint": "npm run validate:renderer-entrypoint -w @ai-workbench/desktop",
     "validate:internal-alpha": "npm run validate:internal-alpha -w @ai-workbench/desktop"
   }

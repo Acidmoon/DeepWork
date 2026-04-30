@@ -195,7 +195,7 @@ export function WebPanel({
     <div className="immersive-panel immersive-panel--web">
       <div className="web-panel-stage web-panel-stage--immersive">
         {state.showDetails ? (
-          <div className="stage-drawer">
+          <div className="stage-drawer stage-inspector" aria-label={`${definition.title} ${ui.showDetails}`}>
             <div className="detail-columns detail-columns--wide">
               <label className="field field--wide">
                 <span>{ui.homeUrl}</span>

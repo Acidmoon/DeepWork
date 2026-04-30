@@ -1,4 +1,25 @@
 import { startTransition, useEffect, useState, type MouseEvent } from 'react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ClipboardCheck,
+  Database,
+  FileText,
+  FolderOpen,
+  Globe,
+  House,
+  LayoutDashboard,
+  PanelRightClose,
+  PanelRightOpen,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCw,
+  Search,
+  Settings,
+  Terminal as TerminalIcon,
+  type LucideIcon
+} from 'lucide-react'
 import { getStateLabel, getUiText, localizePanelDefinition, localizeSection, resolveLocale } from './i18n'
 import { PanelContent } from './panel-content'
 import {
@@ -239,7 +260,7 @@ function App(): JSX.Element {
         </div>
 
         <label className="sidebar__search" aria-label={ui.searchTools}>
-          <span className="sidebar__search-icon">/</span>
+          <Search className="sidebar__search-icon" size={15} aria-hidden="true" />
           <input type="text" placeholder={ui.searchTools} />
           <kbd>Ctrl+K</kbd>
         </label>
@@ -315,7 +336,7 @@ function App(): JSX.Element {
               <div className="canvas__toolbar">
                 {activeWebState ? (
                   <div className="toolbar-nav">
-                    <WebPanelActions panel={activePanel} />
+                    <WebPanelActions panel={activePanel} locale={locale} />
                     <WebPanelAddressBar panel={activePanel} locale={locale} updatePanelViewState={updatePanelViewState} />
                     <WebPanelQuickActions
                       panel={activePanel}
@@ -353,7 +374,10 @@ function App(): JSX.Element {
 
                         refreshActivePanelStatus()
                       }}
+                      title={ui.sync}
+                      aria-label={ui.sync}
                     >
+                      <RefreshCw size={14} aria-hidden="true" />
                       {ui.sync}
                     </button>
                   ) : null}
@@ -442,57 +466,69 @@ function SidebarSection({
   onClose,
   onItemMenu
 }: SidebarSectionProps): JSX.Element {
+  const ui = getUiText(locale)
+
   return (
     <section className="nav-section">
       <div className="nav-section__header">
         <div className="nav-section__title-row">
           <h2>{section.title}</h2>
           {actionLabel && onSectionAction ? (
-            <button type="button" className="section-action" onClick={onSectionAction}>
-              + {actionLabel}
+            <button type="button" className="section-action" onClick={onSectionAction} title={actionLabel} aria-label={actionLabel}>
+              <Plus size={13} aria-hidden="true" />
+              <span>{actionLabel}</span>
             </button>
           ) : null}
         </div>
         <p>{section.caption}</p>
       </div>
       <div className="nav-section__items">
-        {panels.map((panel) => (
-          <div
-            key={panel.definition.id}
-            className={`nav-item ${activePanelId === panel.definition.id ? ' nav-item--active' : ''}`}
-            onContextMenu={(event) => {
-              if (!panel.definition.userDefined) {
-                return
-              }
+        {panels.map((panel) => {
+          const definition = localizePanelDefinition(panel.definition, locale)
+          const PanelIcon = getPanelIcon(panel.definition.kind)
+          const visibilityLabel = `${panel.isVisible ? ui.closePanel : ui.open} ${definition.title}`
 
-              event.preventDefault()
-              onItemMenu(panel.definition.id, event as unknown as MouseEvent<HTMLButtonElement>)
-            }}
-          >
-            <button type="button" className="nav-item__button" onClick={() => onSelect(panel.definition.id)}>
-              <span className="nav-item__main">
-                <span className="nav-item__icon">{getPanelBadge(localizePanelDefinition(panel.definition, locale).title)}</span>
-                <strong>{localizePanelDefinition(panel.definition, locale).title}</strong>
-              </span>
-            </button>
-            <div className="nav-item__meta">
-              <button
-                type="button"
-                className={`nav-item__dot${panel.isVisible ? ' nav-item__dot--open' : ''}`}
-                aria-label={`${panel.isVisible ? 'Close' : 'Open'} ${localizePanelDefinition(panel.definition, locale).title}`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  if (panel.isVisible) {
-                    onClose(panel.definition.id)
-                    return
-                  }
+          return (
+            <div
+              key={panel.definition.id}
+              className={`nav-item ${activePanelId === panel.definition.id ? ' nav-item--active' : ''}`}
+              onContextMenu={(event) => {
+                if (!panel.definition.userDefined) {
+                  return
+                }
 
-                  onSelect(panel.definition.id)
-                }}
-              />
+                event.preventDefault()
+                onItemMenu(panel.definition.id, event as unknown as MouseEvent<HTMLButtonElement>)
+              }}
+            >
+              <button type="button" className="nav-item__button" onClick={() => onSelect(panel.definition.id)}>
+                <span className="nav-item__main">
+                  <span className="nav-item__icon">
+                    <PanelIcon size={15} aria-hidden="true" />
+                  </span>
+                  <strong>{definition.title}</strong>
+                </span>
+              </button>
+              <div className="nav-item__meta">
+                <button
+                  type="button"
+                  className={`nav-item__dot${panel.isVisible ? ' nav-item__dot--open' : ''}`}
+                  aria-label={visibilityLabel}
+                  title={visibilityLabel}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    if (panel.isVisible) {
+                      onClose(panel.definition.id)
+                      return
+                    }
+
+                    onSelect(panel.definition.id)
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
@@ -575,8 +611,9 @@ function WebPanelAddressBar({
   )
 }
 
-function WebPanelActions({ panel }: { panel: ManagedPanel }): JSX.Element {
+function WebPanelActions({ panel, locale }: { panel: ManagedPanel; locale: ReturnType<typeof resolveLocale> }): JSX.Element {
   const state = asWebViewState(panel.viewState)
+  const ui = getUiText(locale)
 
   return (
     <>
@@ -584,41 +621,49 @@ function WebPanelActions({ panel }: { panel: ManagedPanel }): JSX.Element {
         type="button"
         className="toolbar-icon"
         disabled={!state.enabled || !state.canGoBack}
+        aria-label={ui.back}
+        title={ui.back}
         onClick={() => {
           void window.workbenchShell.webPanels.navigate(panel.definition.id, 'back')
         }}
       >
-        ←
+        <ArrowLeft size={16} aria-hidden="true" />
       </button>
       <button
         type="button"
         className="toolbar-icon"
         disabled={!state.enabled || !state.canGoForward}
+        aria-label={ui.forward}
+        title={ui.forward}
         onClick={() => {
           void window.workbenchShell.webPanels.navigate(panel.definition.id, 'forward')
         }}
       >
-        →
+        <ArrowRight size={16} aria-hidden="true" />
       </button>
       <button
         type="button"
         className="toolbar-icon"
         disabled={!state.enabled}
+        aria-label={ui.reload}
+        title={ui.reload}
         onClick={() => {
           void window.workbenchShell.webPanels.navigate(panel.definition.id, 'reload')
         }}
       >
-        ↻
+        <RefreshCw size={16} aria-hidden="true" />
       </button>
       <button
         type="button"
         className="toolbar-icon"
         disabled={!state.enabled}
+        aria-label={ui.home}
+        title={ui.home}
         onClick={() => {
           void window.workbenchShell.webPanels.navigate(panel.definition.id, 'home')
         }}
       >
-        ⌂
+        <House size={16} aria-hidden="true" />
       </button>
     </>
   )
@@ -640,6 +685,7 @@ function TerminalPanelActions({
         type="button"
         className="action-button"
         disabled={state.status === 'starting'}
+        title={state.isRunning || state.status === 'starting' ? ui.restart : ui.start}
         onClick={() => {
           if (state.isRunning || state.status === 'starting') {
             void window.workbenchShell.terminals.restart(panel.definition.id)
@@ -649,6 +695,11 @@ function TerminalPanelActions({
           void window.workbenchShell.terminals.start(panel.definition.id)
         }}
       >
+        {state.isRunning || state.status === 'starting' ? (
+          <RotateCw size={14} aria-hidden="true" />
+        ) : (
+          <Play size={14} aria-hidden="true" />
+        )}
         {state.isRunning || state.status === 'starting' ? ui.restart : ui.start}
       </button>
     </>
@@ -673,7 +724,9 @@ function WebPanelQuickActions({
       {state.lastError ? <span className="mini-pill mini-pill--warn">{ui.error}</span> : null}
       <button
         type="button"
-        className="action-button action-button--ghost action-button--compact"
+        className="toolbar-icon"
+        aria-label={state.showDetails ? ui.hideDetails : ui.showDetails}
+        title={state.showDetails ? ui.hideDetails : ui.showDetails}
         onClick={() =>
           updatePanelViewState(panel.definition.id, {
             ...state,
@@ -681,7 +734,7 @@ function WebPanelQuickActions({
           })
         }
       >
-        {state.showDetails ? ui.hideDetails : ui.showDetails}
+        {state.showDetails ? <PanelRightClose size={16} aria-hidden="true" /> : <PanelRightOpen size={16} aria-hidden="true" />}
       </button>
     </>
   )
@@ -706,7 +759,9 @@ function TerminalPanelQuickActions({
       {state.lastError ? <span className="mini-pill mini-pill--warn">{ui.error}</span> : null}
       <button
         type="button"
-        className="action-button action-button--ghost action-button--compact"
+        className="toolbar-icon"
+        aria-label={state.showDetails ? ui.hideDetails : ui.showDetails}
+        title={state.showDetails ? ui.hideDetails : ui.showDetails}
         onClick={() =>
           updatePanelViewState(panel.definition.id, {
             ...state,
@@ -714,7 +769,7 @@ function TerminalPanelQuickActions({
           })
         }
       >
-        {state.showDetails ? ui.hideDetails : ui.showDetails}
+        {state.showDetails ? <PanelRightClose size={16} aria-hidden="true" /> : <PanelRightOpen size={16} aria-hidden="true" />}
       </button>
     </>
   )
@@ -741,6 +796,7 @@ function WorkspacePanelActions({
           }
         }}
       >
+        <FolderOpen size={14} aria-hidden="true" />
         {ui.chooseWorkspace}
       </button>
       <button
@@ -758,6 +814,7 @@ function WorkspacePanelActions({
           }
         }}
       >
+        <ClipboardCheck size={14} aria-hidden="true" />
         {ui.saveClipboard}
       </button>
     </>
@@ -766,14 +823,22 @@ function WorkspacePanelActions({
 
 export default App
 
-function getPanelBadge(title: string): string {
-  const compact = title
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('')
-
-  return compact || 'AI'
+function getPanelIcon(kind: ManagedPanel['definition']['kind']): LucideIcon {
+  switch (kind) {
+    case 'web':
+      return Globe
+    case 'terminal':
+      return TerminalIcon
+    case 'workspace':
+      return Database
+    case 'settings':
+      return Settings
+    case 'tool':
+      return FileText
+    case 'home':
+    default:
+      return LayoutDashboard
+  }
 }
 
 function promptForCustomWebHomeUrl(locale: ReturnType<typeof resolveLocale>, initialValue = 'https://example.com/'): string | null {

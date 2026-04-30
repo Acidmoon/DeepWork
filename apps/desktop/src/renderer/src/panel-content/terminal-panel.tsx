@@ -33,6 +33,7 @@ export function TerminalPanel({
   const syncSettingsState = useWorkbenchStore((state) => state.syncSettingsState)
   const state = asTerminalViewState(panel.viewState)
   const ui = getUiText(locale)
+  const inspectorLabel = `${panel.definition.title} ${ui.showDetails}`
   const isCustomPanel = panel.definition.userDefined === true
   const normalizedDraftShell = state.draftShell.trim()
   const normalizedDraftShellArgs = parseShellArgs(state.draftShellArgsText)
@@ -331,7 +332,7 @@ export function TerminalPanel({
     <div className="immersive-panel immersive-panel--terminal">
       <div className="terminal-stage terminal-stage--immersive">
         {state.showDetails ? (
-          <div className="stage-drawer">
+          <div className="stage-drawer stage-inspector" aria-label={inspectorLabel}>
             <div className={`detail-columns${isCustomPanel ? ' detail-columns--wide' : ''}`}>
               <label className={`field${isCustomPanel ? ' field--wide' : ''}`}>
                 <span>{ui.shell}</span>

@@ -330,7 +330,7 @@ export function WorkspacePanel({
   }, [selectedPreviewArtifact?.id, selectedPreviewArtifact?.type])
 
   return (
-    <div className="panel-layout">
+    <div className="panel-layout workspace-inspector">
       <section className="panel-header">
         <p className="eyebrow">{ui.workspaceLive}</p>
         <h3>{definition.title}</h3>

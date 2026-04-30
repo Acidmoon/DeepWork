@@ -7,6 +7,7 @@ out/
 apps/*/dist/
 apps/*/out/
 apps/*/node_modules/.vite/
+apps/desktop/validation/*/artifacts/
 tech-validation/.playwright-browsers/
 tech-validation/.npm-cache/
 tech-validation/node_modules/
