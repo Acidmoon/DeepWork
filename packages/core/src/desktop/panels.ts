@@ -21,7 +21,7 @@ import type {
   WorkspaceSnapshot
 } from './workspace'
 
-export type PanelKind = 'home' | 'web' | 'terminal' | 'workspace' | 'tool' | 'settings'
+export type PanelKind = 'home' | 'web' | 'terminal' | 'workspace' | 'settings'
 
 export type PanelState = 'scaffolded' | 'planned' | 'validated'
 
@@ -140,13 +140,6 @@ export interface WorkspacePanelViewState {
   lastError: string | null
 }
 
-export interface ToolPanelViewState {
-  kind: 'tool'
-  outputFormat: string
-  lastArtifact: string
-  notes: string
-}
-
 export interface SettingsOptionPlaceholder {
   id: string
   label: string
@@ -176,7 +169,6 @@ export type PanelViewState =
   | WebPanelViewState
   | TerminalPanelViewState
   | WorkspacePanelViewState
-  | ToolPanelViewState
   | SettingsPanelViewState
 
 export interface ManagedPanel {
@@ -282,18 +274,6 @@ export const panelRegistry: PanelDefinition[] = [
     signal: 'Log bucket ready'
   },
   {
-    id: 'html-preview',
-    title: 'HTML Preview',
-    sectionId: 'tools',
-    group: 'Tools',
-    kind: 'tool',
-    state: 'planned',
-    summary: '后续会承接 HTML Artifact 的预览与导出入口。',
-    nextStep: '在 Phase 7 接 Playwright 渲染和结果回写 manifest。',
-    delivery: '预留工具视图。',
-    signal: 'Render service pending'
-  },
-  {
     id: 'settings',
     title: 'Settings',
     sectionId: 'system',
@@ -331,12 +311,6 @@ export const navigationSections: NavigationSection[] = [
     title: 'Workspace',
     caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。',
     panelIds: ['artifacts', 'logs']
-  },
-  {
-    id: 'tools',
-    title: 'Tools',
-    caption: '本地工具面板负责预览和导出，不直接承载编辑逻辑。',
-    panelIds: ['html-preview']
   },
   {
     id: 'system',
@@ -461,13 +435,6 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         recentArtifacts: [],
         lastSavedArtifactId: null,
         lastError: null
-      }
-    case 'tool':
-      return {
-        kind: 'tool',
-        outputFormat: 'pdf',
-        lastArtifact: 'sample-render-input.html',
-        notes: ''
       }
     case 'settings':
       return {

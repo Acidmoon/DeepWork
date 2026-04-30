@@ -17,7 +17,6 @@ import {
   type SettingsPanelViewState,
   type TerminalPanelStateUpdate,
   type TerminalPanelViewState,
-  type ToolPanelViewState,
   type WebPanelStateUpdate,
   type WebPanelViewState,
   type WorkspacePanelViewState,
@@ -80,8 +79,6 @@ function statusTextForPanel(kind: PanelKind, timestamp: string, locale: ReturnTy
       return `${ui.terminalLabel} ${ui.lastSync.toLowerCase()}: ${timestamp}`
     case 'workspace':
       return `${ui.workspaceDefault} ${timestamp}`
-    case 'tool':
-      return `${ui.toolPlaceholder}: ${timestamp}`
     case 'settings':
       return `${ui.applicationSettings}: ${timestamp}`
   }
@@ -782,10 +779,6 @@ export function asTerminalViewState(viewState: PanelViewState): TerminalPanelVie
 
 export function asWorkspaceViewState(viewState: PanelViewState): WorkspacePanelViewState {
   return viewState as WorkspacePanelViewState
-}
-
-export function asToolViewState(viewState: PanelViewState): ToolPanelViewState {
-  return viewState as ToolPanelViewState
 }
 
 export function asSettingsViewState(viewState: PanelViewState): SettingsPanelViewState {

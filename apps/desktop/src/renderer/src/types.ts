@@ -10,7 +10,6 @@ export type {
   SettingsPanelViewState,
   TerminalPanelStateUpdate,
   TerminalPanelViewState,
-  ToolPanelViewState,
   WebPanelStateUpdate,
   WebPanelViewState,
   WorkspacePanelViewState,

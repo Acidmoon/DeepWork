@@ -4,7 +4,6 @@ import {
   ArrowRight,
   ClipboardCheck,
   Database,
-  FileText,
   FolderOpen,
   Globe,
   House,
@@ -833,8 +832,6 @@ function getPanelIcon(kind: ManagedPanel['definition']['kind']): LucideIcon {
       return Database
     case 'settings':
       return Settings
-    case 'tool':
-      return FileText
     case 'home':
     default:
       return LayoutDashboard

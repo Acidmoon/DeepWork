@@ -70,14 +70,6 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       delivery: 'Phase 4 交付物：日志目录结构已落地。',
       signal: '日志桶已就绪'
     },
-    'html-preview': {
-      title: 'HTML 预览',
-      group: '工具',
-      summary: '后续会承接 HTML 工件的预览与导出入口。',
-      nextStep: '在 Phase 7 接 Playwright 渲染和结果回写 manifest。',
-      delivery: '预留工具视图。',
-      signal: '渲染服务待接入'
-    },
     settings: {
       title: '设置',
       group: '系统',
@@ -144,14 +136,6 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       delivery: 'Phase 4 deliverable: log directory structure is in place.',
       signal: 'Log bucket ready'
     },
-    'html-preview': {
-      title: 'HTML Preview',
-      group: 'Tools',
-      summary: 'This will later handle HTML artifact preview and export.',
-      nextStep: 'Integrate Playwright rendering and manifest writeback in Phase 7.',
-      delivery: 'Reserved tool view.',
-      signal: 'Render service pending'
-    },
     settings: {
       title: 'Settings',
       group: 'System',
@@ -181,10 +165,6 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
       title: '工作区',
       caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。'
     },
-    tools: {
-      title: '工具',
-      caption: '本地工具面板负责预览和导出，不直接承载编辑逻辑。'
-    },
     system: {
       title: '系统',
       caption: '应用级配置集中在这里，当前已支持工作区档案、终端行为与连续性设置。'
@@ -206,10 +186,6 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     workspace: {
       title: 'Workspace',
       caption: 'The workspace now exists on disk with a manifest, and list, preview, and automatic retrieval support will continue from here.'
-    },
-    tools: {
-      title: 'Tools',
-      caption: 'Local tool panels handle preview and export rather than direct editing.'
     },
     system: {
       title: 'System',
@@ -464,11 +440,6 @@ const uiText = {
     recentArtifacts: '最近工件',
     shownCount: '已显示',
     saveClipboardHint: '使用“保存剪贴板”创建第一条受追踪的工件。',
-    toolPlaceholder: '工具占位',
-    toolIntro: '导出参数会先保存在面板状态里，后续接渲染服务只需要接管动作按钮。',
-    outputFormat: '输出格式',
-    lastArtifact: '最近工件',
-    renderNotes: '渲染备注',
     applicationSettings: '应用设置',
     settingsIntro: '这里可以配置应用级偏好项。当前版本已支持工作区档案、语言、浅色/深色/跟随系统、CLI 启动前置命令、终端行为，以及跨会话连续性设置。',
     workspaceProfiles: '工作区档案',
@@ -554,7 +525,6 @@ const uiText = {
     panelKindWeb: '网页',
     panelKindTerminal: '终端',
     panelKindWorkspace: '工作区',
-    panelKindTool: '工具',
     panelKindSettings: '设置'
   },
   'en-US': {
@@ -767,11 +737,6 @@ const uiText = {
     recentArtifacts: 'Recent Artifacts',
     shownCount: 'shown',
     saveClipboardHint: 'Use Save Clipboard to create the first tracked artifact.',
-    toolPlaceholder: 'Tool Placeholder',
-    toolIntro: 'Export parameters are stored in panel state first, and the rendering service can later take over the action buttons.',
-    outputFormat: 'Output Format',
-    lastArtifact: 'Last Artifact',
-    renderNotes: 'Render Notes',
     applicationSettings: 'Application Settings',
     settingsIntro: 'Configure app-level preferences here. This version supports workspace profiles, language, light/dark/system appearance, CLI startup prelude commands, terminal behavior, and cross-session continuity defaults.',
     workspaceProfiles: 'Workspace Profiles',
@@ -857,7 +822,6 @@ const uiText = {
     panelKindWeb: 'Web',
     panelKindTerminal: 'Terminal',
     panelKindWorkspace: 'Workspace',
-    panelKindTool: 'Tool',
     panelKindSettings: 'Settings'
   }
 } as const
@@ -1055,8 +1019,6 @@ export function getPanelKindLabel(kind: PanelKind, locale: SupportedLocale): str
       return ui.panelKindTerminal
     case 'workspace':
       return ui.panelKindWorkspace
-    case 'tool':
-      return ui.panelKindTool
     case 'settings':
       return ui.panelKindSettings
   }

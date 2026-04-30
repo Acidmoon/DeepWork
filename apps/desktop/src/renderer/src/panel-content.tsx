@@ -3,7 +3,6 @@ import { useWorkbenchStore } from './store'
 import { HomePanel } from './panel-content/home-panel'
 import { SettingsPanel } from './panel-content/settings-panel'
 import { TerminalPanel } from './panel-content/terminal-panel'
-import { ToolPanel } from './panel-content/tool-panel'
 import { WebPanel } from './panel-content/web-panel'
 import { WorkspacePanel } from './panel-content/workspace-panel'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
@@ -22,8 +21,6 @@ export function PanelContent({ panel }: { panel: ManagedPanel }): JSX.Element {
       return <TerminalPanel panel={panel} locale={locale} />
     case 'workspace':
       return <WorkspacePanel panel={panel} locale={locale} />
-    case 'tool':
-      return <ToolPanel panel={panel} locale={locale} />
     case 'settings':
       return <SettingsPanel panel={panel} locale={locale} />
   }
