@@ -249,7 +249,7 @@ function buildBootstrapScript(payload) {
       terminals: {
         attach: async () => ({
           snapshot: clone(terminalSnapshot()),
-          buffer: 'DeepWork visual smoke terminal\\\\r\\\\nPS C:\\\\workspace> codex --version\\\\r\\\\nready\\\\r\\\\n'
+          buffer: 'DeepWork visual smoke terminal\\r\\nPS C:\\\\workspace> claude\\r\\n▐ 14% ██ ░ 28k/200k 27115（27k）token | ≈0.09¥\\r\\n──────────────────────── ● high · /effort\\r\\nready\\r\\n'
         }),
         getState: async () => clone(terminalSnapshot()),
         start: async () => publishTerminalSnapshot(),

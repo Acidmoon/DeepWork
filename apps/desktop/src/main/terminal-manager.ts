@@ -90,11 +90,19 @@ function createWorkspaceBootstrap(
     AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE: retrievalPreference
   }
 
-  return [
+  const commands = [
+    'try { chcp.com 65001 > $null } catch {}',
+    'try { $utf8 = [System.Text.UTF8Encoding]::new($false); [Console]::InputEncoding = $utf8; [Console]::OutputEncoding = $utf8; $OutputEncoding = $utf8 } catch {}',
     ...Object.entries(environmentAssignments).map(([key, value]) => `$env:${key}=${psQuote(value)}`),
-    `if (Test-Path -LiteralPath ${psQuote(sessionCwd)}) { Set-Location -LiteralPath ${psQuote(sessionCwd)} }`,
-    `if (Test-Path -LiteralPath ${psQuote(toolsPath)}) { . ${psQuote(toolsPath)} }`
-  ].join('\r')
+    ...(sessionCwd.trim()
+      ? [`if (Test-Path -LiteralPath ${psQuote(sessionCwd)}) { Set-Location -LiteralPath ${psQuote(sessionCwd)} }`]
+      : []),
+    ...(workspaceRoot.trim()
+      ? [`if (Test-Path -LiteralPath ${psQuote(toolsPath)}) { . ${psQuote(toolsPath)} }`]
+      : [])
+  ]
+
+  return commands.join('\r')
 }
 
 interface ManagedTerminalSession {

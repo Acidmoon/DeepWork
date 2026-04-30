@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { Terminal } from '@xterm/xterm'
 import { getTerminalStatusLabel, getUiText, resolveLocale } from '../i18n'
 import { asTerminalViewState, useWorkbenchStore } from '../store'
@@ -131,10 +132,14 @@ export function TerminalPanel({
     }
 
     const terminal = new Terminal({
+      allowProposedApi: true,
       cursorBlink: true,
-      fontFamily: '"Cascadia Mono", "IBM Plex Mono", monospace',
+      customGlyphs: true,
+      fontFamily: '"Cascadia Mono", "Cascadia Code", "IBM Plex Mono", "Microsoft YaHei", "Noto Sans Mono CJK SC", monospace',
       fontSize: 13,
       lineHeight: 1.2,
+      rescaleOverlappingGlyphs: true,
+      windowsMode: window.workbenchShell.platform === 'win32',
       theme: {
         background: '#08111f',
         foreground: '#ecf3ff',
@@ -160,7 +165,10 @@ export function TerminalPanel({
       }
     })
     const fitAddon = new FitAddon()
+    const unicode11Addon = new Unicode11Addon()
     terminal.loadAddon(fitAddon)
+    terminal.loadAddon(unicode11Addon)
+    terminal.unicode.activeVersion = '11'
     terminal.open(host)
     terminal.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') {
