@@ -289,6 +289,7 @@ export class WebPanelManager {
   private readonly configs = new Map<string, WebPanelConfig>()
   private readonly builtInIds = new Set(webPanelConfigs.map((config) => config.id))
   private activePanelId: string | null = null
+  private activationSequence = 0
 
   constructor(
     private readonly window: BrowserWindow,
@@ -441,19 +442,30 @@ export class WebPanelManager {
       this.hidePanel(this.activePanelId)
     }
 
+    const activationId = ++this.activationSequence
+    this.activePanelId = panelId
+    panel.bounds = toBounds(bounds)
+    panel.view.setBounds(panel.bounds)
+    this.hideInactivePanelViews(panelId)
+
     if (!panel.hasLoaded) {
       panel.hasLoaded = true
       await panel.view.webContents.loadURL(panel.snapshot.homeUrl)
     }
 
-    panel.bounds = toBounds(bounds)
+    this.syncNavigationState(panel)
+    if (this.activationSequence !== activationId || this.activePanelId !== panelId) {
+      panel.view.setVisible(false)
+      this.stopCaptureLoop(panel)
+      this.publish(panel.snapshot)
+      return panel.snapshot
+    }
+
     panel.view.setBounds(panel.bounds)
     panel.view.setVisible(true)
     panel.view.webContents.focus()
-    this.activePanelId = panelId
     this.startCaptureLoop(panel)
     this.scheduleContextCapture(panel, 2_800)
-    this.syncNavigationState(panel)
     this.publish(panel.snapshot)
     return panel.snapshot
   }
@@ -468,6 +480,7 @@ export class WebPanelManager {
     panel.view.setVisible(false)
     this.stopCaptureLoop(panel)
     if (this.activePanelId === panelId) {
+      this.activationSequence += 1
       this.activePanelId = null
     }
   }
@@ -675,6 +688,7 @@ export class WebPanelManager {
     }
 
     if (this.activePanelId === panelId) {
+      this.activationSequence += 1
       this.activePanelId = null
     }
 
@@ -685,6 +699,17 @@ export class WebPanelManager {
     }
 
     this.panels.delete(panelId)
+  }
+
+  private hideInactivePanelViews(activePanelId: string): void {
+    for (const [panelId, panel] of this.panels) {
+      if (panelId === activePanelId) {
+        continue
+      }
+
+      panel.view.setVisible(false)
+      this.stopCaptureLoop(panel)
+    }
   }
 
   private attachListeners(panel: ManagedWebPanel): void {
