@@ -27,9 +27,34 @@ const DEFAULT_ROWS = 32
 const MAX_BUFFER_SIZE = 180_000
 const STARTUP_COMMAND_DELAY_MS = 1_600
 const TRANSCRIPT_FLUSH_DELAY_MS = 1_200
+const POWERSHELL_STARTUP_FLAGS = new Set([
+  '-command',
+  '/command',
+  '-c',
+  '/c',
+  '-encodedcommand',
+  '/encodedcommand',
+  '-e',
+  '/e',
+  '-file',
+  '/file'
+])
 
 function psQuote(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
+}
+
+function isPowerShellShell(shell: string): boolean {
+  const executable = shell.replaceAll('\\', '/').split('/').at(-1)?.toLowerCase()
+  return executable === 'powershell.exe' || executable === 'powershell' || executable === 'pwsh.exe' || executable === 'pwsh'
+}
+
+function hasPowerShellStartupFlag(shellArgs: string[]): boolean {
+  return shellArgs.some((arg) => POWERSHELL_STARTUP_FLAGS.has(arg.toLowerCase()))
+}
+
+function hasPowerShellNoExitFlag(shellArgs: string[]): boolean {
+  return shellArgs.some((arg) => arg.toLowerCase() === '-noexit' || arg.toLowerCase() === '/noexit')
 }
 
 interface ManagedSessionIdentity {
@@ -68,12 +93,12 @@ function createManagedSessionIdentity(
   }
 }
 
-function createWorkspaceBootstrap(
+function createWorkspaceBootstrapCommands(
   workspaceRoot: string,
   sessionCwd: string,
   sessionIdentity: ManagedSessionIdentity | null = null,
   retrievalPreference: CliRetrievalPreference = 'thread-first'
-): string {
+): string[] {
   const toolsPath = join(workspaceRoot, 'rules', 'WORKBENCH_TOOLS.ps1')
   const environmentAssignments = {
     AI_WORKBENCH_WORKSPACE_ROOT: workspaceRoot,
@@ -90,7 +115,7 @@ function createWorkspaceBootstrap(
     AI_WORKBENCH_CLI_RETRIEVAL_PREFERENCE: retrievalPreference
   }
 
-  const commands = [
+  return [
     'try { chcp.com 65001 > $null } catch {}',
     'try { $utf8 = [System.Text.UTF8Encoding]::new($false); [Console]::InputEncoding = $utf8; [Console]::OutputEncoding = $utf8; $OutputEncoding = $utf8 } catch {}',
     ...Object.entries(environmentAssignments).map(([key, value]) => `$env:${key}=${psQuote(value)}`),
@@ -101,8 +126,50 @@ function createWorkspaceBootstrap(
       ? [`if (Test-Path -LiteralPath ${psQuote(toolsPath)}) { . ${psQuote(toolsPath)} }`]
       : [])
   ]
+}
 
-  return commands.join('\r')
+function createWorkspaceBootstrap(
+  workspaceRoot: string,
+  sessionCwd: string,
+  sessionIdentity: ManagedSessionIdentity | null = null,
+  retrievalPreference: CliRetrievalPreference = 'thread-first'
+): string {
+  return createWorkspaceBootstrapCommands(workspaceRoot, sessionCwd, sessionIdentity, retrievalPreference).join('\r')
+}
+
+function createSilentPowerShellCommand(command: string): string | null {
+  const trimmed = command.trim()
+  return trimmed ? `try { & { ${trimmed} } *> $null } catch {}` : null
+}
+
+function createPowerShellStartupArgs(
+  config: TerminalPanelConfig,
+  workspaceRoot: string,
+  sessionCwd: string,
+  sessionIdentity: ManagedSessionIdentity,
+  retrievalPreference: CliRetrievalPreference,
+  preludeCommands: string[]
+): string[] | null {
+  if (!isPowerShellShell(config.shell) || hasPowerShellStartupFlag(config.shellArgs)) {
+    return null
+  }
+
+  const commands = [
+    ...createWorkspaceBootstrapCommands(workspaceRoot, sessionCwd, sessionIdentity, retrievalPreference),
+    ...preludeCommands.map(createSilentPowerShellCommand).filter((command): command is string => Boolean(command)),
+    config.startupCommand.trim()
+  ].filter(Boolean)
+
+  if (commands.length === 0) {
+    return null
+  }
+
+  return [
+    ...config.shellArgs,
+    ...(hasPowerShellNoExitFlag(config.shellArgs) ? [] : ['-NoExit']),
+    '-Command',
+    commands.join('; ')
+  ]
 }
 
 interface ManagedTerminalSession {
@@ -319,7 +386,16 @@ export class TerminalManager {
       session.threadTitle = sessionIdentity.threadTitle
       session.retrievalAuditPath = sessionIdentity.retrievalAuditPath
       session.retrievalStatePath = sessionIdentity.retrievalStatePath
-      session.ptyProcess = pty.spawn(session.config.shell, session.config.shellArgs, {
+      const startupShellArgs = createPowerShellStartupArgs(
+        session.config,
+        this.workspaceRoot,
+        cwd,
+        sessionIdentity,
+        this.cliRetrievalPreference,
+        this.resolvePreludeCommands(session.config)
+      )
+
+      session.ptyProcess = pty.spawn(session.config.shell, startupShellArgs ?? session.config.shellArgs, {
         name: 'xterm-color',
         cols: session.snapshot.cols,
         rows: session.snapshot.rows,
@@ -360,23 +436,25 @@ export class TerminalManager {
       this.publishState(session.snapshot)
       this.attachProcessListeners(session, sessionToken)
 
-      session.bootTimer = setTimeout(() => {
-        if (!session.ptyProcess) {
-          return
-        }
-
-        session.ptyProcess.write(
-          `${createWorkspaceBootstrap(this.workspaceRoot, cwd, sessionIdentity, this.cliRetrievalPreference)}\r`
-        )
-        for (const command of this.resolvePreludeCommands(session.config)) {
-          if (command.trim().length > 0) {
-            session.ptyProcess.write(`${command}\r`)
+      if (!startupShellArgs) {
+        session.bootTimer = setTimeout(() => {
+          if (!session.ptyProcess) {
+            return
           }
-        }
-        if (session.config.startupCommand.trim().length > 0) {
-          session.ptyProcess.write(`${session.config.startupCommand}\r`)
-        }
-      }, STARTUP_COMMAND_DELAY_MS)
+
+          session.ptyProcess.write(
+            `${createWorkspaceBootstrap(this.workspaceRoot, cwd, sessionIdentity, this.cliRetrievalPreference)}\r`
+          )
+          for (const command of this.resolvePreludeCommands(session.config)) {
+            if (command.trim().length > 0) {
+              session.ptyProcess.write(`${command}\r`)
+            }
+          }
+          if (session.config.startupCommand.trim().length > 0) {
+            session.ptyProcess.write(`${session.config.startupCommand}\r`)
+          }
+        }, STARTUP_COMMAND_DELAY_MS)
+      }
 
       return session.snapshot
     } catch (error) {
