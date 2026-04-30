@@ -12,12 +12,26 @@ The desktop app keeps focused validation flows under this directory instead of o
 
 ## Recommended Order
 
-1. Run typecheck:
+For the internal alpha gate, run the scripted sequence from the repository root:
+
+```powershell
+npm run validate:internal-alpha
+```
+
+The sequence runs typecheck, retrieval-helper validation, a deterministic desktop build, an entrypoint precheck, and then the browser-driven validation flows for workspace browsing, managed web capture, custom web panels, and terminal panel configuration.
+
+For narrower changes, run the matching focused flow after refreshing the deterministic renderer build:
 
 ```powershell
 npm run typecheck -w @ai-workbench/desktop
+npm run build -w @ai-workbench/desktop
+npm run validate:renderer-entrypoint -w @ai-workbench/desktop
+npm run validate:workspace-regression -w @ai-workbench/desktop
 ```
 
-2. Run the focused validation flow that matches the area you changed.
+Browser-driven validation defaults to `apps/desktop/out/renderer/index.html` and fails fast if that entrypoint is missing, references missing assets, or is older than renderer prerequisites. For targeted debugging only, override the renderer URL explicitly:
 
-3. If your change crosses multiple areas, run each relevant validation flow instead of assuming one script covers all of them.
+```powershell
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
+npm run validate:workspace-regression
+```

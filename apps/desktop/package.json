@@ -14,7 +14,9 @@
     "validate:workspace-web-capture": "node validation/workspace-web-capture/run-workspace-web-capture-validation.mjs",
     "validate:workspace-retrieval": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File validation/workspace-retrieval/run-workspace-retrieval-validation.ps1",
     "validate:custom-web-panels": "node validation/custom-web-panels/run-custom-web-panels-validation.mjs",
-    "validate:terminal-panel-configuration": "node validation/terminal-panel-configuration/run-terminal-panel-configuration-validation.mjs"
+    "validate:terminal-panel-configuration": "node validation/terminal-panel-configuration/run-terminal-panel-configuration-validation.mjs",
+    "validate:renderer-entrypoint": "node validation/renderer-entrypoint.mjs",
+    "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration"
   },
   "dependencies": {
     "@ai-workbench/core": "0.1.0",

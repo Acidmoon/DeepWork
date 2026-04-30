@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { assertValidationRendererAvailable, resolveValidationRendererEntrypoint } from '../renderer-entrypoint.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const sessionName = 'custom-web-panels'
@@ -11,7 +12,22 @@ const generatedBootstrapPath = join(__dirname, 'bootstrap.generated.js')
 const generatedAssertPath = join(__dirname, 'assert.generated.js')
 const artifactsDir = join(__dirname, 'artifacts')
 const screenshotPath = join(artifactsDir, 'custom-web-panels.png')
-const rendererUrl = process.env.AI_WORKBENCH_VALIDATION_RENDERER_URL || 'http://localhost:5173'
+let rendererEntrypoint = null
+let rendererUrlLiteral = null
+
+function getRendererEntrypoint() {
+  if (!rendererEntrypoint) {
+    rendererEntrypoint = resolveValidationRendererEntrypoint()
+    rendererUrlLiteral = JSON.stringify(rendererEntrypoint.url)
+  }
+
+  return rendererEntrypoint
+}
+
+function getRendererUrlLiteral() {
+  getRendererEntrypoint()
+  return rendererUrlLiteral
+}
 
 function quoteForCmd(value) {
   if (!/[ \t"]/u.test(value)) {
@@ -48,20 +64,7 @@ function runCli(args) {
 }
 
 async function assertRendererAvailable() {
-  if (rendererUrl.startsWith('file://')) {
-    return
-  }
-
-  try {
-    const response = await fetch(rendererUrl)
-    if (!response.ok) {
-      throw new Error(`Renderer responded with ${response.status}`)
-    }
-  } catch {
-    throw new Error(
-      `Renderer dev server is not reachable at ${rendererUrl}. Start it first with: npm run dev -w @ai-workbench/desktop`
-    )
-  }
+  await assertValidationRendererAvailable(getRendererEntrypoint())
 }
 
 function buildBootstrapScript() {
@@ -287,7 +290,7 @@ function buildBootstrapScript() {
     }
   })
 
-  await page.goto('${rendererUrl}', { waitUntil: 'networkidle' })
+  await page.goto(${getRendererUrlLiteral()}, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1200)
 }`
 }

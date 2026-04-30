@@ -10,19 +10,15 @@ This validation flow covers the desktop renderer Workspace interactions that rem
 
 ## Prerequisites
 
-1. Start the desktop renderer dev server:
-
-```powershell
-npm run dev -w @ai-workbench/desktop
-```
-
-2. In another terminal, run renderer typecheck:
+1. Run renderer typecheck and refresh the deterministic renderer build:
 
 ```powershell
 npm run typecheck -w @ai-workbench/desktop
+npm run build -w @ai-workbench/desktop
+npm run validate:renderer-entrypoint -w @ai-workbench/desktop
 ```
 
-3. Run the regression validation:
+2. Run the regression validation:
 
 ```powershell
 npm run validate:workspace-regression -w @ai-workbench/desktop
@@ -34,19 +30,24 @@ Or from the repo root:
 npm run validate:workspace-regression
 ```
 
-If the renderer dev server binds to a different local port, override it explicitly:
+The default entrypoint is the compiled renderer at `apps/desktop/out/renderer/index.html`. If you need to debug against a live renderer dev server, override it explicitly:
 
 ```powershell
 $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 npm run validate:workspace-regression
 ```
 
-If local HTTP access is constrained, validate against the compiled renderer instead:
+Unset the override to return to the deterministic build entrypoint:
 
 ```powershell
-npm run build -w @ai-workbench/desktop
-$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='file:///E:/vibecoding/DeepWork/apps/desktop/out/renderer/index.html'
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL=$null
 npm run validate:workspace-regression
+```
+
+Run the full internal alpha sequence when the change crosses multiple validation areas:
+
+```powershell
+npm run validate:internal-alpha
 ```
 
 ## What It Uses

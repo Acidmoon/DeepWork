@@ -11,19 +11,15 @@ This validation flow covers the renderer-facing custom webpage lifecycle introdu
 
 ## Prerequisites
 
-1. Start the desktop renderer dev server:
-
-```powershell
-npm run dev -w @ai-workbench/desktop
-```
-
-2. In another terminal, run typecheck:
+1. Run typecheck and refresh the deterministic renderer build:
 
 ```powershell
 npm run typecheck -w @ai-workbench/desktop
+npm run build -w @ai-workbench/desktop
+npm run validate:renderer-entrypoint -w @ai-workbench/desktop
 ```
 
-3. Run the validation:
+2. Run the validation:
 
 ```powershell
 npm run validate:custom-web-panels -w @ai-workbench/desktop
@@ -35,9 +31,16 @@ Or from the repo root:
 npm run validate:custom-web-panels
 ```
 
+The default entrypoint is the compiled renderer at `apps/desktop/out/renderer/index.html`. If you need to debug against a live renderer dev server, override it explicitly:
+
+```powershell
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
+npm run validate:custom-web-panels
+```
+
 ## What It Uses
 
-- `run-custom-web-panels-validation.mjs`: boots a Playwright CLI session against the renderer dev server
+- `run-custom-web-panels-validation.mjs`: boots a Playwright CLI session against the deterministic renderer entrypoint
 - `assert-custom-web-panels.js`: executes the custom webpage lifecycle assertions
 - a stubbed `window.workbenchShell` injected before page load so the renderer can be exercised without a live Electron main process
 

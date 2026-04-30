@@ -10,19 +10,15 @@ This validation flow covers the terminal-panel configuration lifecycle introduce
 
 ## Prerequisites
 
-1. Start the desktop renderer dev server:
-
-```powershell
-npm run dev -w @ai-workbench/desktop
-```
-
-2. In another terminal, run typecheck:
+1. Run typecheck and refresh the deterministic renderer build:
 
 ```powershell
 npm run typecheck -w @ai-workbench/desktop
+npm run build -w @ai-workbench/desktop
+npm run validate:renderer-entrypoint -w @ai-workbench/desktop
 ```
 
-3. Run the validation:
+2. Run the validation:
 
 ```powershell
 npm run validate:terminal-panel-configuration -w @ai-workbench/desktop
@@ -34,9 +30,16 @@ Or from the repo root:
 npm run validate:terminal-panel-configuration
 ```
 
+The default entrypoint is the compiled renderer at `apps/desktop/out/renderer/index.html`. If you need to debug against a live renderer dev server, override it explicitly:
+
+```powershell
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
+npm run validate:terminal-panel-configuration
+```
+
 ## What It Uses
 
-- `run-terminal-panel-configuration-validation.mjs`: boots a Playwright CLI session against the renderer dev server
+- `run-terminal-panel-configuration-validation.mjs`: boots a Playwright CLI session against the deterministic renderer entrypoint
 - `assert-terminal-panel-configuration.js`: executes the terminal configuration assertions
 - a stubbed `window.workbenchShell` injected before page load so the renderer can be exercised without a live Electron main process
 

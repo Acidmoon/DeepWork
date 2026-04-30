@@ -174,9 +174,24 @@ npm run build
 ```powershell
 npm run typecheck -w @ai-workbench/desktop
 npm run validate:workspace-retrieval -w @ai-workbench/desktop
+npm run build -w @ai-workbench/desktop
+npm run validate:renderer-entrypoint -w @ai-workbench/desktop
 npm run validate:workspace-regression -w @ai-workbench/desktop
 npm run validate:workspace-web-capture -w @ai-workbench/desktop
+npm run validate:custom-web-panels -w @ai-workbench/desktop
 npm run validate:terminal-panel-configuration -w @ai-workbench/desktop
+```
+
+内部 alpha 回归可以直接跑完整序列：
+
+```powershell
+npm run validate:internal-alpha
+```
+
+浏览器驱动的 renderer 验证默认使用仓库构建产物 `apps/desktop/out/renderer/index.html`，不需要单独启动 `localhost:5173`。如果只是为了调试某个 live dev server，可以显式设置：
+
+```powershell
+$env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 ```
 
 如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。

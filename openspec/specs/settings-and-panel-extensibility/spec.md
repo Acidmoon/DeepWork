@@ -43,8 +43,8 @@ The system SHALL allow built-in web panels to persist updated home URL, partitio
 - **THEN** the renderer shows the panel as reserved rather than live
 - **THEN** the main process does not mount a live `WebContentsView` for that panel
 
-### Requirement: Custom panel lifecycle
-The renderer SHALL allow users to create, rename, configure, and delete custom web and CLI panels, SHALL allow custom web panels to be enabled or disabled, and the application SHALL synchronize those definitions into runtime managers, persisted settings, and navigation state. Custom web panels SHALL accept arbitrary safe URLs as saved home targets while keeping live address browsing separate from persisted configuration until the user saves changes. Custom CLI panels SHALL persist shell-level configuration separately from active terminal session state so later launches can use the saved behavior without manual file edits.
+### Requirement: Custom web panel lifecycle
+The renderer SHALL allow users to create, configure, enable, disable, and reopen custom web panels while synchronizing saved definitions into settings, navigation state, and the web panel manager.
 
 #### Scenario: Add a custom web panel
 - **WHEN** the user adds a custom web panel from a section action and provides an HTTP or HTTPS target URL
@@ -70,6 +70,9 @@ The renderer SHALL allow users to create, rename, configure, and delete custom w
 - **THEN** the application does not treat that target as a valid saved home URL
 - **THEN** the existing custom web panel definition remains unchanged if one already exists
 
+### Requirement: Custom CLI panel lifecycle
+The renderer SHALL allow users to create, configure, and reopen custom CLI panels while persisting shell-level launch configuration separately from active terminal session state.
+
 #### Scenario: Add a custom CLI panel
 - **WHEN** the user adds a custom CLI panel from a section action
 - **THEN** the renderer persists a new custom terminal-panel definition into settings with editable shell-level fields
@@ -84,6 +87,9 @@ The renderer SHALL allow users to create, rename, configure, and delete custom w
 - **WHEN** the application starts with persisted custom terminal-panel definitions in settings
 - **THEN** the renderer restores those panel definitions into navigation state
 - **THEN** the main process can reopen managed CLI sessions using the persisted configuration for each restored panel
+
+### Requirement: Custom panel rename and deletion
+The renderer SHALL allow users to rename or delete user-defined web and CLI panels while synchronizing persisted settings, navigation state, and runtime managers.
 
 #### Scenario: Rename or delete a custom panel
 - **WHEN** the user renames or deletes a user-defined panel from the context menu
