@@ -4,13 +4,18 @@
 Define how the shared workspace persists artifacts, maintains retrieval-safe indexes, and supports secondary human inspection without turning workspace navigation into a routine prerequisite for web or CLI conversations.
 
 ## Requirements
-### Requirement: Workspace initialization and structure
-The system SHALL initialize a writable workspace root containing stable bucket directories, manifest files, rules files, and origin index files for artifact retrieval.
+### Requirement: User-selected workspace initialization and structure
+The system SHALL initialize a writable workspace root containing stable bucket directories, manifest files, rules files, and origin index files only after a workspace root is explicitly configured or selected.
 
-#### Scenario: Initialize the default workspace
+#### Scenario: Start without a selected workspace
 - **WHEN** the workspace manager is constructed without an explicit workspace root
-- **THEN** it creates the default workspace under the user's documents path
-- **THEN** it creates bucket directories for inbox, artifacts, outputs, manifests, rules, and logs
+- **THEN** it does not create a default workspace under the user's documents path
+- **THEN** it exposes an uninitialized workspace snapshot with no active workspace root
+- **THEN** artifact persistence, managed web capture, terminal transcript persistence, and retrieval-audit persistence do not write workspace records until a workspace root is selected
+
+#### Scenario: Initialize a selected workspace
+- **WHEN** a workspace root is configured at startup or selected by the user
+- **THEN** the workspace manager creates bucket directories for inbox, artifacts, outputs, manifests, rules, and logs under that selected root
 - **THEN** it writes baseline manifest and rules files if they do not already exist
 
 #### Scenario: Switch workspace root

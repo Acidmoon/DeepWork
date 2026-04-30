@@ -107,5 +107,5 @@ The settings panel SHALL expose the preferences that are currently implemented a
 
 #### Scenario: View deferred preferences
 - **WHEN** the user opens the settings panel
-- **THEN** placeholder entries remain visible for default workspace behavior and terminal behavior extensions
+- **THEN** placeholder entries remain visible for future workspace profile behavior and terminal behavior extensions
 - **THEN** those entries are presented as future-facing placeholders rather than active runtime configuration

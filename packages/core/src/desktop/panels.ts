@@ -348,8 +348,8 @@ function shellArgsToEditorText(shellArgs: string[]): string {
 export const defaultSettingsPlaceholders: SettingsOptionPlaceholder[] = [
   {
     id: 'default-workspace',
-    label: 'Default Workspace',
-    description: '后续允许指定默认项目目录、Artifact 桶和启动时加载的工作区。',
+    label: 'Workspace Profiles',
+    description: 'Home owns the current workspace selection. Future settings can add named workspace profiles and startup behavior.',
     status: 'placeholder'
   },
   {

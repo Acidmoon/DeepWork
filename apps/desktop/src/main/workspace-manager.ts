@@ -70,8 +70,9 @@ const MANAGED_WORKSPACE_ROOT_FILENAMES: Record<ManagedWorkspaceInstructionBlockK
   'claude-md': 'CLAUDE.md'
 }
 
+const WORKSPACE_NOT_SELECTED_ERROR = 'Choose a workspace before saving context.'
+
 export class WorkspaceManager {
-  private readonly defaultWorkspaceRoot: string
   private projectId = 'default'
   private workspaceRoot: string
   private threadContinuationPreference: ThreadContinuationPreference
@@ -85,40 +86,37 @@ export class WorkspaceManager {
   private lastError: string | null = null
 
   constructor(
-    basePath: string,
+    _basePath: string,
     configuredRoot: string | null = null,
     threadContinuationPreference: ThreadContinuationPreference = 'continue-active-thread',
     private readonly onSnapshotChanged?: (snapshot: WorkspaceSnapshot) => void
   ) {
-    this.defaultWorkspaceRoot = join(basePath, 'AI-Workspace', 'projects', 'default')
-    this.workspaceRoot = this.defaultWorkspaceRoot
+    this.workspaceRoot = ''
     this.threadContinuationPreference = threadContinuationPreference
-    this.manifestPath = join(this.workspaceRoot, 'manifests', 'artifacts.json')
-    this.contextIndexPath = join(this.workspaceRoot, 'manifests', 'context-index.json')
-    this.originManifestsPath = join(this.workspaceRoot, 'manifests', 'origins')
-    this.threadIndexPath = join(this.workspaceRoot, 'manifests', 'thread-index.json')
-    this.threadManifestsPath = join(this.workspaceRoot, 'manifests', 'threads')
-    this.rulesPath = join(this.workspaceRoot, 'rules')
-    this.setWorkspaceRoot(configuredRoot)
+    this.manifestPath = ''
+    this.contextIndexPath = ''
+    this.originManifestsPath = ''
+    this.threadIndexPath = ''
+    this.threadManifestsPath = ''
+    this.rulesPath = ''
+    this.applyWorkspaceRoot(configuredRoot?.trim() ? configuredRoot.trim() : '')
   }
 
   getSnapshot(): WorkspaceSnapshot {
+    if (!this.hasWorkspaceRoot()) {
+      return buildWorkspaceSnapshot(this.getSnapshotContext(), this.createEmptyManifest(), this.lastSavedArtifactId, this.lastError)
+    }
+
     const synced = syncRetrievalAuditArtifactsFromLogs(this.getManifestContext(), null, this.lastSavedArtifactId)
     this.lastSavedArtifactId = synced.lastSavedArtifactId
     return buildWorkspaceSnapshot(this.getSnapshotContext(), synced.manifest, this.lastSavedArtifactId, this.lastError)
   }
 
   setWorkspaceRoot(root: string | null | undefined): WorkspaceSnapshot {
-    const nextRoot = root?.trim() ? root.trim() : this.defaultWorkspaceRoot
-    this.workspaceRoot = nextRoot
-    this.projectId = basename(nextRoot) || 'default'
-    this.manifestPath = join(this.workspaceRoot, 'manifests', 'artifacts.json')
-    this.contextIndexPath = join(this.workspaceRoot, 'manifests', 'context-index.json')
-    this.originManifestsPath = join(this.workspaceRoot, 'manifests', 'origins')
-    this.threadIndexPath = join(this.workspaceRoot, 'manifests', 'thread-index.json')
-    this.threadManifestsPath = join(this.workspaceRoot, 'manifests', 'threads')
-    this.rulesPath = join(this.workspaceRoot, 'rules')
-    this.ensureInitialized()
+    this.applyWorkspaceRoot(root?.trim() ? root.trim() : '')
+    if (this.hasWorkspaceRoot()) {
+      this.ensureInitialized()
+    }
     this.lastError = null
     const snapshot = this.getSnapshot()
     this.emitSnapshot(snapshot)
@@ -126,6 +124,14 @@ export class WorkspaceManager {
   }
 
   saveClipboardAsArtifact(options: SaveClipboardOptions): SaveClipboardResult {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return {
+        snapshot: unavailableSnapshot,
+        artifact: null
+      }
+    }
+
     this.ensureInitialized()
 
     const payload = detectClipboardPayload()
@@ -166,6 +172,10 @@ export class WorkspaceManager {
   }
 
   readArtifactContent(artifactId: string): ArtifactContentPayload | null {
+    if (!this.hasWorkspaceRoot()) {
+      return null
+    }
+
     this.ensureInitialized()
     const synced = syncRetrievalAuditArtifactsFromLogs(this.getManifestContext(), null, this.lastSavedArtifactId)
     this.lastSavedArtifactId = synced.lastSavedArtifactId
@@ -182,6 +192,11 @@ export class WorkspaceManager {
   }
 
   createThread(title?: string | null, activate = true): WorkspaceSnapshot {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return unavailableSnapshot
+    }
+
     this.ensureInitialized()
     this.createThreadRecord(title, activate)
     this.lastError = null
@@ -191,6 +206,11 @@ export class WorkspaceManager {
   }
 
   selectThread(threadId: string | null): WorkspaceSnapshot {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return unavailableSnapshot
+    }
+
     this.ensureInitialized()
     this.writeActiveThreadSelection(threadId)
     this.lastError = null
@@ -200,6 +220,11 @@ export class WorkspaceManager {
   }
 
   renameThread(threadId: string, title: string): WorkspaceSnapshot {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return unavailableSnapshot
+    }
+
     this.ensureInitialized()
 
     const normalizedThreadId = sanitizeOrigin(threadId)
@@ -238,6 +263,11 @@ export class WorkspaceManager {
   }
 
   reassignScopeToThread(scopeId: string, threadId: string): WorkspaceSnapshot {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return unavailableSnapshot
+    }
+
     this.ensureInitialized()
 
     const normalizedThreadId = sanitizeOrigin(threadId)
@@ -268,7 +298,11 @@ export class WorkspaceManager {
     return snapshot
   }
 
-  ensureThreadForSession(panelId: string, title: string, contextLabel?: string | null): { threadId: string; title: string } {
+  ensureThreadForSession(panelId: string, title: string, contextLabel?: string | null): { threadId: string; title: string } | null {
+    if (!this.hasWorkspaceRoot()) {
+      return null
+    }
+
     this.ensureInitialized()
     const thread = this.resolveImplicitThread(panelId, contextLabel, title || panelId)
     return {
@@ -282,6 +316,14 @@ export class WorkspaceManager {
   }
 
   getContinuitySummary(input: Omit<ManagedSessionContinuityInput, 'contextEntries' | 'threads'>): ManagedSessionContinuitySummary {
+    if (!this.hasWorkspaceRoot()) {
+      return buildManagedSessionContinuitySummary({
+        ...input,
+        contextEntries: [],
+        threads: []
+      })
+    }
+
     this.ensureInitialized()
     const contextIndex = safeReadContextIndex(this.contextIndexPath, this.workspaceRoot)
     const threadIndex = safeReadThreadIndex(this.threadIndexPath, this.workspaceRoot)
@@ -294,6 +336,11 @@ export class WorkspaceManager {
   }
 
   deleteScope(scopeId: string): WorkspaceSnapshot {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return unavailableSnapshot
+    }
+
     this.ensureInitialized()
 
     const manifest = safeReadManifest(this.manifestPath, this.workspaceRoot, this.projectId)
@@ -335,6 +382,10 @@ export class WorkspaceManager {
     threadId?: string | null
     content: string
   }): string | null {
+    if (!this.hasWorkspaceRoot()) {
+      return null
+    }
+
     const thread = input.threadId?.trim()
       ? this.ensureThreadSelection(input.threadId, input.title)
       : this.resolveImplicitThread(input.panelId, input.contextLabel, input.title)
@@ -372,6 +423,17 @@ export class WorkspaceManager {
     threadId: string | null
     threadTitle: string | null
   } {
+    if (!this.hasWorkspaceRoot()) {
+      return {
+        transcriptArtifactId: null,
+        messagesArtifactId: input.messagesArtifactId ?? null,
+        contextLabel: null,
+        sessionScopeId: null,
+        threadId: null,
+        threadTitle: null
+      }
+    }
+
     const thread = input.threadId?.trim()
       ? this.ensureThreadSelection(input.threadId, input.threadTitle || input.title || input.url)
       : this.resolveImplicitThread(
@@ -482,6 +544,11 @@ export class WorkspaceManager {
   }
 
   syncRetrievalAuditArtifacts(options: { sessionScopeId?: string | null; emitSnapshot?: boolean } = {}): WorkspaceSnapshot {
+    const unavailableSnapshot = this.requireWorkspaceSnapshot()
+    if (unavailableSnapshot) {
+      return unavailableSnapshot
+    }
+
     this.ensureInitialized()
 
     const synced = syncRetrievalAuditArtifactsFromLogs(
@@ -499,7 +566,46 @@ export class WorkspaceManager {
     return snapshot
   }
 
+  private applyWorkspaceRoot(root: string): void {
+    this.workspaceRoot = root
+    this.projectId = basename(root) || 'default'
+    this.manifestPath = root ? join(root, 'manifests', 'artifacts.json') : ''
+    this.contextIndexPath = root ? join(root, 'manifests', 'context-index.json') : ''
+    this.originManifestsPath = root ? join(root, 'manifests', 'origins') : ''
+    this.threadIndexPath = root ? join(root, 'manifests', 'thread-index.json') : ''
+    this.threadManifestsPath = root ? join(root, 'manifests', 'threads') : ''
+    this.rulesPath = root ? join(root, 'rules') : ''
+  }
+
+  private hasWorkspaceRoot(): boolean {
+    return this.workspaceRoot.trim().length > 0
+  }
+
+  private createEmptyManifest(): ArtifactManifest {
+    return {
+      version: '1.0',
+      projectId: this.projectId,
+      workspaceRoot: this.workspaceRoot,
+      artifacts: []
+    }
+  }
+
+  private requireWorkspaceSnapshot(): WorkspaceSnapshot | null {
+    if (this.hasWorkspaceRoot()) {
+      return null
+    }
+
+    this.lastError = WORKSPACE_NOT_SELECTED_ERROR
+    const snapshot = this.getSnapshot()
+    this.emitSnapshot(snapshot)
+    return snapshot
+  }
+
   private ensureInitialized(): void {
+    if (!this.hasWorkspaceRoot()) {
+      return
+    }
+
     ensureDirectory(this.workspaceRoot)
 
     const directories = [

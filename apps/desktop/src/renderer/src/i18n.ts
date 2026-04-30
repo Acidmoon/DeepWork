@@ -17,9 +17,9 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     home: {
       title: 'Project Home',
       group: 'Workbench',
-      summary: '工作台壳层、真实 Web Panel、真实 Terminal Panel 与首版公共 Workspace 已经接入到正式应用。',
-      nextStep: '继续推进 Phase 5，把 Artifact List 与 Preview 从当前基础索引升级为真正可操作视图。',
-      delivery: 'Phase 4 交付物：公共 Workspace 已完成初始化并能保存剪贴板 Artifact。',
+      summary: '先选择当前工作区位置，再从网页、CLI 和 Workspace 检查面继续工作。',
+      nextStep: '工作区路径会持久保存，后续网页捕获、CLI 会话和 Artifact 索引都会写入这里。',
+      delivery: 'Home 现在承接工作区选择与当前工作区状态。',
       signal: 'Workspace live'
     },
     'deepseek-web': {
@@ -91,9 +91,9 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     home: {
       title: 'Project Home',
       group: 'Workbench',
-      summary: 'The workbench shell, live web panels, live terminal panels, and the first shared workspace are now wired into the desktop app.',
-      nextStep: 'Continue with Phase 5 and turn the current artifact index into a real Artifact List and Preview workflow.',
-      delivery: 'Phase 4 deliverable: the shared workspace is initialized and can save clipboard artifacts.',
+      summary: 'Choose the current workspace location first, then continue from web, CLI, and Workspace inspection surfaces.',
+      nextStep: 'The workspace path is persisted, and later web captures, CLI sessions, and artifact indexes are written there.',
+      delivery: 'Home now owns workspace selection and current workspace status.',
       signal: 'Workspace live'
     },
     'deepseek-web': {
@@ -238,8 +238,8 @@ const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<Sett
       description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。'
     },
     'default-workspace': {
-      label: 'Default Workspace',
-      description: '后续允许指定默认项目目录、Artifact 桶和启动时加载的工作区。'
+      label: 'Workspace Profiles',
+      description: 'Home 已负责当前工作区选择；后续这里可扩展多个工作区档案和启动时加载策略。'
     },
     'terminal-behavior': {
       label: 'Terminal Behavior',
@@ -252,8 +252,8 @@ const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<Sett
       description: 'Later this will allow retrieval defaults, session disambiguation hints, and automatic indexing behavior for Codex and Claude.'
     },
     'default-workspace': {
-      label: 'Default Workspace',
-      description: 'Later this will allow a preferred project directory, artifact bucket, and startup workspace selection.'
+      label: 'Workspace Profiles',
+      description: 'Home now owns the current workspace selection. Later this can add named workspace profiles and startup loading behavior.'
     },
     'terminal-behavior': {
       label: 'Terminal Behavior',
@@ -386,6 +386,10 @@ const uiText = {
     workspaceIntro: 'Workspace 是对话连续性的二级检查面。网页和 CLI 对话是主入口，只有在你需要确认、调试或修复时才来这里。',
     workspaceSimpleIntro: '这里会自动保存网页对话、CLI 会话和结构化消息索引。模型优先通过当前线程、会话范围和自然提及来感知上下文。',
     currentWorkspace: '当前工作区',
+    homeWorkspaceTitle: '工作区位置',
+    homeWorkspaceHint: '选择一个你自己管理的目录。网页捕获、CLI 会话、Artifacts、日志和检索索引都会写入这个工作区。',
+    homeWorkspaceNotSelected: '尚未选择工作区',
+    homeWorkspaceContinuityHint: '普通工作流从网页或 CLI 面板继续；Home 只负责确认当前写入位置，Workspace 面板用于检查和修复上下文。',
     savedContexts: '已保存上下文',
     savedItems: '已保存内容',
     workspaceSecondaryRole: '二级检查面',
@@ -657,6 +661,10 @@ const uiText = {
     workspaceIntro: 'Workspace is the secondary inspection surface for continuity. Web and CLI conversations stay primary; open this area only when you need to inspect, debug, or repair.',
     workspaceSimpleIntro: 'This area automatically saves web conversations, CLI sessions, and structured message indexes. Models should mainly infer continuity from the active thread, session scope, and lightweight mentions.',
     currentWorkspace: 'Current Workspace',
+    homeWorkspaceTitle: 'Workspace Location',
+    homeWorkspaceHint: 'Choose a directory you control. Web captures, CLI sessions, artifacts, logs, and retrieval indexes are written into this workspace.',
+    homeWorkspaceNotSelected: 'No workspace selected',
+    homeWorkspaceContinuityHint: 'Normal work continues from web or CLI panels. Home confirms the current write location, while Workspace is for inspection and repair.',
     savedContexts: 'Saved Contexts',
     savedItems: 'Saved Items',
     workspaceSecondaryRole: 'Secondary Inspection',

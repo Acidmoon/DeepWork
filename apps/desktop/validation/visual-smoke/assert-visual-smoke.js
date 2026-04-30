@@ -102,6 +102,8 @@ async page => {
   await requireVisible('.shell', 'workbench shell')
   await requireVisible('.sidebar', 'sidebar')
   await requireVisible('.status-bar', 'status line')
+  await requireVisible('.home-workspace', 'home workspace chooser')
+  await page.getByRole('button', { name: 'Choose Workspace' }).waitFor({ state: 'visible', timeout: 5000 })
   await assertToolbarStable('initial')
 
   await page.getByRole('button', { name: 'DeepSeek Web', exact: true }).click()

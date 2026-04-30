@@ -498,6 +498,10 @@ export class TerminalManager {
   }
 
   syncWorkspaceRoot(workspaceRoot: string): void {
+    if (!workspaceRoot.trim()) {
+      return
+    }
+
     this.workspaceRoot = workspaceRoot
 
     for (const session of this.sessions.values()) {
