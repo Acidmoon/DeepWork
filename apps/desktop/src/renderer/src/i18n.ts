@@ -15,76 +15,76 @@ type SectionText = Pick<NavigationSection, 'title' | 'caption'>
 const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
   'zh-CN': {
     home: {
-      title: 'Project Home',
-      group: 'Workbench',
-      summary: '先选择当前工作区位置，再从网页、CLI 和 Workspace 检查面继续工作。',
-      nextStep: '工作区路径会持久保存，后续网页捕获、CLI 会话和 Artifact 索引都会写入这里。',
-      delivery: 'Home 现在承接工作区选择与当前工作区状态。',
-      signal: 'Workspace live'
+      title: '项目首页',
+      group: '工作台',
+      summary: '先选择当前工作区位置，再从网页、CLI 和工作区检查面继续工作。',
+      nextStep: '工作区路径会持久保存，后续网页捕获、CLI 会话和工件索引都会写入这里。',
+      delivery: '首页现在承接工作区选择与当前工作区状态。',
+      signal: '工作区在线'
     },
     'deepseek-web': {
-      title: 'DeepSeek Web',
-      group: 'Web Apps',
+      title: 'DeepSeek 网页',
+      group: '网页应用',
       summary: 'DeepSeek 现已通过独立 WebContentsView 接入，并使用 persist partition 保持登录态。',
-      nextStep: '后续在 Artifact 阶段增加网页内容捕获与工作区索引联动能力。',
+      nextStep: '后续在工件阶段增加网页内容捕获与工作区索引联动能力。',
       delivery: 'Phase 2 交付物：真实网页面板可导航、可保活。',
-      signal: 'Persistent web session'
+      signal: '持久网页会话'
     },
     'minimax-web': {
-      title: 'MiniMax Web',
-      group: 'Web Apps',
+      title: 'MiniMax 网页',
+      group: '网页应用',
       summary: '作为可选预设网页目标保留，并沿用与自定义网页相同的配置驱动打开能力。',
-      nextStep: '需要固定入口时可直接启用，或者在 Web Apps 中新增任意自定义网页。',
+      nextStep: '需要固定入口时可直接启用，或者在网页应用中新增任意自定义网页。',
       delivery: '可选网页预设。',
-      signal: 'Optional preset'
+      signal: '可选预设'
     },
     'codex-cli': {
       title: 'Codex CLI',
-      group: 'CLI Agents',
+      group: 'CLI 智能体',
       summary: 'Codex CLI 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
       nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
       delivery: 'Phase 3 交付物：Codex 终端面板已可启动与保活。',
-      signal: 'Codex terminal live'
+      signal: 'Codex 终端在线'
     },
     'claude-code': {
       title: 'Claude Code',
-      group: 'CLI Agents',
+      group: 'CLI 智能体',
       summary: 'Claude Code 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
       nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
       delivery: 'Phase 3 交付物：Claude Code 终端面板已可启动与保活。',
-      signal: 'Claude terminal live'
+      signal: 'Claude 终端在线'
     },
     artifacts: {
-      title: 'Artifacts',
-      group: 'Workspace',
-      summary: '工作区目录、manifest 和剪贴板保存入口已落地，当前展示基础索引与最近 Artifact。',
-      nextStep: '在 Phase 5 里接更完整的 Artifact List、选中态和预览入口。',
-      delivery: 'Phase 4 交付物：Workspace + artifacts.json 第一版。',
-      signal: 'Manifest live'
+      title: '工件',
+      group: '工作区',
+      summary: '工作区目录、清单和剪贴板保存入口已落地，当前展示基础索引与最近工件。',
+      nextStep: '在 Phase 5 里接更完整的工件列表、选中态和预览入口。',
+      delivery: 'Phase 4 交付物：工作区 + artifacts.json 第一版。',
+      signal: '清单在线'
     },
     logs: {
-      title: 'Logs',
-      group: 'Workspace',
-      summary: '公共 Workspace 已建立 logs 桶位，后续 CLI 与渲染日志会统一归档到这里。',
+      title: '日志',
+      group: '工作区',
+      summary: '公共工作区已建立日志桶位，后续 CLI 与渲染日志会统一归档到这里。',
       nextStep: '在后续阶段补充真实日志索引、筛选和打开路径能力。',
       delivery: 'Phase 4 交付物：日志目录结构已落地。',
-      signal: 'Log bucket ready'
+      signal: '日志桶已就绪'
     },
     'html-preview': {
-      title: 'HTML Preview',
-      group: 'Tools',
-      summary: '后续会承接 HTML Artifact 的预览与导出入口。',
+      title: 'HTML 预览',
+      group: '工具',
+      summary: '后续会承接 HTML 工件的预览与导出入口。',
       nextStep: '在 Phase 7 接 Playwright 渲染和结果回写 manifest。',
       delivery: '预留工具视图。',
-      signal: 'Render service pending'
+      signal: '渲染服务待接入'
     },
     settings: {
-      title: 'Settings',
-      group: 'System',
+      title: '设置',
+      group: '系统',
       summary: '设置面板已经开始承接应用级偏好项，当前版本已支持语言、主题、CLI 前置命令与跨会话连续性设置。',
       nextStep: '继续把默认工作区和更细粒度的终端行为扩展成可配置项。',
       delivery: '设置面板：基础外观配置 + 跨会话连续性设置。',
-      signal: 'Preferences live'
+      signal: '偏好设置在线'
     }
   },
   'en-US': {
@@ -166,27 +166,27 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
 const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
   'zh-CN': {
     overview: {
-      title: 'Workbench',
+      title: '工作台',
       caption: '当前工作台已接入真实网页和终端面板，下一步进入公共工作区能力。'
     },
     web: {
-      title: 'Web Apps',
-      caption: '内置站点与自定义网页共用同一套 Web Panel 生命周期，可按需新增、启用和保活。'
+      title: '网页应用',
+      caption: '内置站点与自定义网页共用同一套网页面板生命周期，可按需新增、启用和保活。'
     },
     agents: {
-      title: 'CLI Agents',
+      title: 'CLI 智能体',
       caption: 'Codex CLI 与 Claude Code 现在都由主进程 PTY 托管，切换标签时会话不会丢。'
     },
     workspace: {
-      title: 'Workspace',
+      title: '工作区',
       caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。'
     },
     tools: {
-      title: 'Tools',
+      title: '工具',
       caption: '本地工具面板负责预览和导出，不直接承载编辑逻辑。'
     },
     system: {
-      title: 'System',
+      title: '系统',
       caption: '应用级配置集中在这里，当前已支持连续性设置，并保留后续偏好扩展位。'
     }
   },
@@ -234,15 +234,15 @@ const stateLabels: Record<SupportedLocale, Record<PanelState, string>> = {
 const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<SettingsOptionPlaceholder, 'label' | 'description'>>> = {
   'zh-CN': {
     'cli-prompt-template': {
-      label: 'CLI Workspace Retrieval',
+      label: 'CLI 工作区检索',
       description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。'
     },
     'default-workspace': {
-      label: 'Workspace Profiles',
-      description: 'Home 已负责当前工作区选择；后续这里可扩展多个工作区档案和启动时加载策略。'
+      label: '工作区档案',
+      description: '首页已负责当前工作区选择；后续这里可扩展多个工作区档案和启动时加载策略。'
     },
     'terminal-behavior': {
-      label: 'Terminal Behavior',
+      label: '终端行为',
       description: '后续允许自定义 shell、启动命令、复制策略和终端交互偏好。'
     }
   },
@@ -265,7 +265,7 @@ const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<Sett
 const uiText = {
   'zh-CN': {
     appTitle: 'DeepWork',
-    appSubtitle: '原生 Web 与 CLI 工作台',
+    appSubtitle: '原生网页与 CLI 工作台',
     searchTools: '搜索工具...',
     workbenchNavigation: '工作台导航',
     openPanels: '打开的面板',
@@ -287,7 +287,7 @@ const uiText = {
     deleteSession: '删除会话',
     deleteSessionConfirm: '确认删除这组会话及其在工作区中的所有记录吗？此操作不能撤销。',
     deleteSessionWarning: '删除后会移除这组会话在工作区中的所有已保存记录，此操作不能撤销。',
-    deleteSessionDone: '已从 Workspace 删除该会话。',
+    deleteSessionDone: '已从工作区删除该会话。',
     confirmDelete: '确认删除',
     renamePanelPrompt: '输入新的面板名称',
     terminalLabel: '终端',
@@ -311,19 +311,19 @@ const uiText = {
     sessionContextPending: '尚无上下文',
     sessionScope: '会话范围',
     sessionScopePending: '尚未保存范围',
-    openInWorkspace: '检查 Workspace',
+    openInWorkspace: '检查工作区',
     continuityFresh: '新会话',
     continuityPending: '等待归档',
     continuityLinked: '已链接上下文',
-    continuityFreshHint: '直接继续对话；首次保存后，Workspace 会自动接住这段上下文。',
+    continuityFreshHint: '直接继续对话；首次保存后，工作区会自动接住这段上下文。',
     continuityPendingHint: '系统已经识别到当前会话，保存首个范围后会自动建立连续性。',
-    continuityLinkedHint: '继续在这里对话即可；Workspace 只在检查、调试或修复时再打开。',
+    continuityLinkedHint: '继续在这里对话即可；工作区只在检查、调试或修复时再打开。',
     threadContinuity: '上下文连续线程',
     threadList: '线程列表',
     threadCreate: '新建线程',
     threadCreateTitle: '新线程标题',
     threadCreatePlaceholder: '可留空自动生成标题',
-    threadCreateSaved: '已在 Workspace 中创建新线程。',
+    threadCreateSaved: '已在工作区中创建新线程。',
     threadCreatePrompt: '输入新线程标题（可留空自动生成）',
     threadContinue: '继续',
     threadRename: '重命名线程',
@@ -338,8 +338,8 @@ const uiText = {
     threadDerived: '回填线程',
     threadExplicit: '显式线程',
     threadReassignSaved: '已将会话调整到目标线程。',
-    threadMutationWorkspaceOnly: '仅可在 Workspace 中修改线程',
-    manageThreadsInWorkspace: '在 Workspace 中管理线程',
+    threadMutationWorkspaceOnly: '仅可在工作区中修改线程',
+    manageThreadsInWorkspace: '在工作区中管理线程',
     reassignScopeThread: '调整到其他线程',
     targetThread: '目标线程',
     address: '地址',
@@ -382,20 +382,20 @@ const uiText = {
     terminalConfigApplyHint: '保存会立即更新已保存配置，但不会打断当前 PTY。新的配置会在下次启动或手动重启后生效。',
     builtInTerminalConfigHint:
       '内置 CLI 的 shell 和引导流程由应用托管。留空工作目录会继续使用当前工作区；留空启动命令会回退到内置默认命令。',
-    workspaceLive: 'Workspace 实时状态',
-    workspaceIntro: 'Workspace 是对话连续性的二级检查面。网页和 CLI 对话是主入口，只有在你需要确认、调试或修复时才来这里。',
+    workspaceLive: '工作区实时状态',
+    workspaceIntro: '工作区是对话连续性的二级检查面。网页和 CLI 对话是主入口，只有在你需要确认、调试或修复时才来这里。',
     workspaceSimpleIntro: '这里会自动保存网页对话、CLI 会话和结构化消息索引。模型优先通过当前线程、会话范围和自然提及来感知上下文。',
     currentWorkspace: '当前工作区',
     homeWorkspaceTitle: '工作区位置',
-    homeWorkspaceHint: '选择一个你自己管理的目录。网页捕获、CLI 会话、Artifacts、日志和检索索引都会写入这个工作区。',
+    homeWorkspaceHint: '选择一个你自己管理的目录。网页捕获、CLI 会话、工件、日志和检索索引都会写入这个工作区。',
     homeWorkspaceNotSelected: '尚未选择工作区',
-    homeWorkspaceContinuityHint: '普通工作流从网页或 CLI 面板继续；Home 只负责确认当前写入位置，Workspace 面板用于检查和修复上下文。',
+    homeWorkspaceContinuityHint: '普通工作流从网页或 CLI 面板继续；首页只负责确认当前写入位置，工作区面板用于检查和修复上下文。',
     savedContexts: '已保存上下文',
     savedItems: '已保存内容',
     workspaceSecondaryRole: '二级检查面',
     workspaceSecondaryHint: '继续在网页或 CLI 里对话即可；这里主要用于确认系统抓到了什么，或者修复线程组织。',
     workspaceManageContinuity: '线程与修复',
-    workspaceManageContinuityHint: '只有在连续性有歧义时，才在这里新建线程、重命名线程或把 scope 重挂到别的线程。',
+    workspaceManageContinuityHint: '只有在连续性有歧义时，才在这里新建线程、重命名线程或把范围重挂到别的线程。',
     workspaceHowItWorks: '工作区在做什么',
     workspaceGuideCaptureTitle: '1. 自动接住上下文',
     workspaceGuideCaptureBody: '网页对话、CLI 会话和你手动保存的内容，都会持续进入这里。',
@@ -441,41 +441,41 @@ const uiText = {
     selectedOrigin: '上下文来源',
     contextLabel: '上下文标签',
     allSources: '全部来源',
-    latestArtifact: '最新 Artifact',
+    latestArtifact: '最新工件',
     contextSelectionHint: 'CLI 正常工作时应自动按需检索；这里的来源选择主要用于人工检查或排障。',
-    artifactSelection: 'Artifact 选择',
+    artifactSelection: '工件选择',
     selectedCount: '已选数量',
     previewArtifact: '预览',
-    selectedArtifacts: '已选 Artifact',
-    selectedArtifactsEmpty: '还没有选中任何 Artifact。',
-    artifactPreview: 'Artifact 预览',
-    artifactPreviewHint: '先选择一条 Artifact。',
-    artifactPreviewEmpty: '等待选择要预览的 Artifact。',
-    artifactPreviewLoading: '正在加载 Artifact 预览...',
-    artifactPreviewUnavailable: '未能读取这条 Artifact，可能已被删除或暂时不可用。',
-    artifactPreviewUnsupported: '该 Artifact 类型暂不支持文本预览。',
+    selectedArtifacts: '已选工件',
+    selectedArtifactsEmpty: '还没有选中任何工件。',
+    artifactPreview: '工件预览',
+    artifactPreviewHint: '先选择一条工件。',
+    artifactPreviewEmpty: '等待选择要预览的工件。',
+    artifactPreviewLoading: '正在加载工件预览...',
+    artifactPreviewUnavailable: '未能读取这条工件，可能已被删除或暂时不可用。',
+    artifactPreviewUnsupported: '该工件类型暂不支持文本预览。',
     cliSelfSearch: 'CLI 自动工作区检索',
     cliSelfSearchHint: 'CLI 现在会默认进入当前工作区，并在你提到某个会话或来源时优先自动查索引；下面这些命令主要用于显式检查或排障。',
     defaultContextLabel: '默认上下文',
-    noArtifactsForFilter: '当前筛选条件下还没有可选 Artifact。',
+    noArtifactsForFilter: '当前筛选条件下还没有可选工件。',
     manifest: '清单文件',
-    artifactsIndexed: '已索引 Artifact',
-    artifactsBucket: 'Artifacts 桶',
-    outputsBucket: 'Outputs 桶',
-    logsBucket: 'Logs 桶',
+    artifactsIndexed: '已索引工件',
+    artifactsBucket: '工件桶',
+    outputsBucket: '输出桶',
+    logsBucket: '日志桶',
     workspaceInitialized: '工作区已初始化',
     workspaceInitializationPending: '工作区初始化中',
     rules: '规则文件',
     rulesPathPending: '初始化完成后显示规则路径',
     lastSaved: '最近保存',
     error: '错误',
-    recentArtifacts: '最近 Artifact',
+    recentArtifacts: '最近工件',
     shownCount: '已显示',
-    saveClipboardHint: '使用“保存剪贴板”创建第一条受追踪的 Artifact。',
+    saveClipboardHint: '使用“保存剪贴板”创建第一条受追踪的工件。',
     toolPlaceholder: '工具占位',
     toolIntro: '导出参数会先保存在面板状态里，后续接渲染服务只需要接管动作按钮。',
     outputFormat: '输出格式',
-    lastArtifact: '最近 Artifact',
+    lastArtifact: '最近工件',
     renderNotes: '渲染备注',
     applicationSettings: '应用设置',
     settingsIntro: '这里可以配置应用级偏好项。当前版本已支持语言、浅色/深色/跟随系统、CLI 启动前置命令，以及跨会话连续性设置。',
@@ -492,12 +492,12 @@ const uiText = {
     defaultThreadContinuation: '默认线程延续',
     continueActiveThread: '继续当前线程',
     startNewThreadPerScope: '新范围新线程',
-    continuitySettingsNote: '只影响后续新会话或新捕获，不会改写已有 Artifact 的线程归属。',
+    continuitySettingsNote: '只影响后续新会话或新捕获，不会改写已有工件的线程归属。',
     cliRetrievalPreference: 'CLI 检索偏好',
     cliRetrievalPreferenceHint: '决定受管 CLI 在需要历史上下文时，是先查当前线程还是直接全局检索。',
     retrievalActiveThreadFirst: '先查当前线程',
     retrievalGlobalFirst: '直接全局检索',
-    retrievalSettingsNote: '设置会在后续检索中生效，并保留在 retrieval audit 记录里。',
+    retrievalSettingsNote: '设置会在后续检索中生效，并保留在检索审计记录里。',
     cliStartupPrelude: 'CLI 启动前置命令',
     cliStartupPreludeHint: '这些命令会在启动 Codex / Claude 之前依次执行。',
     cliStartupPreludePlaceholder: '每行一条命令，例如：\nproxy_on',
@@ -520,9 +520,9 @@ const uiText = {
     panelAvailability: '面板可用性',
     enabledState: '已启用',
     reservedState: '预留',
-    homeChecklistShell: 'Electron shell 已就绪',
-    homeChecklistWeb: 'Web panel manager 已就绪',
-    homeChecklistTerminal: 'Terminal manager 已就绪',
+    homeChecklistShell: 'Electron Shell 已就绪',
+    homeChecklistWeb: '网页面板管理器已就绪',
+    homeChecklistTerminal: '终端管理器已就绪',
     placeholderStatusPlanned: '已规划',
     placeholderStatusPlaceholder: '占位中',
     terminalStatusIdle: '空闲',

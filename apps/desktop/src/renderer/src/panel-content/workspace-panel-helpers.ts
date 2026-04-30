@@ -128,8 +128,11 @@ export function buildSessionSummary(
   }
 }
 
-export function formatContextEntryLabel(entry: { origin: string; contextLabel: string }): string {
-  return `${formatOriginLabel(entry.origin)} / ${entry.contextLabel}`
+export function formatContextEntryLabel(
+  entry: { origin: string; contextLabel: string },
+  locale: ReturnType<typeof resolveLocale>
+): string {
+  return `${formatOriginLabel(entry.origin, locale)} / ${entry.contextLabel}`
 }
 
 export function formatContextEntryDescription(
@@ -162,23 +165,25 @@ export function formatArtifactMeta(
   artifact: { origin: string; type: string; metadata?: Record<string, unknown> },
   locale: ReturnType<typeof resolveLocale>
 ): string {
-  const originLabel = formatOriginLabel(artifact.origin)
+  const originLabel = formatOriginLabel(artifact.origin, locale)
   const typeLabel = locale === 'zh-CN' ? humanizeArtifactTypeZh(artifact) : humanizeArtifactTypeEn(artifact)
   return `${originLabel} · ${typeLabel}`
 }
 
-export function formatOriginLabel(origin: string): string {
+export function formatOriginLabel(origin: string, locale: ReturnType<typeof resolveLocale> = 'en-US'): string {
+  const isZh = locale === 'zh-CN'
+
   switch (origin) {
     case 'deepseek-web':
-      return 'DeepSeek Web'
+      return isZh ? 'DeepSeek 网页' : 'DeepSeek Web'
     case 'minimax-web':
-      return 'MiniMax Web'
+      return isZh ? 'MiniMax 网页' : 'MiniMax Web'
     case 'codex-cli':
       return 'Codex CLI'
     case 'claude-code':
       return 'Claude Code'
     case 'manual':
-      return 'Manual'
+      return isZh ? '手动保存' : 'Manual'
     default:
       return origin
   }
@@ -268,7 +273,7 @@ export function deriveSessionTitle(
   }
 
   return locale === 'zh-CN'
-    ? `${formatOriginLabel(entry.origin)} 会话`
+    ? `${formatOriginLabel(entry.origin, locale)} 会话`
     : `${formatOriginLabel(entry.origin)} Session`
 }
 

@@ -379,7 +379,7 @@ export function WorkspacePanel({
           <strong>{ui.findContext}</strong>
           <span>
             {selectedScope
-              ? formatContextEntryLabel(selectedScope)
+              ? formatContextEntryLabel(selectedScope, locale)
               : visibleThreadId
                 ? activeThread?.title ?? ui.activeThread
                 : ui.allSources}
@@ -416,7 +416,7 @@ export function WorkspacePanel({
               <option value="all">{ui.allSources}</option>
               {visibleContextEntries.map((entry) => (
                 <option key={entry.scopeId} value={entry.scopeId}>
-                  {formatContextEntryLabel(entry)}
+                  {formatContextEntryLabel(entry, locale)}
                 </option>
               ))}
             </select>
@@ -476,7 +476,7 @@ export function WorkspacePanel({
                   </div>
                 </div>
                 <div className="artifact-row__meta">
-                  <span>{formatContextEntryLabel(session)}</span>
+                  <span>{formatContextEntryLabel(session, locale)}</span>
                   <small>{session.latestUpdatedAt ? formatTimestamp(session.latestUpdatedAt, locale) : '-'}</small>
                 </div>
               </button>
@@ -496,7 +496,7 @@ export function WorkspacePanel({
           <div className="workspace-session-summary">
             <div className="workspace-session-summary__header">
               <strong>{selectedScopeSummary.title}</strong>
-              <span>{formatContextEntryLabel(selectedScopeSummary)}</span>
+              <span>{formatContextEntryLabel(selectedScopeSummary, locale)}</span>
             </div>
             <p>{selectedScopeSummary.preview}</p>
             <div className="session-badges">
