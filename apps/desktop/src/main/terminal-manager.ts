@@ -25,8 +25,18 @@ import {
 const DEFAULT_COLS = 120
 const DEFAULT_ROWS = 32
 const MAX_BUFFER_SIZE = 180_000
+export const MAX_TRANSCRIPT_CAPTURE_SIZE = 120_000
 const STARTUP_COMMAND_DELAY_MS = 1_600
 const TRANSCRIPT_FLUSH_DELAY_MS = 1_200
+const TRANSCRIPT_TRUNCATION_NOTICE =
+  '[Earlier terminal transcript output was truncated to keep the indexed transcript bounded. The full session log remains available at the terminal log path.]\n\n'
+
+if (MAX_TRANSCRIPT_CAPTURE_SIZE <= TRANSCRIPT_TRUNCATION_NOTICE.length) {
+  throw new Error(
+    `MAX_TRANSCRIPT_CAPTURE_SIZE (${MAX_TRANSCRIPT_CAPTURE_SIZE}) must exceed TRANSCRIPT_TRUNCATION_NOTICE length (${TRANSCRIPT_TRUNCATION_NOTICE.length})`
+  )
+}
+
 const POWERSHELL_STARTUP_FLAGS = new Set([
   '-command',
   '/command',
@@ -178,6 +188,7 @@ interface ManagedTerminalSession {
   snapshot: TerminalPanelSnapshot
   buffer: string
   captureBuffer: string
+  captureTruncated: boolean
   bootTimer: NodeJS.Timeout | null
   captureTimer: NodeJS.Timeout | null
   auditSyncTimer: NodeJS.Timeout | null
@@ -202,6 +213,8 @@ interface PersistTerminalTranscriptPayload {
   contextLabel: string
   threadId?: string | null
   content: string
+  transcriptTruncated?: boolean
+  transcriptLimit?: number
 }
 
 function attachSessionContinuity(
@@ -230,6 +243,21 @@ function trimBuffer(buffer: string): string {
   }
 
   return buffer.slice(buffer.length - MAX_BUFFER_SIZE)
+}
+
+export function trimTranscriptCaptureBuffer(buffer: string): { content: string; truncated: boolean } {
+  if (buffer.length <= MAX_TRANSCRIPT_CAPTURE_SIZE) {
+    return {
+      content: buffer,
+      truncated: false
+    }
+  }
+
+  const tailLength = Math.max(0, MAX_TRANSCRIPT_CAPTURE_SIZE - TRANSCRIPT_TRUNCATION_NOTICE.length)
+  return {
+    content: `${TRANSCRIPT_TRUNCATION_NOTICE}${buffer.slice(buffer.length - tailLength)}`,
+    truncated: true
+  }
 }
 
 function appendLog(logPath: string, chunk: string): void {
@@ -407,6 +435,7 @@ export class TerminalManager {
       session.hasMeaningfulUserInput = false
       session.buffer = ''
       session.captureBuffer = ''
+      session.captureTruncated = false
       session.sessionToken = sessionToken
       session.captureArtifactId = null
 
@@ -494,6 +523,7 @@ export class TerminalManager {
     if (hasMeaningfulTerminalInput(data)) {
       if (!session.hasMeaningfulUserInput) {
         session.captureBuffer = ''
+        session.captureTruncated = false
         session.captureArtifactId = null
       }
 
@@ -703,7 +733,9 @@ export class TerminalManager {
       }
 
       session.buffer = trimBuffer(session.buffer + data)
-      session.captureBuffer += data
+      const nextCaptureBuffer = trimTranscriptCaptureBuffer(session.captureBuffer + data)
+      session.captureBuffer = nextCaptureBuffer.content
+      session.captureTruncated = session.captureTruncated || nextCaptureBuffer.truncated
       appendLog(session.logPath, data)
 
       if (!session.hasReceivedData) {
@@ -855,6 +887,7 @@ export class TerminalManager {
         ),
         buffer: '',
         captureBuffer: '',
+        captureTruncated: false,
         bootTimer: null,
         captureTimer: null,
         auditSyncTimer: null,
@@ -942,7 +975,9 @@ export class TerminalManager {
         launchCount: session.snapshot.launchCount,
         contextLabel: session.contextLabel,
         threadId: session.threadId,
-        content: session.captureBuffer
+        content: session.captureBuffer,
+        transcriptTruncated: session.captureTruncated,
+        transcriptLimit: MAX_TRANSCRIPT_CAPTURE_SIZE
       }) ?? session.captureArtifactId
   }
 

@@ -1,6 +1,7 @@
 import { clipboard } from 'electron'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { isAbsolute, relative, resolve } from 'node:path'
 import {
   type ArtifactManifest,
   type ArtifactRecord,
@@ -23,6 +24,35 @@ export function ensureDirectory(path: string): void {
   mkdirSync(path, { recursive: true })
 }
 
+export function resolveWorkspaceRelativePath(workspaceRoot: string, relativePath: string | null | undefined): string | null {
+  const root = workspaceRoot.trim()
+  const candidate = String(relativePath ?? '').trim()
+  if (!root || !candidate || isAbsolute(candidate)) {
+    return null
+  }
+
+  const resolvedRoot = resolve(root)
+  const resolvedPath = resolve(resolvedRoot, candidate)
+  const relativeFromRoot = relative(resolvedRoot, resolvedPath)
+  const staysInsideRoot =
+    relativeFromRoot === '' || (!relativeFromRoot.startsWith('..') && !isAbsolute(relativeFromRoot))
+
+  return staysInsideRoot ? resolvedPath : null
+}
+
+export function repairWorkspaceArtifactPath(workspaceRoot: string, artifact: ArtifactRecord): ArtifactRecord | null {
+  const absolutePath = resolveWorkspaceRelativePath(workspaceRoot, artifact.path)
+  if (!absolutePath) {
+    return null
+  }
+
+  return {
+    ...artifact,
+    path: relative(resolve(workspaceRoot), absolutePath).replaceAll('\\', '/'),
+    absolutePath
+  }
+}
+
 export function safeReadManifest(path: string, workspaceRoot: string, projectId: string): ArtifactManifest {
   if (!existsSync(path)) {
     return {
@@ -40,6 +70,8 @@ export function safeReadManifest(path: string, workspaceRoot: string, projectId:
       projectId: parsed.projectId ?? projectId,
       workspaceRoot,
       artifacts: normalizeArtifactRecords(Array.isArray(parsed.artifacts) ? parsed.artifacts : [])
+        .map((artifact) => repairWorkspaceArtifactPath(workspaceRoot, artifact))
+        .filter((artifact): artifact is ArtifactRecord => Boolean(artifact))
     }
   } catch {
     return {
@@ -195,20 +227,21 @@ function collectMeaningfulLines(content: string, patterns: RegExp[] = []): strin
     .filter((line) => !isNoiseLine(line, [...GENERIC_NOISE_PATTERNS, ...patterns]))
 }
 
-function readArtifactText(artifact: ArtifactRecord): string {
-  if (!existsSync(artifact.absolutePath)) {
+function readArtifactText(artifact: ArtifactRecord, workspaceRoot: string): string {
+  const absolutePath = resolveWorkspaceRelativePath(workspaceRoot, artifact.path)
+  if (!absolutePath || !existsSync(absolutePath)) {
     return ''
   }
 
   try {
-    return readFileSync(artifact.absolutePath, 'utf8')
+    return readFileSync(absolutePath, 'utf8')
   } catch {
     return ''
   }
 }
 
-function countStructuredMessages(artifact: ArtifactRecord): number {
-  const content = readArtifactText(artifact)
+function countStructuredMessages(artifact: ArtifactRecord, workspaceRoot: string): number {
+  const content = readArtifactText(artifact, workspaceRoot)
   if (!content) {
     return 0
   }
@@ -229,8 +262,8 @@ function countStructuredMessages(artifact: ArtifactRecord): number {
   }
 }
 
-function hasSubstantiveTerminalContent(artifact: ArtifactRecord): boolean {
-  const content = readArtifactText(artifact)
+function hasSubstantiveTerminalContent(artifact: ArtifactRecord, workspaceRoot: string): boolean {
+  const content = readArtifactText(artifact, workspaceRoot)
   if (!content) {
     return false
   }
@@ -240,7 +273,7 @@ function hasSubstantiveTerminalContent(artifact: ArtifactRecord): boolean {
   return meaningfulLines.length >= 3 || meaningfulText.length >= 80
 }
 
-export function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
+export function isSubstantiveArtifact(artifact: ArtifactRecord, workspaceRoot: string): boolean {
   const captureMode = String(artifact.metadata?.captureMode ?? '')
   const messageCount = Number(artifact.metadata?.messageCount ?? 0)
 
@@ -249,7 +282,7 @@ export function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
   }
 
   if (captureMode === 'auto-web-messages') {
-    return countStructuredMessages(artifact) > 0
+    return countStructuredMessages(artifact, workspaceRoot) > 0
   }
 
   if (captureMode === 'auto-web-context') {
@@ -257,7 +290,7 @@ export function isSubstantiveArtifact(artifact: ArtifactRecord): boolean {
   }
 
   if (captureMode === 'auto-terminal-transcript') {
-    return hasSubstantiveTerminalContent(artifact)
+    return hasSubstantiveTerminalContent(artifact, workspaceRoot)
   }
 
   if (captureMode === 'auto-cli-retrieval-audit') {

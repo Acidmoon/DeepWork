@@ -232,6 +232,17 @@ function normalizeSafeNavigationTarget(rawUrl: string): string | null {
   return result.ok ? result.url : null
 }
 
+function normalizeManagedWebPanelConfig(config: WebPanelConfig): WebPanelConfig {
+  const homeUrl = normalizeSafeNavigationTarget(config.homeUrl)
+
+  return {
+    ...config,
+    homeUrl: homeUrl ?? config.homeUrl,
+    partition: String(config.partition ?? '').trim() || `persist:${config.id}`,
+    enabled: config.enabled === true && Boolean(homeUrl)
+  }
+}
+
 function isMeaningfulWebInput(input: { type?: string; key?: string; isAutoRepeat?: boolean }): boolean {
   if (input.type !== 'keyDown' || input.isAutoRepeat) {
     return false
@@ -307,10 +318,10 @@ export class WebPanelManager {
     }) => ManagedSessionContinuitySummary | null
   ) {
     for (const config of webPanelConfigs) {
-      const resolvedConfig: WebPanelConfig = {
+      const resolvedConfig = normalizeManagedWebPanelConfig({
         ...config,
         ...overrides[config.id]
-      }
+      })
 
       this.configs.set(config.id, resolvedConfig)
       if (!resolvedConfig.enabled) {
@@ -332,6 +343,8 @@ export class WebPanelManager {
     }
 
     if (!config.enabled) {
+      const lastError = normalizeSafeNavigationTarget(config.homeUrl) ? 'Disabled until enabled' : 'Blocked unsafe URL'
+
       return {
         panelId: config.id,
         title: config.title,
@@ -342,7 +355,7 @@ export class WebPanelManager {
         canGoForward: false,
         isLoading: false,
         enabled: false,
-        lastError: 'Disabled until enabled',
+        lastError,
         contextLabel: null,
         sessionScopeId: null,
         threadId: null,
@@ -365,10 +378,10 @@ export class WebPanelManager {
       return null
     }
 
-    const nextConfig: WebPanelConfig = {
+    const nextConfig = normalizeManagedWebPanelConfig({
       ...current,
       ...update
-    }
+    })
     const partitionChanged = current.partition !== nextConfig.partition
     const enabledChanged = current.enabled !== nextConfig.enabled
     const panel = this.panels.get(panelId)
@@ -449,8 +462,20 @@ export class WebPanelManager {
     this.hideInactivePanelViews(panelId)
 
     if (!panel.hasLoaded) {
+      const normalizedHomeUrl = normalizeSafeNavigationTarget(panel.snapshot.homeUrl)
+      if (!normalizedHomeUrl) {
+        panel.snapshot = {
+          ...panel.snapshot,
+          enabled: false,
+          isLoading: false,
+          lastError: 'Blocked unsafe URL'
+        }
+        this.publish(panel.snapshot)
+        return panel.snapshot
+      }
+
       panel.hasLoaded = true
-      await panel.view.webContents.loadURL(panel.snapshot.homeUrl)
+      await panel.view.webContents.loadURL(normalizedHomeUrl)
     }
 
     this.syncNavigationState(panel)
@@ -542,7 +567,19 @@ export class WebPanelManager {
         webContents.reload()
         break
       case 'home':
-        await webContents.loadURL(panel.snapshot.homeUrl)
+        {
+          const normalizedHomeUrl = normalizeSafeNavigationTarget(panel.snapshot.homeUrl)
+          if (!normalizedHomeUrl) {
+            panel.snapshot = {
+              ...panel.snapshot,
+              lastError: 'Blocked unsafe URL'
+            }
+            this.publish(panel.snapshot)
+            return panel.snapshot
+          }
+
+          await webContents.loadURL(normalizedHomeUrl)
+        }
         break
       case 'load-url':
         if (!url) {
@@ -1079,13 +1116,13 @@ export class WebPanelManager {
   }
 
   private upsertCustomConfig(config: CustomWebPanelSettings): void {
-    const resolvedConfig: WebPanelConfig = {
+    const resolvedConfig = normalizeManagedWebPanelConfig({
       id: config.id,
       title: config.title,
       homeUrl: config.homeUrl,
       partition: config.partition,
       enabled: config.enabled
-    }
+    })
     const previousConfig = this.configs.get(config.id)
     this.configs.set(config.id, resolvedConfig)
     if (!previousConfig) {

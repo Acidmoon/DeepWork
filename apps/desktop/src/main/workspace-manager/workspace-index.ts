@@ -35,7 +35,7 @@ export function writeContextIndexFiles(
     version: '1.0',
     workspaceRoot: context.workspaceRoot,
     origins: buildContextEntries(normalizedArtifacts, {
-      isArtifactSubstantive: isSubstantiveArtifact
+      isArtifactSubstantive: (artifact) => isSubstantiveArtifact(artifact, context.workspaceRoot)
     })
   }
 
@@ -69,7 +69,7 @@ export function writeContextIndexFiles(
       title: thread.title,
       derived: thread.derived
     })),
-    isArtifactSubstantive: isSubstantiveArtifact
+    isArtifactSubstantive: (artifact) => isSubstantiveArtifact(artifact, context.workspaceRoot)
   })
   const requestedActiveThreadId = Object.prototype.hasOwnProperty.call(options, 'activeThreadId')
     ? options.activeThreadId ?? null

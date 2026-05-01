@@ -30,6 +30,7 @@ import {
   detectClipboardPayload,
   ensureDirectory,
   nowIso,
+  resolveWorkspaceRelativePath,
   safeReadContextIndex,
   safeReadManifest,
   safeReadThreadIndex
@@ -181,13 +182,14 @@ export class WorkspaceManager {
     this.lastSavedArtifactId = synced.lastSavedArtifactId
 
     const artifact = synced.manifest.artifacts.find((item) => item.id === artifactId)
-    if (!artifact || !existsSync(artifact.absolutePath)) {
+    const absolutePath = artifact ? resolveWorkspaceRelativePath(this.workspaceRoot, artifact.path) : null
+    if (!artifact || !absolutePath || !existsSync(absolutePath)) {
       return null
     }
 
     return {
       artifact,
-      content: readFileSync(artifact.absolutePath, 'utf8')
+      content: readFileSync(absolutePath, 'utf8')
     }
   }
 
@@ -348,8 +350,9 @@ export class WorkspaceManager {
     const removedArtifacts = manifest.artifacts.filter((artifact) => getArtifactScopeId(artifact) === scopeId)
 
     for (const artifact of removedArtifacts) {
-      if (existsSync(artifact.absolutePath)) {
-        rmSync(artifact.absolutePath, { force: true })
+      const absolutePath = resolveWorkspaceRelativePath(this.workspaceRoot, artifact.path)
+      if (absolutePath && existsSync(absolutePath)) {
+        rmSync(absolutePath, { force: true })
       }
     }
 
@@ -381,6 +384,8 @@ export class WorkspaceManager {
     contextLabel: string
     threadId?: string | null
     content: string
+    transcriptTruncated?: boolean
+    transcriptLimit?: number
   }): string | null {
     if (!this.hasWorkspaceRoot()) {
       return null
@@ -405,7 +410,9 @@ export class WorkspaceManager {
         launchCount: input.launchCount,
         contextLabel: input.contextLabel,
         threadId: thread.threadId,
-        previewText: buildPreviewTextSnippet(input.content)
+        previewText: buildPreviewTextSnippet(input.content),
+        transcriptTruncated: input.transcriptTruncated === true,
+        transcriptLimit: input.transcriptLimit ?? null
       }
     })
     this.lastSavedArtifactId = result.lastSavedArtifactId

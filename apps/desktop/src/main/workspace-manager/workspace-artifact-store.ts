@@ -11,7 +11,14 @@ import {
   type ArtifactRecord,
   type ArtifactType
 } from '@ai-workbench/core/desktop/workspace'
-import { ensureDirectory, fileNameForArtifact, hashContent, nextArtifactId, safeReadManifest } from './workspace-artifact-helpers'
+import {
+  ensureDirectory,
+  fileNameForArtifact,
+  hashContent,
+  nextArtifactId,
+  resolveWorkspaceRelativePath,
+  safeReadManifest
+} from './workspace-artifact-helpers'
 import { type WorkspaceManifestContext } from './workspace-context'
 import { writeContextIndexFiles } from './workspace-index'
 
@@ -42,7 +49,13 @@ export function saveTextArtifactToWorkspace(
   const fileName = existingArtifact?.name ?? options.fileName ?? fileNameForArtifact(id, artifactType)
   const relativePath =
     existingArtifact?.path ?? options.relativePath ?? join(artifactDirectories[artifactType], fileName).replaceAll('\\', '/')
-  const absolutePath = join(context.workspaceRoot, relativePath)
+  const absolutePath = resolveWorkspaceRelativePath(context.workspaceRoot, relativePath)
+  if (!absolutePath) {
+    return {
+      artifact: null,
+      lastSavedArtifactId: null
+    }
+  }
   const createdAt = existingArtifact?.createdAt ?? new Date().toISOString()
   const updatedAt = new Date().toISOString()
   const origin = sanitizeOrigin(options.origin || existingArtifact?.origin || 'manual')
