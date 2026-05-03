@@ -1,13 +1,26 @@
 async page => {
   const screenshotPath = '__SCREENSHOT_PATH__'
-  await page.getByRole('button', { name: 'A Artifacts Open Artifacts' }).click()
-  await page.waitForTimeout(300)
+
+  const waitForInspectionMode = async mode => {
+    await page.waitForFunction(
+      expectedMode => document.querySelector('.workspace-inspector')?.getAttribute('data-inspection-mode') === expectedMode,
+      mode
+    )
+    await page.waitForTimeout(300)
+  }
+
+  const selectNavPanel = async label => {
+    await page.locator('.nav-item__button').filter({ hasText: label }).click()
+  }
+
+  await selectNavPanel('Artifacts')
+  await waitForInspectionMode('workspace')
 
   const normalizedMetadataState = await page.evaluate(() => {
     const snapshot = window.__workspaceRegressionValidation.getState().snapshot
-    const retrievalAudit = snapshot.artifacts.find((artifact) => artifact.id === 'retrieval_audit_codex-cli__session-0001') ?? null
-    const manualNote = snapshot.artifacts.find((artifact) => artifact.id === 'text_0003') ?? null
-    const sideResearchThread = snapshot.threads.find((thread) => thread.threadId === 'thread-side-research') ?? null
+    const retrievalAudit = snapshot.artifacts.find(artifact => artifact.id === 'retrieval_audit_codex-cli__session-0001') ?? null
+    const manualNote = snapshot.artifacts.find(artifact => artifact.id === 'text_0003') ?? null
+    const sideResearchThread = snapshot.threads.find(thread => thread.threadId === 'thread-side-research') ?? null
     return {
       retrievalAuditKind: retrievalAudit?.metadata?.artifactKind ?? null,
       retrievalAuditScopeId: retrievalAudit?.metadata?.sessionScopeId ?? null,
@@ -28,139 +41,238 @@ async page => {
     throw new Error(`Normalized artifact metadata fixture was not wired correctly: ${JSON.stringify(normalizedMetadataState)}`)
   }
 
-  const searchBox = page.getByRole('textbox', { name: '搜索查询' })
-  await searchBox.fill('111')
+  const workspaceRoot = page.locator('.workspace-inspector[data-inspection-mode="workspace"]')
+  const workspaceSourcesPane = workspaceRoot.locator('[data-pane="sources"]').first()
+  const workspaceDetailPane = workspaceRoot.locator('[data-pane="detail"]').first()
+  const workspaceRecordsPane = workspaceRoot.locator('[data-pane="records"]').first()
+  const workspacePreviewPane = workspaceRoot.locator('[data-pane="preview"]').first()
+  const workspaceSearchBox = page.getByRole('textbox', { name: '搜索查询' })
+
+  await workspaceSearchBox.fill('111')
   await page.waitForTimeout(300)
 
+  const workspaceHierarchy = await workspaceRoot.evaluate(node => ({
+    inspectionMode: node.getAttribute('data-inspection-mode'),
+    threadScope: node.getAttribute('data-thread-scope'),
+    selectedOrigin: node.getAttribute('data-selected-origin'),
+    searchActive: node.getAttribute('data-search-active'),
+    panes: [...node.querySelectorAll('[data-pane]')].map(element => element.getAttribute('data-pane'))
+  }))
+  const workspacePaneSet = new Set(workspaceHierarchy.panes)
+  if (
+    workspaceHierarchy.inspectionMode !== 'workspace' ||
+    workspaceHierarchy.threadScope !== 'active' ||
+    workspaceHierarchy.selectedOrigin !== 'all' ||
+    workspaceHierarchy.searchActive !== 'true' ||
+    !workspacePaneSet.has('header') ||
+    !workspacePaneSet.has('sources') ||
+    !workspacePaneSet.has('detail') ||
+    !workspacePaneSet.has('records') ||
+    !workspacePaneSet.has('preview')
+  ) {
+    throw new Error(`Workspace hierarchy markers were not rendered as expected: ${JSON.stringify(workspaceHierarchy)}`)
+  }
+
   const routineInspectionState = {
-    scopeListVisible: await page.getByText('会话列表').count(),
-    selectedSummaryVisible: await page.getByText('当前上下文摘要').count(),
-    sessionPreviewVisible: await page.getByText('会话预览').count(),
+    sourceListVisible: await workspaceRoot.getByText('来源列表').count(),
+    selectedDetailVisible: await workspaceRoot.getByText('来源详情').count(),
+    timelineVisible: await workspaceRoot.getByText('对话时间线').count(),
+    relatedRecordsVisible: await workspaceRoot.getByText('相关记录').count(),
     maintenanceSummaryVisible: await page.locator('summary').filter({ hasText: '工作区维护' }).count()
   }
   if (
-    routineInspectionState.scopeListVisible < 1 ||
-    routineInspectionState.selectedSummaryVisible < 1 ||
-    routineInspectionState.sessionPreviewVisible < 1 ||
+    routineInspectionState.sourceListVisible < 1 ||
+    routineInspectionState.selectedDetailVisible < 1 ||
+    routineInspectionState.timelineVisible < 1 ||
+    routineInspectionState.relatedRecordsVisible < 1 ||
     routineInspectionState.maintenanceSummaryVisible < 1
   ) {
-    throw new Error(`Routine inspection hierarchy was not visible before advanced sections opened: ${JSON.stringify(routineInspectionState)}`)
+    throw new Error(`Workspace reading flow was not visible before advanced sections opened: ${JSON.stringify(routineInspectionState)}`)
   }
 
-  const sessionResults = await page.getByText('1 搜索结果').count()
-  const deepseekSessionButton = page.getByRole('button', { name: /用户询问数字111含义/ })
-  const deepseekSessionVisible = await deepseekSessionButton.count()
-  const minimaxSessionVisible = await page.getByRole('button', { name: /MiniMax Agent/ }).count()
-  if (sessionResults < 1 || deepseekSessionVisible !== 1 || minimaxSessionVisible !== 0) {
-    throw new Error(`Search verification failed: sessionResults=${sessionResults}, deepseek=${deepseekSessionVisible}, minimax=${minimaxSessionVisible}`)
+  const deepseekSourceRow = workspaceSourcesPane.locator('.artifact-row--session').filter({ hasText: '用户询问数字111含义' })
+  const minimaxSourceRow = workspaceSourcesPane.locator('.artifact-row--session').filter({ hasText: 'MiniMax Agent' })
+  const sessionResults = await workspaceSourcesPane.locator('.artifact-row--session').count()
+  const deepseekSessionVisible = await deepseekSourceRow.count()
+  const minimaxSessionVisible = await minimaxSourceRow.count()
+  if (sessionResults !== 1 || deepseekSessionVisible !== 1 || minimaxSessionVisible !== 0) {
+    throw new Error(`Workspace search verification failed: ${JSON.stringify({ sessionResults, deepseekSessionVisible, minimaxSessionVisible })}`)
   }
 
-  await deepseekSessionButton.click()
+  await deepseekSourceRow.click()
   await page.waitForTimeout(300)
-  const artifactSelectionStateAfterSelect = {
-    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
-    sessionSummaryCards: await page.locator('.workspace-session-summary').count()
-  }
-  if (artifactSelectionStateAfterSelect.activeSessionRows !== 1 || artifactSelectionStateAfterSelect.sessionSummaryCards !== 1) {
-    throw new Error(`Artifact inspection session selection did not activate as expected: ${JSON.stringify(artifactSelectionStateAfterSelect)}`)
-  }
-
-  await page.getByRole('button', { name: '预览' }).nth(1).click()
-  await page.waitForTimeout(400)
-  const jsonPreviewVisible = await page.getByText('"messageCount": 1').count()
-  if (jsonPreviewVisible < 1) {
-    throw new Error('JSON preview did not render after selecting preview target.')
-  }
-
-  await deepseekSessionButton.click()
-  await page.waitForTimeout(300)
-  const artifactDeselectionState = {
-    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
-    sessionSummaryCards: await page.locator('.workspace-session-summary').count(),
-    previewStillJson: await page.getByText('"messageCount": 1').count()
+  const workspaceSelectionStateAfterSelect = {
+    selectedOrigin: await workspaceRoot.getAttribute('data-selected-origin'),
+    sourceRowsVisible: await workspaceSourcesPane.locator('.artifact-row--session').count(),
+    activeSourceRows: await workspaceSourcesPane.locator('.artifact-row--session.artifact-row--active').count(),
+    sessionSummaryCards: await workspaceDetailPane.locator('.workspace-session-summary').count(),
+    timelineCards: await workspaceDetailPane.locator('.session-message').count()
   }
   if (
-    artifactDeselectionState.activeSessionRows !== 0 ||
-    artifactDeselectionState.sessionSummaryCards !== 0 ||
-    artifactDeselectionState.previewStillJson < 1
+    workspaceSelectionStateAfterSelect.selectedOrigin === 'all' ||
+    workspaceSelectionStateAfterSelect.sourceRowsVisible !== 1 ||
+    workspaceSelectionStateAfterSelect.activeSourceRows !== 1 ||
+    workspaceSelectionStateAfterSelect.sessionSummaryCards !== 1 ||
+    workspaceSelectionStateAfterSelect.timelineCards !== 1
   ) {
-    throw new Error(`Artifact inspection session deselection failed: ${JSON.stringify(artifactDeselectionState)}`)
+    throw new Error(`Workspace source selection did not activate the clarified detail flow: ${JSON.stringify(workspaceSelectionStateAfterSelect)}`)
   }
 
-  await page.getByRole('checkbox').nth(0).check()
-  await page.waitForTimeout(200)
-  const selectedCountAfterCheck = await page.getByText('1 已选数量').count()
-  const previewStillJson = await page.getByText('"messageCount": 1').count()
-  if (selectedCountAfterCheck < 1 || previewStillJson < 1) {
-    throw new Error(`Selection/preview separation failed: selected=${selectedCountAfterCheck}, preview=${previewStillJson}`)
-  }
-
-  await page.getByRole('combobox', { name: '内容类型' }).selectOption('logs/')
-  await page.waitForTimeout(300)
-  await searchBox.fill('session-0001')
-  await page.waitForTimeout(300)
-  const logSourcesHeadingVisible = await page.getByText('日志来源').count()
-  const logRecordsHeadingVisible = await page.getByText('日志记录').count()
-  const logPreviewHeadingVisible = await page.getByText('日志预览').count()
-  const terminalTranscriptMetaVisible = await page.getByText('终端转录').count()
-  const retrievalAuditMetaVisible = await page.getByText('检索审计').count()
-  const logResultVisible = await page.getByText('1 搜索结果').count()
-  const logSessionButton = page.getByRole('button', { name: /session-0001/i }).first()
-  await logSessionButton.click()
-  await page.waitForTimeout(300)
-  const logSelectionStateAfterSelect = {
-    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
-    sessionSummaryCards: await page.locator('.workspace-session-summary').count()
-  }
-  if (logSelectionStateAfterSelect.activeSessionRows !== 1 || logSelectionStateAfterSelect.sessionSummaryCards !== 1) {
-    throw new Error(`Log inspection session selection did not activate as expected: ${JSON.stringify(logSelectionStateAfterSelect)}`)
-  }
-
-  await logSessionButton.click()
-  await page.waitForTimeout(300)
-  const logDeselectionState = {
-    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
-    sessionSummaryCards: await page.locator('.workspace-session-summary').count()
-  }
-  if (logDeselectionState.activeSessionRows !== 0 || logDeselectionState.sessionSummaryCards !== 0) {
-    throw new Error(`Log inspection session deselection failed: ${JSON.stringify(logDeselectionState)}`)
-  }
-
-  await page.getByRole('button', { name: '预览' }).click()
+  const jsonArtifactRow = workspaceRecordsPane.locator('.artifact-row').filter({ hasText: '消息索引' }).first()
+  await jsonArtifactRow.getByRole('button', { name: '预览' }).click()
   await page.waitForTimeout(400)
-  const logPreviewVisible = await page.getByText('electron-vite dev').count()
+  const jsonPreviewVisible = await workspacePreviewPane.getByText('"messageCount": 1').count()
+  if (jsonPreviewVisible < 1) {
+    throw new Error('Workspace preview did not render the selected JSON artifact.')
+  }
+
+  await deepseekSourceRow.click()
+  await page.waitForTimeout(300)
+  const workspaceDeselectionState = {
+    selectedOrigin: await workspaceRoot.getAttribute('data-selected-origin'),
+    activeSourceRows: await workspaceSourcesPane.locator('.artifact-row--session.artifact-row--active').count(),
+    sessionSummaryCards: await workspaceDetailPane.locator('.workspace-session-summary').count(),
+    previewStillJson: await workspacePreviewPane.getByText('"messageCount": 1').count()
+  }
+  if (
+    workspaceDeselectionState.selectedOrigin !== 'all' ||
+    workspaceDeselectionState.activeSourceRows !== 0 ||
+    workspaceDeselectionState.sessionSummaryCards !== 0 ||
+    workspaceDeselectionState.previewStillJson < 1
+  ) {
+    throw new Error(`Workspace source deselection failed: ${JSON.stringify(workspaceDeselectionState)}`)
+  }
+
+  await workspaceRecordsPane.getByRole('checkbox').nth(0).check()
+  await page.waitForTimeout(200)
+  const selectedCountAfterCheck = await workspaceRecordsPane.getByText('1 已选数量').count()
+  const previewStillJson = await workspacePreviewPane.getByText('"messageCount": 1').count()
+  if (selectedCountAfterCheck < 1 || previewStillJson < 1) {
+    throw new Error(`Selection and preview separation failed: ${JSON.stringify({ selectedCountAfterCheck, previewStillJson })}`)
+  }
+
+  await selectNavPanel('Logs')
+  await waitForInspectionMode('logs')
+
+  const logsRoot = page.locator('.workspace-inspector[data-inspection-mode="logs"]')
+  const logsSourcesPane = logsRoot.locator('[data-pane="sources"]').first()
+  const logsRecordsPane = logsRoot.locator('[data-pane="records"]').first()
+  const logsPreviewPane = logsRoot.locator('[data-pane="preview"]').first()
+  const logsSearchBox = page.getByRole('textbox', { name: '搜索查询' })
+
+  await logsSearchBox.fill('session-0001')
+  await page.waitForTimeout(300)
+
+  const logsHierarchy = await logsRoot.evaluate(node => ({
+    inspectionMode: node.getAttribute('data-inspection-mode'),
+    threadScope: node.getAttribute('data-thread-scope'),
+    selectedOrigin: node.getAttribute('data-selected-origin'),
+    searchActive: node.getAttribute('data-search-active'),
+    panes: [...node.querySelectorAll('[data-pane]')].map(element => element.getAttribute('data-pane'))
+  }))
+  const logsPaneSet = new Set(logsHierarchy.panes)
+  if (
+    logsHierarchy.inspectionMode !== 'logs' ||
+    logsHierarchy.threadScope !== 'active' ||
+    logsHierarchy.selectedOrigin !== 'all' ||
+    logsHierarchy.searchActive !== 'true' ||
+    !logsPaneSet.has('header') ||
+    !logsPaneSet.has('sources') ||
+    !logsPaneSet.has('records') ||
+    !logsPaneSet.has('preview') ||
+    logsPaneSet.has('detail')
+  ) {
+    throw new Error(`Logs hierarchy markers were not rendered as expected: ${JSON.stringify(logsHierarchy)}`)
+  }
+
+  const logSourcesHeadingVisible = await logsRoot.getByText('日志来源').count()
+  const logRecordsHeadingVisible = await logsRoot.getByText('日志记录').count()
+  const logPreviewHeadingVisible = await logsRoot.getByText('日志预览').count()
+  const workspaceTimelineHeadingVisible = await logsRoot.getByText('对话时间线').count()
+  const logResultVisible = await logsSourcesPane.locator('.artifact-row--session').count()
+  const logSessionRow = logsSourcesPane.locator('.artifact-row--session').filter({ hasText: 'session-0001' }).first()
+  const terminalTranscriptRow = logsRecordsPane.locator('.artifact-row').filter({ hasText: '终端转录' }).first()
+  const retrievalAuditRow = logsRecordsPane.locator('.artifact-row').filter({ hasText: '检索审计' }).first()
+  const terminalTranscriptMetaVisible = await terminalTranscriptRow.count()
+  const retrievalAuditMetaVisible = await retrievalAuditRow.count()
   if (
     logSourcesHeadingVisible < 1 ||
     logRecordsHeadingVisible < 1 ||
     logPreviewHeadingVisible < 1 ||
+    workspaceTimelineHeadingVisible !== 0 ||
+    logResultVisible !== 1 ||
     terminalTranscriptMetaVisible < 1 ||
-    retrievalAuditMetaVisible < 1 ||
-    logResultVisible < 1 ||
-    logPreviewVisible < 1
+    retrievalAuditMetaVisible < 1
   ) {
     throw new Error(
-      `Log inspection failed: ${JSON.stringify({
+      `Logs reading flow did not render clearly: ${JSON.stringify({
         logSourcesHeadingVisible,
         logRecordsHeadingVisible,
         logPreviewHeadingVisible,
-        terminalTranscriptMetaVisible,
-        retrievalAuditMetaVisible,
+        workspaceTimelineHeadingVisible,
         logResultVisible,
-        logPreviewVisible
+        terminalTranscriptMetaVisible,
+        retrievalAuditMetaVisible
       })}`
     )
   }
 
-  await page.getByRole('combobox', { name: '内容类型' }).selectOption('artifacts/')
+  await logSessionRow.click()
   await page.waitForTimeout(300)
-  await searchBox.fill('')
+  const logSelectionStateAfterSelect = {
+    selectedOrigin: await logsRoot.getAttribute('data-selected-origin'),
+    activeSourceRows: await logsSourcesPane.locator('.artifact-row--session.artifact-row--active').count(),
+    inlineSummaryCards: await logsRecordsPane.locator('.workspace-session-summary--inline').count()
+  }
+  if (
+    logSelectionStateAfterSelect.selectedOrigin === 'all' ||
+    logSelectionStateAfterSelect.activeSourceRows !== 1 ||
+    logSelectionStateAfterSelect.inlineSummaryCards !== 1
+  ) {
+    throw new Error(`Log source selection did not activate as expected: ${JSON.stringify(logSelectionStateAfterSelect)}`)
+  }
+
+  await logSessionRow.click()
   await page.waitForTimeout(300)
+  const logDeselectionState = {
+    selectedOrigin: await logsRoot.getAttribute('data-selected-origin'),
+    activeSourceRows: await logsSourcesPane.locator('.artifact-row--session.artifact-row--active').count(),
+    inlineSummaryCards: await logsRecordsPane.locator('.workspace-session-summary--inline').count()
+  }
+  if (
+    logDeselectionState.selectedOrigin !== 'all' ||
+    logDeselectionState.activeSourceRows !== 0 ||
+    logDeselectionState.inlineSummaryCards !== 0
+  ) {
+    throw new Error(`Log source deselection failed: ${JSON.stringify(logDeselectionState)}`)
+  }
+
+  await terminalTranscriptRow.getByRole('button', { name: '预览' }).click()
+  await page.waitForTimeout(400)
+  const logPreviewVisible = await logsPreviewPane.getByText('electron-vite dev').count()
+  if (logPreviewVisible < 1) {
+    throw new Error('Log preview did not render the terminal transcript.')
+  }
+
+  await selectNavPanel('Artifacts')
+  await waitForInspectionMode('workspace')
+
+  await workspaceSearchBox.fill('')
+  await page.waitForTimeout(300)
+  const searchClearedState = {
+    searchActive: await workspaceRoot.getAttribute('data-search-active'),
+    selectedOrigin: await workspaceRoot.getAttribute('data-selected-origin')
+  }
+  if (searchClearedState.searchActive !== 'false' || searchClearedState.selectedOrigin !== 'all') {
+    throw new Error(`Workspace state did not reset after clearing the search: ${JSON.stringify(searchClearedState)}`)
+  }
+
   await page.getByRole('button', { name: '查看全部范围' }).click()
   await page.waitForTimeout(300)
   await page.locator('summary').filter({ hasText: '线程与修复' }).click()
   await page.waitForTimeout(300)
 
-  const minimaxSessionButton = page.getByRole('button', { name: /MiniMax Agent/ })
+  const minimaxSessionButton = workspaceSourcesPane.locator('.artifact-row--session').filter({ hasText: 'MiniMax Agent' })
   const minimaxSessionVisibleBefore = await minimaxSessionButton.count()
   if (minimaxSessionVisibleBefore !== 1) {
     throw new Error(`Expected MiniMax session to become visible after switching to all scopes, received ${minimaxSessionVisibleBefore}`)
@@ -174,9 +286,9 @@ async page => {
   await page.getByRole('button', { name: '当前线程' }).click()
   await page.waitForTimeout(300)
 
-  const activeThreadSessionCount = await page.getByText('3 搜索结果').count()
-  if (activeThreadSessionCount < 1) {
-    throw new Error(`Expected three sessions after reassigning MiniMax into the active thread, received ${activeThreadSessionCount}`)
+  const activeThreadSessionCount = await workspaceSourcesPane.locator('.artifact-row--session').count()
+  if (activeThreadSessionCount !== 3) {
+    throw new Error(`Expected three visible sources after reassigning MiniMax into the active thread, received ${activeThreadSessionCount}`)
   }
 
   await page.getByRole('textbox', { name: '新线程标题' }).fill('CLI Follow Up')
@@ -250,7 +362,7 @@ async page => {
     afterActivation.releasePlanningScopeCount !== 3 ||
     afterActivation.renamedThreadTitle !== 'CLI Follow Up Renamed'
   ) {
-    throw new Error(`Workspace snapshot drifted after create/rename/activate flows: ${JSON.stringify(afterActivation)}`)
+    throw new Error(`Workspace snapshot drifted after create, rename, and activate flows: ${JSON.stringify(afterActivation)}`)
   }
 
   await page.locator('summary').filter({ hasText: '工作区维护' }).click()
@@ -286,7 +398,7 @@ async page => {
   const rebuildActionVisible = await page.getByText('Rebuilt derived workspace indexes.').count()
   const rebuildChangedFilesVisible = await page.getByText('2').count()
   if (rebuildActionVisible < 1 || rebuildChangedFilesVisible < 1) {
-    throw new Error(`Maintenance rebuild result did not render: action=${rebuildActionVisible}, changed=${rebuildChangedFilesVisible}`)
+    throw new Error(`Maintenance rebuild result did not render: ${JSON.stringify({ rebuildActionVisible, rebuildChangedFilesVisible })}`)
   }
 
   await page.getByRole('button', { name: '准备安全修复' }).click()
@@ -323,11 +435,13 @@ async page => {
       deepseekSessionVisible,
       minimaxSessionVisible,
       normalizedMetadataState,
+      workspaceHierarchy,
+      workspaceSelectionStateAfterSelect,
+      workspaceDeselectionState,
       jsonPreviewVisible,
       selectedCountAfterCheck,
       previewStillJson,
-      artifactSelectionStateAfterSelect,
-      artifactDeselectionState,
+      logsHierarchy,
       logResultVisible,
       logSourcesHeadingVisible,
       logRecordsHeadingVisible,

@@ -82,7 +82,13 @@ export function WorkspacePanel({
   }, [syncWorkspaceState])
 
   const normalizedQuery = normalizeWorkspaceSearchQuery(state.searchQuery)
-  const isLogInspection = state.selectedBucket === 'logs/'
+  const isLogsPanel = panel.definition.id === 'logs'
+  const effectiveSelectedBucket = isLogsPanel
+    ? 'logs/'
+    : state.selectedBucket === 'logs/'
+      ? 'artifacts/'
+      : state.selectedBucket
+  const isLogInspection = effectiveSelectedBucket === 'logs/'
   const activeThread = state.threads.find((thread) => thread.threadId === state.activeThreadId) ?? null
   const visibleThreadId = state.threadFilterMode === 'active' ? state.activeThreadId : null
   const visibleContextEntries = visibleThreadId
@@ -96,12 +102,11 @@ export function WorkspacePanel({
   const sessionSummaries = visibleContextEntries.map((entry) => {
     const bucketArtifacts = state.artifacts
       .filter((artifact) => getArtifactScopeId(artifact) === entry.scopeId)
-      .filter((artifact) => matchesWorkspaceBucket(artifact, state.selectedBucket))
+      .filter((artifact) => matchesWorkspaceBucket(artifact, effectiveSelectedBucket))
     const searchableSession = buildSessionSearchText(entry)
 
     return {
       ...buildSessionSummary(entry, locale),
-      matchesOrigin: effectiveSelectedOrigin === 'all' || entry.scopeId === effectiveSelectedOrigin,
       matchesQuery:
         !normalizedQuery ||
         searchableSession.includes(normalizedQuery) ||
@@ -109,14 +114,12 @@ export function WorkspacePanel({
       availableArtifactCount: bucketArtifacts.length
     }
   })
-  const filteredSessionSummaries = sessionSummaries.filter(
-    (session) => session.matchesOrigin && session.availableArtifactCount > 0 && session.matchesQuery
-  )
+  const filteredSessionSummaries = sessionSummaries.filter((session) => session.availableArtifactCount > 0 && session.matchesQuery)
   const filteredArtifacts = state.artifacts.filter((artifact) => {
     const scopeId = getArtifactScopeId(artifact)
     const matchesThread = !visibleThreadId || scopeThreadMap.get(scopeId) === visibleThreadId
     const matchesOrigin = effectiveSelectedOrigin === 'all' || scopeId === effectiveSelectedOrigin
-    const matchesBucket = matchesWorkspaceBucket(artifact, state.selectedBucket)
+    const matchesBucket = matchesWorkspaceBucket(artifact, effectiveSelectedBucket)
     const matchesQuery = !normalizedQuery || matchesWorkspaceArtifactQuery(artifact, normalizedQuery)
 
     return matchesThread && matchesOrigin && matchesBucket && matchesQuery
@@ -128,9 +131,19 @@ export function WorkspacePanel({
     ? null
     : visibleContextEntries.find((entry) => entry.scopeId === effectiveSelectedOrigin) ?? null
   const workspaceFolderName = getWorkspaceFolderName(state.workspaceRoot)
+  const threadScopeLabel = state.threadFilterMode === 'active' ? activeThread?.title ?? ui.noActiveThread : ui.threadShowAll
+  const sourceScopeLabel = selectedScope ? formatContextEntryLabel(selectedScope, locale) : ui.allSources
+  const searchScopeLabel = normalizedQuery ? state.searchQuery.trim() : ui.inspectionFilterNone
+  const inspectionModeLabel = isLogsPanel
+    ? ui.bucketLogs
+    : effectiveSelectedBucket === 'outputs/'
+      ? ui.bucketOutputs
+      : ui.bucketArtifacts
   const emptyWorkspaceMessage = isLogInspection ? ui.logsEmptyHint : ui.workspaceEmptyHint
   const noFilteredArtifactsMessage = isLogInspection ? ui.noLogsForFilter : ui.noArtifactsForFilter
   const inspectionHint = isLogInspection ? ui.logInspectionHint : ui.findContextHint
+  const inspectionHeadline = isLogsPanel ? ui.logInspectionHint : ui.workspaceSecondaryHint
+  const inspectionFlowHint = isLogsPanel ? ui.logsInspectionFlowHint : ui.workspaceInspectionFlowHint
   const sourceListTitle = isLogInspection ? ui.logSources : ui.sessionList
   const artifactListTitle = isLogInspection
     ? ui.logRecords
@@ -138,6 +151,7 @@ export function WorkspacePanel({
       ? ui.currentSessionContent
       : ui.recentArtifacts
   const previewTitle = isLogInspection ? ui.logPreview : ui.artifactPreview
+  const previewHint = isLogInspection ? ui.logPreviewHint : ui.artifactPreviewHint
   const selectedScopeArtifacts = selectedScope
     ? state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === selectedScope.scopeId)
     : []
@@ -145,6 +159,7 @@ export function WorkspacePanel({
   const selectedScopeArtifactKey = selectedScopeArtifacts.map((artifact) => artifact.id).join('|')
   const selectedArtifacts = filteredArtifacts.filter((artifact) => state.selectedArtifactIds.includes(artifact.id))
   const selectedArtifactsCount = selectedArtifacts.length
+  const currentBucketCount = state.bucketCounts[effectiveSelectedBucket] ?? 0
 
   const updateWorkspaceViewState = (
     nextState: typeof state | ((currentState: typeof state) => typeof state)
@@ -400,28 +415,198 @@ export function WorkspacePanel({
     }
   }, [selectedPreviewArtifact?.id, selectedPreviewArtifact?.type])
 
-  return (
-    <div className="panel-layout workspace-inspector">
-      <section className="panel-header">
-        <p className="eyebrow">{ui.workspaceLive}</p>
-        <h3>{definition.title}</h3>
-        <p>{ui.workspaceSecondaryHint}</p>
-      </section>
+  const renderSelectedScopeSummary = (className = 'workspace-session-summary'): JSX.Element | null => {
+    if (!selectedScopeSummary) {
+      return null
+    }
 
-      <div className="stats-row">
-        <article className="stat-block">
-          <span>{ui.currentWorkspace}</span>
-          <strong>{workspaceFolderName || ui.workspaceInitializationPending}</strong>
-        </article>
-        <article className="stat-block">
-          <span>{ui.savedContexts}</span>
-          <strong>{state.contextEntries.length}</strong>
-        </article>
-        <article className="stat-block">
-          <span>{ui.savedItems}</span>
-          <strong>{state.artifactCount}</strong>
-        </article>
+    return (
+      <div className={className}>
+        <div className="workspace-session-summary__header">
+          <strong>{selectedScopeSummary.title}</strong>
+          <span>{formatContextEntryLabel(selectedScopeSummary, locale)}</span>
+        </div>
+        <p>{selectedScopeSummary.preview}</p>
+        <div className="session-badges">
+          {selectedScopeSummary.badges.map((badge) => (
+            <span key={`${selectedScopeSummary.scopeId}-${badge}`} className="session-badge">
+              {badge}
+            </span>
+          ))}
+        </div>
       </div>
+    )
+  }
+
+  const renderArtifactRows = (): JSX.Element => {
+    if (filteredArtifacts.length === 0) {
+      return <p className="section-empty">{noFilteredArtifactsMessage}</p>
+    }
+
+    return (
+      <div className="artifact-list artifact-list--stacked">
+        {filteredArtifacts.map((artifact) => (
+          <article
+            key={artifact.id}
+            className={`artifact-row artifact-row--selectable${state.previewArtifactId === artifact.id ? ' artifact-row--active' : ''}`}
+          >
+            <div className="artifact-row__select">
+              <input
+                type="checkbox"
+                checked={state.selectedArtifactIds.includes(artifact.id)}
+                onChange={() => toggleArtifactSelection(artifact.id)}
+              />
+            </div>
+            <div className="artifact-row__body">
+              <strong>{formatArtifactTitle(artifact, locale)}</strong>
+              <p>{formatArtifactSummary(artifact)}</p>
+            </div>
+            <div className="artifact-row__meta">
+              <span>{formatArtifactMeta(artifact, locale)}</span>
+              <small>{formatTimestamp(artifact.updatedAt, locale)}</small>
+            </div>
+            <div className="artifact-row__actions">
+              <button
+                type="button"
+                className="action-button action-button--ghost action-button--compact"
+                onClick={() => setPreviewArtifact(artifact.id)}
+              >
+                {ui.previewArtifact}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    )
+  }
+
+  const renderPreviewSurface = (): JSX.Element => {
+    if (!selectedPreviewArtifact) {
+      return <p className="section-empty">{previewHint}</p>
+    }
+
+    return (
+      <div className="artifact-preview">
+        <div className="artifact-preview__meta">
+          <span>{formatArtifactMeta(selectedPreviewArtifact, locale)}</span>
+          <span>{selectedPreviewArtifact.path}</span>
+          <span>{formatTimestamp(selectedPreviewArtifact.updatedAt, locale)}</span>
+        </div>
+        <div className="artifact-preview__body">
+          {previewStatus === 'loading' ? (
+            <p className="section-empty">{ui.artifactPreviewLoading}</p>
+          ) : previewStatus === 'unsupported' ? (
+            <p className="section-empty">{ui.artifactPreviewUnsupported}</p>
+          ) : previewStatus === 'unavailable' ? (
+            <p className="section-empty">{ui.artifactPreviewUnavailable}</p>
+          ) : (
+            <pre>{previewContent}</pre>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="panel-layout workspace-inspector"
+      data-inspection-mode={isLogsPanel ? 'logs' : 'workspace'}
+      data-thread-scope={state.threadFilterMode}
+      data-selected-origin={effectiveSelectedOrigin}
+      data-search-active={normalizedQuery ? 'true' : 'false'}
+    >
+      <section className="panel-section workspace-inspector-header" data-pane="header">
+        <div className="workspace-inspector-header__hero">
+          <div>
+            <p className="eyebrow">{ui.workspaceSecondaryRole}</p>
+            <h3>{definition.title}</h3>
+          </div>
+          <p>{inspectionHeadline}</p>
+          <p className="section-empty">{inspectionFlowHint}</p>
+        </div>
+
+        <div className="workspace-inspector-toolbar">
+          <div className="workspace-inspector-toolbar__controls">
+            {!isLogsPanel ? (
+              <label className="field">
+                <span>{ui.contextType}</span>
+                <select
+                  value={effectiveSelectedBucket}
+                  onChange={(event) =>
+                    updateWorkspaceViewState({
+                      ...state,
+                      selectedBucket: event.target.value
+                    })
+                  }
+                >
+                  <option value="artifacts/">{ui.bucketArtifacts}</option>
+                  <option value="outputs/">{ui.bucketOutputs}</option>
+                </select>
+              </label>
+            ) : null}
+            <label className="field">
+              <span>{ui.workspaceSearch}</span>
+              <input
+                value={state.searchQuery}
+                placeholder={ui.workspaceSearchPlaceholder}
+                onChange={(event) =>
+                  updateWorkspaceViewState({
+                    ...state,
+                    searchQuery: event.target.value
+                  })
+                }
+              />
+            </label>
+            <div className="action-row action-row--end">
+              <button
+                type="button"
+                className="action-button action-button--ghost"
+                onClick={() =>
+                  updateWorkspaceViewState({
+                    ...state,
+                    threadFilterMode: state.threadFilterMode === 'active' ? 'all' : 'active'
+                  })
+                }
+              >
+                {state.threadFilterMode === 'active' ? ui.threadShowAll : ui.activeThread}
+              </button>
+            </div>
+          </div>
+
+          <div className="session-badges workspace-filter-badges">
+            <span className="session-badge">
+              {ui.currentWorkspace}: {workspaceFolderName || ui.workspaceInitializationPending}
+            </span>
+            <span className="session-badge">
+              {ui.contextType}: {inspectionModeLabel}
+            </span>
+            <span className="session-badge">
+              {ui.filterThreadScope}: {threadScopeLabel}
+            </span>
+            <span className="session-badge">
+              {ui.filterSourceScope}: {sourceScopeLabel}
+            </span>
+            <span className="session-badge">
+              {ui.workspaceSearch}: {searchScopeLabel}
+            </span>
+          </div>
+        </div>
+
+        <div className="stats-row">
+          <article className="stat-block">
+            <span>{ui.savedContexts}</span>
+            <strong>{state.contextEntries.length}</strong>
+          </article>
+          <article className="stat-block">
+            <span>{ui.savedItems}</span>
+            <strong>{state.artifactCount}</strong>
+          </article>
+          <article className="stat-block">
+            <span>{inspectionModeLabel}</span>
+            <strong>{currentBucketCount}</strong>
+          </article>
+        </div>
+      </section>
 
       {!state.initialized || state.lastError ? (
         <div className="panel-section">
@@ -436,275 +621,188 @@ export function WorkspacePanel({
           </div>
         </div>
       ) : null}
-
-      <div className="panel-section">
-        <div className="section-line">
-          <strong>{ui.workspaceSecondaryRole}</strong>
-          <span>{activeThread?.title ?? ui.noActiveThread}</span>
-        </div>
-        <p className="section-empty">{ui.workspaceSimpleIntro}</p>
-
-        <div className="action-row">
-          <button
-            type="button"
-            className="action-button action-button--ghost"
-            onClick={() =>
-              updateWorkspaceViewState({
-                ...state,
-                threadFilterMode: state.threadFilterMode === 'active' ? 'all' : 'active'
-              })
-            }
-          >
-            {state.threadFilterMode === 'active' ? ui.threadShowAll : ui.activeThread}
-          </button>
-        </div>
-      </div>
-
-      <div className="panel-section">
-        <div className="section-line">
-          <strong>{ui.findContext}</strong>
-          <span>
-            {selectedScope
-              ? formatContextEntryLabel(selectedScope, locale)
-              : visibleThreadId
-                ? activeThread?.title ?? ui.activeThread
-                : ui.allSources}
-          </span>
-        </div>
-        <div className="detail-columns">
-          <label className="field">
-            <span>{ui.contextType}</span>
-            <select
-              value={state.selectedBucket}
-              onChange={(event) =>
-                updateWorkspaceViewState({
-                  ...state,
-                  selectedBucket: event.target.value
-                })
-              }
-            >
-              <option value="artifacts/">{ui.bucketArtifacts}</option>
-              <option value="outputs/">{ui.bucketOutputs}</option>
-              <option value="logs/">{ui.bucketLogs}</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>{ui.selectedOrigin}</span>
-            <select
-              value={effectiveSelectedOrigin}
-              onChange={(event) =>
-                updateWorkspaceViewState({
-                  ...state,
-                  selectedOrigin: event.target.value
-                })
-              }
-            >
-              <option value="all">{ui.allSources}</option>
-              {visibleContextEntries.map((entry) => (
-                <option key={entry.scopeId} value={entry.scopeId}>
-                  {formatContextEntryLabel(entry, locale)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <label className="field">
-          <span>{ui.workspaceSearch}</span>
-          <input
-            value={state.searchQuery}
-            placeholder={ui.workspaceSearchPlaceholder}
-            onChange={(event) =>
-              updateWorkspaceViewState({
-                ...state,
-                searchQuery: event.target.value
-              })
-            }
-          />
-        </label>
-
-        <p className="section-empty">
-          {selectedScope ? formatContextEntryDescription(selectedScope, locale) : inspectionHint}
-        </p>
-      </div>
-
-      <div className="workspace-inspector-grid">
-        <section className="panel-section workspace-inspector-grid__primary">
-          <div className="section-line">
-            <strong>{sourceListTitle}</strong>
-            <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
-          </div>
-          {state.contextEntries.length === 0 ? (
-            <p className="section-empty">{emptyWorkspaceMessage}</p>
-          ) : filteredSessionSummaries.length === 0 ? (
-            <p className="section-empty">{noFilteredArtifactsMessage}</p>
-          ) : (
-            <div className="artifact-list">
-              {filteredSessionSummaries.map((session) => (
-                <button
-                  key={session.scopeId}
-                  type="button"
-                  aria-pressed={state.selectedOrigin === session.scopeId}
-                  className={`artifact-row artifact-row--button artifact-row--session${state.selectedOrigin === session.scopeId ? ' artifact-row--active' : ''}`}
-                  onClick={() => toggleSessionSelection(session.scopeId)}
-                >
-                  <div className="artifact-row__body">
-                    <strong>{session.title}</strong>
-                    <p>{session.preview}</p>
-                    <div className="session-badges">
-                      {session.badges.map((badge) => (
-                        <span key={`${session.scopeId}-${badge}`} className="session-badge">
-                          {badge}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="artifact-row__meta">
-                    <span>{formatContextEntryLabel(session, locale)}</span>
-                    <small>{session.latestUpdatedAt ? formatTimestamp(session.latestUpdatedAt, locale) : '-'}</small>
-                  </div>
-                </button>
-              ))}
+      {isLogsPanel ? (
+        <div className="workspace-inspector-main workspace-inspector-main--logs">
+          <section className="panel-section" data-pane="sources">
+            <div className="section-line">
+              <strong>{sourceListTitle}</strong>
+              <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
             </div>
-          )}
-        </section>
-
-        <section className="panel-section workspace-inspector-grid__secondary">
-          <div className="section-line">
-            <strong>{ui.currentSelectionSummary}</strong>
-            <span>{selectedScopeSummary?.title ?? ui.sessionPreviewEmpty}</span>
-          </div>
-          {!selectedScope || !selectedScopeSummary ? (
-            <p className="section-empty">{ui.contextSelectionHint}</p>
-          ) : (
-            <div className="workspace-session-summary">
-              <div className="workspace-session-summary__header">
-                <strong>{selectedScopeSummary.title}</strong>
-                <span>{formatContextEntryLabel(selectedScopeSummary, locale)}</span>
-              </div>
-              <p>{selectedScopeSummary.preview}</p>
-              <div className="session-badges">
-                {selectedScopeSummary.badges.map((badge) => (
-                  <span key={`${selectedScopeSummary.scopeId}-${badge}`} className="session-badge">
-                    {badge}
-                  </span>
+            {state.contextEntries.length === 0 ? (
+              <p className="section-empty">{emptyWorkspaceMessage}</p>
+            ) : filteredSessionSummaries.length === 0 ? (
+              <p className="section-empty">{noFilteredArtifactsMessage}</p>
+            ) : (
+              <div className="artifact-list artifact-list--stacked">
+                {filteredSessionSummaries.map((session) => (
+                  <button
+                    key={session.scopeId}
+                    type="button"
+                    aria-pressed={state.selectedOrigin === session.scopeId}
+                    className={`artifact-row artifact-row--button artifact-row--session${state.selectedOrigin === session.scopeId ? ' artifact-row--active' : ''}`}
+                    onClick={() => toggleSessionSelection(session.scopeId)}
+                  >
+                    <div className="artifact-row__body">
+                      <strong>{session.title}</strong>
+                      <p>{session.preview}</p>
+                      <div className="session-badges">
+                        {session.badges.map((badge) => (
+                          <span key={`${session.scopeId}-${badge}`} className="session-badge">
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="artifact-row__meta">
+                      <span>{formatContextEntryLabel(session, locale)}</span>
+                      <small>{session.latestUpdatedAt ? formatTimestamp(session.latestUpdatedAt, locale) : '-'}</small>
+                    </div>
+                  </button>
                 ))}
               </div>
-            </div>
-          )}
-        </section>
-      </div>
+            )}
+          </section>
 
-      <div className="workspace-inspector-grid workspace-inspector-grid--preview">
-        <section className="panel-section workspace-inspector-grid__primary">
-          <div className="section-line">
-            <strong>{ui.sessionPreview}</strong>
-            <span>
-              {sessionMessages.length > 0
-                ? `${sessionMessages.length} ${ui.sessionMessagesCount}`
-                : sessionLogExcerpt
-                  ? ui.sessionLogPreview
-                  : ui.sessionPreviewEmpty}
-            </span>
-          </div>
-          {!selectedScope ? (
-            <p className="section-empty">{ui.sessionPreviewHint}</p>
-          ) : sessionMessages.length > 0 ? (
-            <div className="session-timeline">
-              {sessionMessages.map((message) => (
-                <article key={message.id} className={`session-message session-message--${normalizeMessageRole(message.role)}`}>
-                  <div className="session-message__meta">
-                    <span>{formatMessageRole(message.role, locale)}</span>
-                  </div>
-                  <div className="session-message__body">
-                    <p>{message.text}</p>
-                  </div>
-                </article>
-              ))}
+          <section className="panel-section" data-pane="records">
+            <div className="section-line">
+              <strong>{ui.logRecords}</strong>
+              <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
             </div>
-          ) : sessionLogExcerpt ? (
-            <pre className="session-log-preview">{sessionLogExcerpt}</pre>
-          ) : (
-            <p className="section-empty">{ui.sessionPreviewUnavailable}</p>
-          )}
-        </section>
+            {selectedScopeSummary ? (
+              renderSelectedScopeSummary('workspace-session-summary workspace-session-summary--inline')
+            ) : (
+              <p className="section-empty">{ui.logsSourceHint}</p>
+            )}
+            {selectedArtifactsCount > 0 ? (
+              <div className="session-badges workspace-selection-badges">
+                <span className="session-badge">
+                  {selectedArtifactsCount} {ui.selectedCount}
+                </span>
+              </div>
+            ) : null}
+            {renderArtifactRows()}
+          </section>
 
-        <section className="panel-section workspace-inspector-grid__secondary">
-          <div className="section-line">
-            <strong>{artifactListTitle}</strong>
-            <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
-          </div>
-          <p className="section-empty">
-            {selectedArtifactsCount > 0 ? `${selectedArtifactsCount} ${ui.selectedCount}` : ui.selectedArtifactsEmpty}
-          </p>
-          {filteredArtifacts.length === 0 ? (
-            <p className="section-empty">{noFilteredArtifactsMessage}</p>
-          ) : (
-            <div className="artifact-list">
-              {filteredArtifacts.map((artifact) => (
-                <article
-                  key={artifact.id}
-                  className={`artifact-row artifact-row--selectable${state.previewArtifactId === artifact.id ? ' artifact-row--active' : ''}`}
-                >
-                  <div className="artifact-row__select">
-                    <input
-                      type="checkbox"
-                      checked={state.selectedArtifactIds.includes(artifact.id)}
-                      onChange={() => toggleArtifactSelection(artifact.id)}
-                    />
-                  </div>
-                  <div className="artifact-row__body">
-                    <strong>{formatArtifactTitle(artifact, locale)}</strong>
-                    <p>{formatArtifactSummary(artifact)}</p>
-                  </div>
-                  <div className="artifact-row__meta">
-                    <span>{formatArtifactMeta(artifact, locale)}</span>
-                    <small>{formatTimestamp(artifact.updatedAt, locale)}</small>
-                  </div>
-                  <div className="artifact-row__actions">
-                    <button
-                      type="button"
-                      className="action-button action-button--ghost action-button--compact"
-                      onClick={() => setPreviewArtifact(artifact.id)}
-                    >
-                      {ui.previewArtifact}
-                    </button>
-                  </div>
-                </article>
-              ))}
+          <section className="panel-section" data-pane="preview">
+            <div className="section-line">
+              <strong>{ui.logPreview}</strong>
+              <span>{selectedPreviewArtifact?.id ?? ui.artifactPreviewEmpty}</span>
             </div>
-          )}
-        </section>
-      </div>
-
-      <section className="panel-section">
-        <div className="section-line">
-          <strong>{previewTitle}</strong>
-          <span>{selectedPreviewArtifact?.id ?? ui.artifactPreviewEmpty}</span>
+            {renderPreviewSurface()}
+          </section>
         </div>
-        {!selectedPreviewArtifact ? (
-          <p className="section-empty">{ui.artifactPreviewHint}</p>
-        ) : (
-          <div className="artifact-preview">
-            <div className="artifact-preview__meta">
-              <span>{formatArtifactMeta(selectedPreviewArtifact, locale)}</span>
-              <span>{selectedPreviewArtifact.path}</span>
-              <span>{formatTimestamp(selectedPreviewArtifact.updatedAt, locale)}</span>
+      ) : (
+        <div className="workspace-inspector-main workspace-inspector-main--workspace">
+          <section className="panel-section" data-pane="sources">
+            <div className="section-line">
+              <strong>{sourceListTitle}</strong>
+              <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
             </div>
-            <div className="artifact-preview__body">
-              {previewStatus === 'loading' ? (
-                <p className="section-empty">{ui.artifactPreviewLoading}</p>
-              ) : previewStatus === 'unsupported' ? (
-                <p className="section-empty">{ui.artifactPreviewUnsupported}</p>
-              ) : previewStatus === 'unavailable' ? (
-                <p className="section-empty">{ui.artifactPreviewUnavailable}</p>
-              ) : (
-                <pre>{previewContent}</pre>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
+            {state.contextEntries.length === 0 ? (
+              <p className="section-empty">{emptyWorkspaceMessage}</p>
+            ) : filteredSessionSummaries.length === 0 ? (
+              <p className="section-empty">{noFilteredArtifactsMessage}</p>
+            ) : (
+              <div className="artifact-list artifact-list--stacked">
+                {filteredSessionSummaries.map((session) => (
+                  <button
+                    key={session.scopeId}
+                    type="button"
+                    aria-pressed={state.selectedOrigin === session.scopeId}
+                    className={`artifact-row artifact-row--button artifact-row--session${state.selectedOrigin === session.scopeId ? ' artifact-row--active' : ''}`}
+                    onClick={() => toggleSessionSelection(session.scopeId)}
+                  >
+                    <div className="artifact-row__body">
+                      <strong>{session.title}</strong>
+                      <p>{session.preview}</p>
+                      <div className="session-badges">
+                        {session.badges.map((badge) => (
+                          <span key={`${session.scopeId}-${badge}`} className="session-badge">
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="artifact-row__meta">
+                      <span>{formatContextEntryLabel(session, locale)}</span>
+                      <small>{session.latestUpdatedAt ? formatTimestamp(session.latestUpdatedAt, locale) : '-'}</small>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
 
+          <section className="panel-section" data-pane="detail">
+            <div className="section-line">
+              <strong>{ui.currentSelectionSummary}</strong>
+              <span>{selectedScopeSummary?.title ?? ui.sessionPreviewEmpty}</span>
+            </div>
+            {!selectedScope ? (
+              <p className="section-empty">{ui.sourceDetailHint}</p>
+            ) : (
+              <div className="workspace-pane__stack">
+                {renderSelectedScopeSummary()}
+
+                <div className="section-line">
+                  <strong>{ui.sessionPreview}</strong>
+                  <span>
+                    {sessionMessages.length > 0
+                      ? `${sessionMessages.length} ${ui.sessionMessagesCount}`
+                      : sessionLogExcerpt
+                        ? ui.sessionLogPreview
+                        : ui.sessionPreviewEmpty}
+                  </span>
+                </div>
+
+                {sessionMessages.length > 0 ? (
+                  <div className="session-timeline">
+                    {sessionMessages.map((message) => (
+                      <article key={message.id} className={`session-message session-message--${normalizeMessageRole(message.role)}`}>
+                        <div className="session-message__meta">
+                          <span>{formatMessageRole(message.role, locale)}</span>
+                        </div>
+                        <div className="session-message__body">
+                          <p>{message.text}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : sessionLogExcerpt ? (
+                  <pre className="session-log-preview">{sessionLogExcerpt}</pre>
+                ) : (
+                  <p className="section-empty">{ui.sessionPreviewUnavailable}</p>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="panel-section" data-pane="records">
+            <div className="section-line">
+              <strong>{artifactListTitle}</strong>
+              <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
+            </div>
+            {selectedArtifactsCount > 0 ? (
+              <div className="session-badges workspace-selection-badges">
+                <span className="session-badge">
+                  {selectedArtifactsCount} {ui.selectedCount}
+                </span>
+              </div>
+            ) : null}
+            {renderArtifactRows()}
+
+            <div className="workspace-pane__stack" data-pane="preview">
+              <div className="section-line">
+                <strong>{previewTitle}</strong>
+                <span>{selectedPreviewArtifact?.id ?? ui.artifactPreviewEmpty}</span>
+              </div>
+              {renderPreviewSurface()}
+            </div>
+          </section>
+        </div>
+      )}
+
+      <div className="workspace-inspector-support">
       <details className="workspace-advanced">
         <summary>{ui.workspaceManageContinuity}</summary>
 
@@ -1119,20 +1217,6 @@ export function WorkspacePanel({
           </div>
         </div>
       </details>
-
-      <div className="stats-row">
-        <article className="stat-block">
-          <span>{ui.artifactsBucket}</span>
-          <strong>{state.bucketCounts['artifacts/'] ?? 0}</strong>
-        </article>
-        <article className="stat-block">
-          <span>{ui.outputsBucket}</span>
-          <strong>{state.bucketCounts['outputs/'] ?? 0}</strong>
-        </article>
-        <article className="stat-block">
-          <span>{ui.logsBucket}</span>
-          <strong>{state.bucketCounts['logs/'] ?? 0}</strong>
-        </article>
       </div>
     </div>
   )

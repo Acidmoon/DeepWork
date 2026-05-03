@@ -1165,18 +1165,89 @@ summary:focus-visible {
   gap: 14px;
 }
 
-.workspace-inspector-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
+.workspace-inspector-header {
   gap: 14px;
+  border-top: 0;
+  padding-top: 0;
+  padding-bottom: 16px;
 }
 
-.workspace-inspector-grid .panel-section {
-  min-height: 100%;
+.workspace-inspector-header__hero {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.workspace-inspector-grid--preview {
+.workspace-inspector-header__hero h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1.18rem;
+  font-weight: 650;
+}
+
+.workspace-inspector-header__hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.workspace-inspector-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspace-inspector-toolbar__controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(260px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.workspace-inspector-toolbar__controls .field {
+  min-width: 0;
+}
+
+.workspace-inspector-toolbar__controls .action-row {
+  justify-content: flex-end;
+}
+
+.workspace-filter-badges {
+  align-items: flex-start;
+}
+
+.workspace-filter-badges .session-badge {
+  background: var(--surface-subtle);
+}
+
+.workspace-inspector-main {
+  display: grid;
+  gap: 14px;
   align-items: start;
+}
+
+.workspace-inspector-main--workspace {
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.05fr) minmax(360px, 1.15fr);
+}
+
+.workspace-inspector-main--logs {
+  grid-template-columns: minmax(260px, 0.95fr) minmax(360px, 1.1fr) minmax(320px, 0.95fr);
+}
+
+.workspace-inspector-main > .panel-section {
+  min-height: 100%;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: var(--surface-subtle);
+}
+
+.workspace-pane__stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .workspace-session-summary,
@@ -1202,6 +1273,12 @@ summary:focus-visible {
   color: var(--muted);
 }
 
+.workspace-session-summary--inline {
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
 .workspace-session-summary p,
 .artifact-row p,
 .artifact-preview__body {
@@ -1214,6 +1291,10 @@ summary:focus-visible {
   display: flex;
   min-width: 0;
   flex-direction: column;
+}
+
+.artifact-list--stacked {
+  gap: 10px;
 }
 
 .artifact-row {
@@ -1245,6 +1326,17 @@ summary:focus-visible {
   padding-bottom: 14px;
 }
 
+.artifact-list--stacked .artifact-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--surface);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
 .artifact-row--thread {
   align-items: center;
 }
@@ -1253,6 +1345,14 @@ summary:focus-visible {
   border-left: 2px solid var(--accent);
   padding-left: 10px;
   background: var(--accent-subtle);
+}
+
+.artifact-list--stacked .artifact-row--active {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-left-width: 1px;
+  padding-left: 14px;
+  background: var(--accent-subtle);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .artifact-row--selectable {
@@ -1264,6 +1364,10 @@ summary:focus-visible {
   flex: 0 0 auto;
   align-items: center;
   padding-top: 2px;
+}
+
+.artifact-row__select input {
+  accent-color: var(--accent);
 }
 
 .artifact-row__body {
@@ -1325,6 +1429,10 @@ summary:focus-visible {
   min-width: 0;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.workspace-selection-badges {
+  margin-top: -2px;
 }
 
 .session-badge,
@@ -1416,9 +1524,17 @@ summary:focus-visible {
   flex: 1 1 260px;
 }
 
+.workspace-inspector-support {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .workspace-advanced {
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--surface);
 }
 
 .workspace-advanced summary {
@@ -1753,8 +1869,13 @@ summary:focus-visible {
   .stats-row,
   .detail-columns,
   .detail-columns--wide,
-  .workspace-guide,
-  .workspace-inspector-grid {
+  .workspace-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-inspector-toolbar__controls,
+  .workspace-inspector-main--workspace,
+  .workspace-inspector-main--logs {
     grid-template-columns: 1fr;
   }
 
@@ -1810,7 +1931,8 @@ summary:focus-visible {
   .settings-placeholder-row,
   .settings-profile-row,
   .home-profile-row,
-  .artifact-row {
+  .artifact-row,
+  .artifact-list--stacked .artifact-row {
     flex-direction: column;
     align-items: stretch;
   }
