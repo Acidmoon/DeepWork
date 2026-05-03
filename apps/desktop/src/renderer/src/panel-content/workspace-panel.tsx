@@ -153,6 +153,13 @@ export function WorkspacePanel({
     useWorkbenchStore.getState().updatePanelViewState(panel.definition.id, resolvedState)
   }
 
+  const toggleSessionSelection = (scopeId: string): void => {
+    updateWorkspaceViewState((currentState) => ({
+      ...currentState,
+      selectedOrigin: currentState.selectedOrigin === scopeId ? 'all' : scopeId
+    }))
+  }
+
   const toggleArtifactSelection = (artifactId: string): void => {
     updateWorkspaceViewState({
       ...state,
@@ -536,13 +543,9 @@ export function WorkspacePanel({
                 <button
                   key={session.scopeId}
                   type="button"
+                  aria-pressed={state.selectedOrigin === session.scopeId}
                   className={`artifact-row artifact-row--button artifact-row--session${state.selectedOrigin === session.scopeId ? ' artifact-row--active' : ''}`}
-                  onClick={() =>
-                    updateWorkspaceViewState({
-                      ...state,
-                      selectedOrigin: session.scopeId
-                    })
-                  }
+                  onClick={() => toggleSessionSelection(session.scopeId)}
                 >
                   <div className="artifact-row__body">
                     <strong>{session.title}</strong>

@@ -48,10 +48,21 @@ async page => {
   }
 
   const sessionResults = await page.getByText('1 搜索结果').count()
-  const deepseekSessionVisible = await page.getByRole('button', { name: /用户询问数字111含义/ }).count()
+  const deepseekSessionButton = page.getByRole('button', { name: /用户询问数字111含义/ })
+  const deepseekSessionVisible = await deepseekSessionButton.count()
   const minimaxSessionVisible = await page.getByRole('button', { name: /MiniMax Agent/ }).count()
   if (sessionResults < 1 || deepseekSessionVisible !== 1 || minimaxSessionVisible !== 0) {
     throw new Error(`Search verification failed: sessionResults=${sessionResults}, deepseek=${deepseekSessionVisible}, minimax=${minimaxSessionVisible}`)
+  }
+
+  await deepseekSessionButton.click()
+  await page.waitForTimeout(300)
+  const artifactSelectionStateAfterSelect = {
+    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
+    sessionSummaryCards: await page.locator('.workspace-session-summary').count()
+  }
+  if (artifactSelectionStateAfterSelect.activeSessionRows !== 1 || artifactSelectionStateAfterSelect.sessionSummaryCards !== 1) {
+    throw new Error(`Artifact inspection session selection did not activate as expected: ${JSON.stringify(artifactSelectionStateAfterSelect)}`)
   }
 
   await page.getByRole('button', { name: '预览' }).nth(1).click()
@@ -59,6 +70,21 @@ async page => {
   const jsonPreviewVisible = await page.getByText('"messageCount": 1').count()
   if (jsonPreviewVisible < 1) {
     throw new Error('JSON preview did not render after selecting preview target.')
+  }
+
+  await deepseekSessionButton.click()
+  await page.waitForTimeout(300)
+  const artifactDeselectionState = {
+    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
+    sessionSummaryCards: await page.locator('.workspace-session-summary').count(),
+    previewStillJson: await page.getByText('"messageCount": 1').count()
+  }
+  if (
+    artifactDeselectionState.activeSessionRows !== 0 ||
+    artifactDeselectionState.sessionSummaryCards !== 0 ||
+    artifactDeselectionState.previewStillJson < 1
+  ) {
+    throw new Error(`Artifact inspection session deselection failed: ${JSON.stringify(artifactDeselectionState)}`)
   }
 
   await page.getByRole('checkbox').nth(0).check()
@@ -79,6 +105,27 @@ async page => {
   const terminalTranscriptMetaVisible = await page.getByText('终端转录').count()
   const retrievalAuditMetaVisible = await page.getByText('检索审计').count()
   const logResultVisible = await page.getByText('1 搜索结果').count()
+  const logSessionButton = page.getByRole('button', { name: /session-0001/i }).first()
+  await logSessionButton.click()
+  await page.waitForTimeout(300)
+  const logSelectionStateAfterSelect = {
+    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
+    sessionSummaryCards: await page.locator('.workspace-session-summary').count()
+  }
+  if (logSelectionStateAfterSelect.activeSessionRows !== 1 || logSelectionStateAfterSelect.sessionSummaryCards !== 1) {
+    throw new Error(`Log inspection session selection did not activate as expected: ${JSON.stringify(logSelectionStateAfterSelect)}`)
+  }
+
+  await logSessionButton.click()
+  await page.waitForTimeout(300)
+  const logDeselectionState = {
+    activeSessionRows: await page.locator('.artifact-row--session.artifact-row--active').count(),
+    sessionSummaryCards: await page.locator('.workspace-session-summary').count()
+  }
+  if (logDeselectionState.activeSessionRows !== 0 || logDeselectionState.sessionSummaryCards !== 0) {
+    throw new Error(`Log inspection session deselection failed: ${JSON.stringify(logDeselectionState)}`)
+  }
+
   await page.getByRole('button', { name: '预览' }).click()
   await page.waitForTimeout(400)
   const logPreviewVisible = await page.getByText('electron-vite dev').count()
@@ -279,12 +326,16 @@ async page => {
       jsonPreviewVisible,
       selectedCountAfterCheck,
       previewStillJson,
+      artifactSelectionStateAfterSelect,
+      artifactDeselectionState,
       logResultVisible,
       logSourcesHeadingVisible,
       logRecordsHeadingVisible,
       logPreviewHeadingVisible,
       terminalTranscriptMetaVisible,
       retrievalAuditMetaVisible,
+      logSelectionStateAfterSelect,
+      logDeselectionState,
       logPreviewVisible,
       minimaxSessionVisibleBefore,
       activeThreadSessionCount,
