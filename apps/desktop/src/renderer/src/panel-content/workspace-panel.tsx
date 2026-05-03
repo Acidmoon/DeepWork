@@ -12,7 +12,6 @@ import {
   formatContextEntryLabel,
   formatMessageRole,
   formatTimestamp,
-  getWorkspaceFolderName,
   matchesWorkspaceArtifactQuery,
   matchesWorkspaceBucket,
   normalizeMessageRole,
@@ -20,6 +19,7 @@ import {
   parseMessageArtifact,
   supportsTextArtifactPreview
 } from './workspace-panel-helpers'
+import { getWorkspaceFolderName } from './workspace-path'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
 import { getArtifactScopeId } from '@ai-workbench/core/desktop/workspace'
 import type {

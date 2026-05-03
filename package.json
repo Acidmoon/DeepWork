@@ -23,6 +23,7 @@
     "validate:terminal-behavior": "npm run validate:terminal-behavior -w @ai-workbench/desktop",
     "validate:workspace-profiles": "npm run validate:workspace-profiles -w @ai-workbench/desktop",
     "validate:visual-smoke": "npm run validate:visual-smoke -w @ai-workbench/desktop",
+    "validate:renderer-startup": "npm run validate:renderer-startup -w @ai-workbench/desktop",
     "validate:renderer-entrypoint": "npm run validate:renderer-entrypoint -w @ai-workbench/desktop",
     "validate:security-boundaries": "npm run validate:security-boundaries -w @ai-workbench/desktop",
     "validate:internal-alpha": "npm run validate:internal-alpha -w @ai-workbench/desktop",

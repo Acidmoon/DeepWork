@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { getUiText, localizePanelDefinition, resolveLocale } from '../i18n'
 import { useWorkbenchStore } from '../store'
-import { getWorkspaceFolderName } from './workspace-panel-helpers'
+import { getWorkspaceFolderName } from './workspace-path'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
 import { normalizeWorkspaceProfileKey, type WorkspaceProfileSettings } from '@ai-workbench/core/desktop/settings'
 

@@ -12,6 +12,7 @@ The desktop app keeps focused validation flows under this directory instead of o
 - `terminal-behavior/`: global terminal behavior settings, scrollback synchronization, copy-on-selection, multi-line paste confirmation, and implemented Settings controls
 - `workspace-profiles/`: workspace profile persistence, default startup selection, profile switching, and non-destructive profile removal
 - `visual-smoke/`: modern minimal UI smoke coverage for Web, Terminal, inline retrieval context, Workspace, Logs, Settings, light/dark theme, and constrained viewport screenshots
+- `renderer-startup/`: renderer entry-chunk guardrail for startup-oriented code-splitting and CSS/JS baseline checks
 - `security-boundaries/`: main-process and workspace boundary checks for unsafe paths, workspace confinement, settings normalization, and maintenance fixtures
 - `package-win/`: Windows alpha and beta package smoke coverage for generated unpacked app artifacts, first-launch workspace behavior, and beta settings-normalization startup
 
@@ -30,6 +31,7 @@ For narrower changes, run the matching focused flow after refreshing the determi
 ```powershell
 npm run typecheck -w @ai-workbench/desktop
 npm run build -w @ai-workbench/desktop
+npm run validate:renderer-startup -w @ai-workbench/desktop
 npm run validate:renderer-entrypoint -w @ai-workbench/desktop
 npm run validate:visual-smoke -w @ai-workbench/desktop
 npm run validate:workspace-regression -w @ai-workbench/desktop
@@ -46,6 +48,8 @@ Use `workspace-regression/` when changing Workspace artifact browsing, Logs insp
 Use `custom-web-panels/` when changing built-in panel defaults or web-panel settings. It verifies that MiniMax starts as an enabled managed panel by default, runtime navigation stays separate from saved home URL configuration, disabling MiniMax returns it to reserved state, and re-enabling restores the managed lifecycle.
 
 Use `visual-smoke/` and `terminal-behavior/` when changing terminal details or Settings. The current coverage includes the compact CLI retrieval summary in the terminal inspector and the absence of the old empty placeholder-only Settings scaffold.
+
+Use `renderer-startup/` when changing renderer import boundaries, lazy loading, or bundle shape. It reads the deterministic renderer build output and fails if the protected entry JS/CSS assets grow past the current startup guardrail.
 
 Browser-driven validation defaults to `apps/desktop/out/renderer/index.html` and fails fast if that entrypoint is missing, references missing assets, or is older than renderer prerequisites. For targeted debugging only, override the renderer URL explicitly:
 

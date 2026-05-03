@@ -7,11 +7,39 @@ import { asTerminalViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
 import type { TerminalRetrievalSummary } from '@ai-workbench/core/desktop/terminal-panels'
 
+const XTERM_STYLESHEET_ID = 'xterm-stylesheet'
+
+function ensureXtermStylesheet(): void {
+  if (document.getElementById(XTERM_STYLESHEET_ID)) {
+    return
+  }
+
+  const stylesheet = document.createElement('link')
+  stylesheet.id = XTERM_STYLESHEET_ID
+  stylesheet.rel = 'stylesheet'
+  stylesheet.href = new URL('@xterm/xterm/css/xterm.css', import.meta.url).href
+  document.head.appendChild(stylesheet)
+}
+
 function parseShellArgs(editorText: string): string[] {
   return editorText
     .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
+}
+
+function normalizeTerminalDimensions(dimensions: { cols: number; rows: number } | undefined): { cols: number; rows: number } | null {
+  if (!dimensions) {
+    return null
+  }
+
+  const cols = Math.max(2, Math.floor(dimensions.cols))
+  const rows = Math.max(1, Math.floor(dimensions.rows))
+  if (!Number.isFinite(cols) || !Number.isFinite(rows)) {
+    return null
+  }
+
+  return { cols, rows }
 }
 
 function areStringListsEqual(left: string[], right: string[]): boolean {
@@ -122,6 +150,10 @@ export function TerminalPanel({
       normalizedDraftStartupCommand !== state.savedStartupCommand
     : normalizedDraftCwd !== state.savedCwd || normalizedDraftStartupCommand !== state.savedStartupCommand
   const canSaveConfig = isCustomPanel ? normalizedCustomPanelTitle.length > 0 && normalizedDraftShell.length > 0 && hasConfigChanges : hasConfigChanges
+
+  useEffect(() => {
+    ensureXtermStylesheet()
+  }, [])
 
   useEffect(() => {
     setIsSaving(false)
@@ -334,7 +366,7 @@ export function TerminalPanel({
     const syncSize = (): void => {
       fitAddon.fit()
 
-      const dimensions = fitAddon.proposeDimensions()
+      const dimensions = normalizeTerminalDimensions(fitAddon.proposeDimensions())
       if (!dimensions) {
         return
       }

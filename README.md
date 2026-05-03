@@ -216,6 +216,7 @@ npm run validate:terminal-behavior -w @ai-workbench/desktop
 npm run validate:workspace-profiles -w @ai-workbench/desktop
 npm run validate:security-boundaries -w @ai-workbench/desktop
 npm run validate:visual-smoke -w @ai-workbench/desktop
+npm run validate:renderer-startup -w @ai-workbench/desktop
 npm run validate:package-win -w @ai-workbench/desktop
 ```
 
@@ -231,7 +232,7 @@ npm run validate:internal-alpha
 $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 ```
 
-如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。当前验证覆盖包括 Logs 检查、Workspace 维护 scan/rebuild/safe repair、MiniMax 默认启用与配置覆盖、终端 retrieval summary、settings placeholder 移除、安全边界和 Windows package smoke。
+如果你的改动涉及 renderer browser flow、import 边界或 bundle 结构，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。当前验证覆盖包括 Logs 检查、Workspace 维护 scan/rebuild/safe repair、MiniMax 默认启用与配置覆盖、终端 retrieval summary、settings placeholder 移除、renderer startup guardrail、安全边界和 Windows package smoke。
 
 ## 12. Windows alpha / beta 打包
 

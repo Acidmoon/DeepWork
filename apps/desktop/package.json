@@ -26,6 +26,7 @@
     "validate:visual-smoke": "node validation/visual-smoke/run-visual-smoke-validation.mjs",
     "validate:package-win": "node validation/package-win/run-package-win-validation.mjs --channel alpha",
     "validate:package-win-beta": "node validation/package-win/run-package-win-validation.mjs --channel beta",
+    "validate:renderer-startup": "node validation/renderer-startup/run-renderer-startup-validation.mjs",
     "validate:renderer-entrypoint": "node validation/renderer-entrypoint.mjs",
     "validate:security-boundaries": "node validation/security-boundaries/run-security-boundaries-validation.mjs",
     "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:security-boundaries && npm run validate:visual-smoke && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration && npm run validate:terminal-behavior && npm run validate:workspace-profiles",

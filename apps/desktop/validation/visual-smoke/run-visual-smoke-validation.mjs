@@ -1,7 +1,8 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { createServer } from 'node:http'
+import { dirname, extname, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { spawn } from 'node:child_process'
 import { assertValidationRendererAvailable, resolveValidationRendererEntrypoint } from '../renderer-entrypoint.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -10,10 +11,10 @@ const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx'
 const commandShell = process.env.ComSpec ?? 'cmd.exe'
 const generatedBootstrapPath = join(__dirname, 'bootstrap.generated.js')
 const generatedAssertPath = join(__dirname, 'assert.generated.js')
-const generatedHtmlPath = join(__dirname, 'renderer-entry.generated.html')
 const artifactsDir = join(__dirname, 'artifacts')
 let rendererEntrypoint = null
 let rendererUrlLiteral = null
+let rendererServer = null
 
 function getRendererEntrypoint() {
   if (!rendererEntrypoint) {
@@ -37,73 +38,153 @@ function quoteForCmd(value) {
   return `"${value.replace(/"/g, '\\"')}"`
 }
 
-function runCli(args) {
+async function runCli(args) {
   const command = [npxCommand, '--yes', '--package', '@playwright/cli', 'playwright-cli', '--session', sessionName, ...args]
     .map(quoteForCmd)
     .join(' ')
-  const result =
-    process.platform === 'win32'
-      ? spawnSync(commandShell, ['/d', '/s', '/c', command], { cwd: __dirname, encoding: 'utf8' })
-      : spawnSync(npxCommand, ['--yes', '--package', '@playwright/cli', 'playwright-cli', '--session', sessionName, ...args], {
-          cwd: __dirname,
-          encoding: 'utf8'
-        })
 
-  if (result.status !== 0) {
-    if (result.stdout) {
-      console.error(result.stdout)
-    }
-    if (result.stderr) {
-      console.error(result.stderr)
-    }
-    if (result.error) {
-      console.error(result.error)
-    }
-    throw new Error(`playwright-cli failed for args: ${args.join(' ')} (status=${result.status ?? 'null'})`)
-  }
+  return await new Promise((resolveRun, rejectRun) => {
+    const child =
+      process.platform === 'win32'
+        ? spawn(commandShell, ['/d', '/s', '/c', command], { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'] })
+        : spawn(npxCommand, ['--yes', '--package', '@playwright/cli', 'playwright-cli', '--session', sessionName, ...args], {
+            cwd: __dirname,
+            stdio: ['ignore', 'pipe', 'pipe']
+          })
 
-  if (result.stdout) {
-    process.stdout.write(result.stdout)
-  }
+    let stdout = ''
+    let stderr = ''
 
-  const combinedOutput = `${result.stdout ?? ''}\n${result.stderr ?? ''}`
-  if (combinedOutput.includes('### Error')) {
-    throw new Error(`playwright-cli reported an error for args: ${args.join(' ')}`)
-  }
+    child.stdout.on('data', (chunk) => {
+      const text = chunk.toString()
+      stdout += text
+      process.stdout.write(text)
+    })
+
+    child.stderr.on('data', (chunk) => {
+      const text = chunk.toString()
+      stderr += text
+      process.stderr.write(text)
+    })
+
+    child.once('error', (error) => {
+      rejectRun(error)
+    })
+
+    child.once('close', (code) => {
+      if (code !== 0) {
+        rejectRun(new Error(`playwright-cli failed for args: ${args.join(' ')} (status=${code ?? 'null'})`))
+        return
+      }
+
+      const combinedOutput = `${stdout}\n${stderr}`
+      if (combinedOutput.includes('### Error')) {
+        rejectRun(new Error(`playwright-cli reported an error for args: ${args.join(' ')}`))
+        return
+      }
+
+      resolveRun(null)
+    })
+  })
 }
 
 async function assertRendererAvailable() {
   await assertValidationRendererAvailable(getRendererEntrypoint())
 }
 
-function resolveBuildAsset(rendererRoot, reference) {
-  const cleanReference = reference.split(/[?#]/u)[0]
-  if (cleanReference.startsWith('/')) {
-    return join(rendererRoot, cleanReference.slice(1))
+function getContentType(path) {
+  switch (extname(path).toLowerCase()) {
+    case '.html':
+      return 'text/html; charset=utf-8'
+    case '.js':
+      return 'text/javascript; charset=utf-8'
+    case '.css':
+      return 'text/css; charset=utf-8'
+    case '.json':
+      return 'application/json; charset=utf-8'
+    case '.svg':
+      return 'image/svg+xml'
+    default:
+      return 'application/octet-stream'
   }
-
-  return resolve(rendererRoot, cleanReference)
 }
 
-function prepareInlineRendererEntrypoint() {
+function resolveRendererAssetPath(rendererRoot, requestPath) {
+  const pathname = decodeURIComponent(new URL(requestPath, 'http://127.0.0.1').pathname)
+  const relativeRequestPath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/u, '')
+  const assetPath = resolve(rendererRoot, relativeRequestPath)
+  const relativeAssetPath = relative(rendererRoot, assetPath)
+
+  if (relativeAssetPath.startsWith('..') || relativeAssetPath.includes(':')) {
+    return null
+  }
+
+  return assetPath
+}
+
+async function prepareRendererEntrypoint() {
   const entrypoint = getRendererEntrypoint()
   if (entrypoint.protocol !== 'file:') {
     return
   }
 
   const rendererRoot = dirname(entrypoint.indexPath)
-  const html = readFileSync(entrypoint.indexPath, 'utf8')
-    .replace(/<script\b([^>]*?)\bsrc="([^"]+)"([^>]*)><\/script>/u, (_match, before, reference, after) => {
-      const script = readFileSync(resolveBuildAsset(rendererRoot, reference), 'utf8')
-      return `<script${before}${after}>\n${script}\n</script>`
-    })
-    .replace(/<link\b([^>]*?)\bhref="([^"]+)"([^>]*)>/u, (_match, _before, reference) => {
-      const stylesheet = readFileSync(resolveBuildAsset(rendererRoot, reference), 'utf8')
-      return `<style>\n${stylesheet}\n</style>`
+
+  rendererServer = await new Promise((resolveServer, rejectServer) => {
+    const server = createServer((request, response) => {
+      try {
+        const pathname = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
+        if (pathname === '/favicon.ico') {
+          response.writeHead(204)
+          response.end()
+          return
+        }
+
+        const assetPath = resolveRendererAssetPath(rendererRoot, request.url ?? '/')
+        if (!assetPath) {
+          response.writeHead(404)
+          response.end('Not found')
+          return
+        }
+
+        const asset = readFileSync(assetPath)
+        response.writeHead(200, {
+          'Content-Type': getContentType(assetPath),
+          'Cache-Control': 'no-store'
+        })
+        response.end(asset)
+      } catch {
+        response.writeHead(404)
+        response.end('Not found')
+      }
     })
 
-  writeFileSync(generatedHtmlPath, html, 'utf8')
-  rendererUrlLiteral = JSON.stringify(pathToFileURL(generatedHtmlPath).href)
+    server.once('error', rejectServer)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        rejectServer(new Error('Renderer validation server failed to bind to a local port.'))
+        return
+      }
+
+      resolveServer({
+        close: () =>
+          new Promise((resolveClose, rejectClose) => {
+            server.close((error) => {
+              if (error) {
+                rejectClose(error)
+                return
+              }
+
+              resolveClose()
+            })
+          }),
+        url: `http://127.0.0.1:${address.port}/index.html`
+      })
+    })
+  })
+
+  rendererUrlLiteral = JSON.stringify(rendererServer.url)
 }
 
 function buildBootstrapScript(payload) {
@@ -466,7 +547,7 @@ function buildBootstrapScript(payload) {
 
 async function main() {
   await assertRendererAvailable()
-  prepareInlineRendererEntrypoint()
+  await prepareRendererEntrypoint()
   mkdirSync(artifactsDir, { recursive: true })
 
   const snapshot = JSON.parse(readFileSync(join(__dirname, '..', 'workspace-regression', 'fixtures', 'workspace-snapshot.json'), 'utf8'))
@@ -482,13 +563,16 @@ async function main() {
   writeFileSync(generatedAssertPath, assertTemplate.replaceAll('__ARTIFACTS_DIR__', artifactsDir.replaceAll('\\', '/')), 'utf8')
 
   try {
-    runCli(['open', '--browser', 'msedge', 'about:blank'])
-    runCli(['run-code', '--filename', generatedBootstrapPath])
-    runCli(['run-code', '--filename', generatedAssertPath])
+    await runCli(['open', '--browser', 'msedge', 'about:blank'])
+    await runCli(['run-code', '--filename', generatedBootstrapPath])
+    await runCli(['run-code', '--filename', generatedAssertPath])
   } finally {
+    if (rendererServer) {
+      await rendererServer.close()
+      rendererServer = null
+    }
     rmSync(generatedBootstrapPath, { force: true })
     rmSync(generatedAssertPath, { force: true })
-    rmSync(generatedHtmlPath, { force: true })
   }
 }
 

@@ -82,16 +82,6 @@ export function supportsTextArtifactPreview(type: ArtifactRecord['type']): boole
   return ['markdown', 'text', 'json', 'log', 'code', 'review', 'html'].includes(type)
 }
 
-export function getWorkspaceFolderName(workspaceRoot: string): string {
-  if (!workspaceRoot) {
-    return ''
-  }
-
-  const normalized = workspaceRoot.replace(/[\\/]+$/, '')
-  const parts = normalized.split(/[\\/]/)
-  return parts[parts.length - 1] || normalized
-}
-
 export function buildSessionSummary(
   entry: ContextIndexEntry,
   locale: ReturnType<typeof resolveLocale>
