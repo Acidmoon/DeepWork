@@ -143,6 +143,8 @@ export function WorkspacePanel({
     : []
   const selectedScopeSummary = selectedScope ? buildSessionSummary(selectedScope, locale) : null
   const selectedScopeArtifactKey = selectedScopeArtifacts.map((artifact) => artifact.id).join('|')
+  const selectedArtifacts = filteredArtifacts.filter((artifact) => state.selectedArtifactIds.includes(artifact.id))
+  const selectedArtifactsCount = selectedArtifacts.length
 
   const updateWorkspaceViewState = (
     nextState: typeof state | ((currentState: typeof state) => typeof state)
@@ -396,6 +398,7 @@ export function WorkspacePanel({
       <section className="panel-header">
         <p className="eyebrow">{ui.workspaceLive}</p>
         <h3>{definition.title}</h3>
+        <p>{ui.workspaceSecondaryHint}</p>
       </section>
 
       <div className="stats-row">
@@ -413,12 +416,26 @@ export function WorkspacePanel({
         </article>
       </div>
 
+      {!state.initialized || state.lastError ? (
+        <div className="panel-section">
+          <div className="detail-list">
+            {!state.initialized ? <strong>{ui.workspaceInitializationPending}</strong> : null}
+            {state.lastError ? (
+              <div className="detail-list__item">
+                <span>{ui.error}</span>
+                <strong>{state.lastError}</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className="panel-section">
         <div className="section-line">
           <strong>{ui.workspaceSecondaryRole}</strong>
           <span>{activeThread?.title ?? ui.noActiveThread}</span>
         </div>
-        <p className="section-empty">{ui.workspaceSecondaryHint}</p>
+        <p className="section-empty">{ui.workspaceSimpleIntro}</p>
 
         <div className="action-row">
           <button
@@ -503,153 +520,160 @@ export function WorkspacePanel({
         </p>
       </div>
 
-      <div className="panel-section">
-        <div className="section-line">
-          <strong>{sourceListTitle}</strong>
-          <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
-        </div>
-        {state.contextEntries.length === 0 ? (
-          <p className="section-empty">{emptyWorkspaceMessage}</p>
-        ) : filteredSessionSummaries.length === 0 ? (
-          <p className="section-empty">{noFilteredArtifactsMessage}</p>
-        ) : (
-          <div className="artifact-list">
-            {filteredSessionSummaries.map((session) => (
-              <button
-                key={session.scopeId}
-                type="button"
-                className={`artifact-row artifact-row--button artifact-row--session${state.selectedOrigin === session.scopeId ? ' artifact-row--active' : ''}`}
-                onClick={() =>
-                  updateWorkspaceViewState({
-                    ...state,
-                    selectedOrigin: session.scopeId
-                  })
-                }
-              >
-                <div className="artifact-row__body">
-                  <strong>{session.title}</strong>
-                  <p>{session.preview}</p>
-                  <div className="session-badges">
-                    {session.badges.map((badge) => (
-                      <span key={`${session.scopeId}-${badge}`} className="session-badge">
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="artifact-row__meta">
-                  <span>{formatContextEntryLabel(session, locale)}</span>
-                  <small>{session.latestUpdatedAt ? formatTimestamp(session.latestUpdatedAt, locale) : '-'}</small>
-                </div>
-              </button>
-            ))}
+      <div className="workspace-inspector-grid">
+        <section className="panel-section workspace-inspector-grid__primary">
+          <div className="section-line">
+            <strong>{sourceListTitle}</strong>
+            <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
           </div>
-        )}
-      </div>
-
-      <div className="panel-section">
-        <div className="section-line">
-          <strong>{ui.currentSelectionSummary}</strong>
-          <span>{selectedScopeSummary?.title ?? ui.sessionPreviewEmpty}</span>
-        </div>
-        {!selectedScope || !selectedScopeSummary ? (
-          <p className="section-empty">{ui.contextSelectionHint}</p>
-        ) : (
-          <div className="workspace-session-summary">
-            <div className="workspace-session-summary__header">
-              <strong>{selectedScopeSummary.title}</strong>
-              <span>{formatContextEntryLabel(selectedScopeSummary, locale)}</span>
-            </div>
-            <p>{selectedScopeSummary.preview}</p>
-            <div className="session-badges">
-              {selectedScopeSummary.badges.map((badge) => (
-                <span key={`${selectedScopeSummary.scopeId}-${badge}`} className="session-badge">
-                  {badge}
-                </span>
+          {state.contextEntries.length === 0 ? (
+            <p className="section-empty">{emptyWorkspaceMessage}</p>
+          ) : filteredSessionSummaries.length === 0 ? (
+            <p className="section-empty">{noFilteredArtifactsMessage}</p>
+          ) : (
+            <div className="artifact-list">
+              {filteredSessionSummaries.map((session) => (
+                <button
+                  key={session.scopeId}
+                  type="button"
+                  className={`artifact-row artifact-row--button artifact-row--session${state.selectedOrigin === session.scopeId ? ' artifact-row--active' : ''}`}
+                  onClick={() =>
+                    updateWorkspaceViewState({
+                      ...state,
+                      selectedOrigin: session.scopeId
+                    })
+                  }
+                >
+                  <div className="artifact-row__body">
+                    <strong>{session.title}</strong>
+                    <p>{session.preview}</p>
+                    <div className="session-badges">
+                      {session.badges.map((badge) => (
+                        <span key={`${session.scopeId}-${badge}`} className="session-badge">
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="artifact-row__meta">
+                    <span>{formatContextEntryLabel(session, locale)}</span>
+                    <small>{session.latestUpdatedAt ? formatTimestamp(session.latestUpdatedAt, locale) : '-'}</small>
+                  </div>
+                </button>
               ))}
             </div>
+          )}
+        </section>
+
+        <section className="panel-section workspace-inspector-grid__secondary">
+          <div className="section-line">
+            <strong>{ui.currentSelectionSummary}</strong>
+            <span>{selectedScopeSummary?.title ?? ui.sessionPreviewEmpty}</span>
           </div>
-        )}
+          {!selectedScope || !selectedScopeSummary ? (
+            <p className="section-empty">{ui.contextSelectionHint}</p>
+          ) : (
+            <div className="workspace-session-summary">
+              <div className="workspace-session-summary__header">
+                <strong>{selectedScopeSummary.title}</strong>
+                <span>{formatContextEntryLabel(selectedScopeSummary, locale)}</span>
+              </div>
+              <p>{selectedScopeSummary.preview}</p>
+              <div className="session-badges">
+                {selectedScopeSummary.badges.map((badge) => (
+                  <span key={`${selectedScopeSummary.scopeId}-${badge}`} className="session-badge">
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       </div>
 
-      <div className="panel-section">
-        <div className="section-line">
-          <strong>{ui.sessionPreview}</strong>
-          <span>
-            {sessionMessages.length > 0
-              ? `${sessionMessages.length} ${ui.sessionMessagesCount}`
-              : sessionLogExcerpt
-                ? ui.sessionLogPreview
-                : ui.sessionPreviewEmpty}
-          </span>
-        </div>
-        {!selectedScope ? (
-          <p className="section-empty">{ui.sessionPreviewHint}</p>
-        ) : sessionMessages.length > 0 ? (
-          <div className="session-timeline">
-            {sessionMessages.map((message) => (
-              <article key={message.id} className={`session-message session-message--${normalizeMessageRole(message.role)}`}>
-                <div className="session-message__meta">
-                  <span>{formatMessageRole(message.role, locale)}</span>
-                </div>
-                <div className="session-message__body">
-                  <p>{message.text}</p>
-                </div>
-              </article>
-            ))}
+      <div className="workspace-inspector-grid workspace-inspector-grid--preview">
+        <section className="panel-section workspace-inspector-grid__primary">
+          <div className="section-line">
+            <strong>{ui.sessionPreview}</strong>
+            <span>
+              {sessionMessages.length > 0
+                ? `${sessionMessages.length} ${ui.sessionMessagesCount}`
+                : sessionLogExcerpt
+                  ? ui.sessionLogPreview
+                  : ui.sessionPreviewEmpty}
+            </span>
           </div>
-        ) : sessionLogExcerpt ? (
-          <pre className="session-log-preview">{sessionLogExcerpt}</pre>
-        ) : (
-          <p className="section-empty">{ui.sessionPreviewUnavailable}</p>
-        )}
+          {!selectedScope ? (
+            <p className="section-empty">{ui.sessionPreviewHint}</p>
+          ) : sessionMessages.length > 0 ? (
+            <div className="session-timeline">
+              {sessionMessages.map((message) => (
+                <article key={message.id} className={`session-message session-message--${normalizeMessageRole(message.role)}`}>
+                  <div className="session-message__meta">
+                    <span>{formatMessageRole(message.role, locale)}</span>
+                  </div>
+                  <div className="session-message__body">
+                    <p>{message.text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : sessionLogExcerpt ? (
+            <pre className="session-log-preview">{sessionLogExcerpt}</pre>
+          ) : (
+            <p className="section-empty">{ui.sessionPreviewUnavailable}</p>
+          )}
+        </section>
+
+        <section className="panel-section workspace-inspector-grid__secondary">
+          <div className="section-line">
+            <strong>{artifactListTitle}</strong>
+            <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
+          </div>
+          <p className="section-empty">
+            {selectedArtifactsCount > 0 ? `${selectedArtifactsCount} ${ui.selectedCount}` : ui.selectedArtifactsEmpty}
+          </p>
+          {filteredArtifacts.length === 0 ? (
+            <p className="section-empty">{noFilteredArtifactsMessage}</p>
+          ) : (
+            <div className="artifact-list">
+              {filteredArtifacts.map((artifact) => (
+                <article
+                  key={artifact.id}
+                  className={`artifact-row artifact-row--selectable${state.previewArtifactId === artifact.id ? ' artifact-row--active' : ''}`}
+                >
+                  <div className="artifact-row__select">
+                    <input
+                      type="checkbox"
+                      checked={state.selectedArtifactIds.includes(artifact.id)}
+                      onChange={() => toggleArtifactSelection(artifact.id)}
+                    />
+                  </div>
+                  <div className="artifact-row__body">
+                    <strong>{formatArtifactTitle(artifact, locale)}</strong>
+                    <p>{formatArtifactSummary(artifact)}</p>
+                  </div>
+                  <div className="artifact-row__meta">
+                    <span>{formatArtifactMeta(artifact, locale)}</span>
+                    <small>{formatTimestamp(artifact.updatedAt, locale)}</small>
+                  </div>
+                  <div className="artifact-row__actions">
+                    <button
+                      type="button"
+                      className="action-button action-button--ghost action-button--compact"
+                      onClick={() => setPreviewArtifact(artifact.id)}
+                    >
+                      {ui.previewArtifact}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
-      <div className="panel-section">
-        <div className="section-line">
-          <strong>{artifactListTitle}</strong>
-          <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
-        </div>
-        {filteredArtifacts.length === 0 ? (
-          <p className="section-empty">{noFilteredArtifactsMessage}</p>
-        ) : (
-          <div className="artifact-list">
-            {filteredArtifacts.map((artifact) => (
-              <article
-                key={artifact.id}
-                className={`artifact-row artifact-row--selectable${state.previewArtifactId === artifact.id ? ' artifact-row--active' : ''}`}
-              >
-                <div className="artifact-row__select">
-                  <input
-                    type="checkbox"
-                    checked={state.selectedArtifactIds.includes(artifact.id)}
-                    onChange={() => toggleArtifactSelection(artifact.id)}
-                  />
-                </div>
-                <div className="artifact-row__body">
-                  <strong>{formatArtifactTitle(artifact, locale)}</strong>
-                  <p>{formatArtifactSummary(artifact)}</p>
-                </div>
-                <div className="artifact-row__meta">
-                  <span>{formatArtifactMeta(artifact, locale)}</span>
-                  <small>{formatTimestamp(artifact.updatedAt, locale)}</small>
-                </div>
-                <div className="artifact-row__actions">
-                  <button
-                    type="button"
-                    className="action-button action-button--ghost action-button--compact"
-                    onClick={() => setPreviewArtifact(artifact.id)}
-                  >
-                    {ui.previewArtifact}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="panel-section">
+      <section className="panel-section">
         <div className="section-line">
           <strong>{previewTitle}</strong>
           <span>{selectedPreviewArtifact?.id ?? ui.artifactPreviewEmpty}</span>
@@ -676,123 +700,7 @@ export function WorkspacePanel({
             </div>
           </div>
         )}
-      </div>
-
-      <details className="workspace-advanced">
-        <summary>{ui.workspaceMaintenance}</summary>
-
-        <div className="workspace-advanced__body">
-          <p className="section-empty">
-            {state.workspaceRoot ? ui.workspaceMaintenanceHint : ui.workspaceMaintenanceUnavailable}
-          </p>
-
-          <div className="action-row">
-            <button
-              type="button"
-              className="action-button action-button--ghost"
-              disabled={!state.workspaceRoot || maintenancePending !== null}
-              onClick={() => void runMaintenance('scan')}
-            >
-              {ui.maintenanceScan}
-            </button>
-            <button
-              type="button"
-              className="action-button action-button--ghost"
-              disabled={!state.workspaceRoot || maintenancePending !== null}
-              onClick={() => void runMaintenance('rebuild')}
-            >
-              {ui.maintenanceRebuild}
-            </button>
-            {maintenanceRepairArmed ? (
-              <>
-                <button
-                  type="button"
-                  className="action-button action-button--danger"
-                  disabled={!state.workspaceRoot || maintenancePending !== null}
-                  onClick={() => void runMaintenance('repair')}
-                >
-                  {ui.maintenanceRepair}
-                </button>
-                <button
-                  type="button"
-                  className="action-button action-button--ghost"
-                  disabled={maintenancePending !== null}
-                  onClick={() => setMaintenanceRepairArmed(false)}
-                >
-                  {ui.cancel}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="action-button action-button--ghost action-button--danger"
-                disabled={!state.workspaceRoot || maintenancePending !== null}
-                onClick={() => setMaintenanceRepairArmed(true)}
-              >
-                {ui.maintenanceRepairArm}
-              </button>
-            )}
-          </div>
-
-          {maintenanceReport ? (
-            <>
-              <div className="stats-row">
-                <article className="stat-block">
-                  <span>{ui.maintenanceFindings}</span>
-                  <strong>{maintenanceReport.summary.findingCount}</strong>
-                </article>
-                <article className="stat-block">
-                  <span>{ui.maintenanceRepairable}</span>
-                  <strong>{maintenanceReport.summary.repairableCount}</strong>
-                </article>
-                <article className="stat-block">
-                  <span>{ui.maintenanceChangedFiles}</span>
-                  <strong>{maintenanceReport.summary.changedFileCount}</strong>
-                </article>
-              </div>
-
-              <div className="panel-section">
-                <div className="section-line">
-                  <strong>{ui.maintenanceFindings}</strong>
-                  <span>{maintenanceReport.mode}</span>
-                </div>
-                {maintenanceReport.findings.length === 0 ? (
-                  <p className="section-empty">{ui.maintenanceNoFindings}</p>
-                ) : (
-                  <div className="detail-list">
-                    {maintenanceReport.findings.map((finding) => (
-                      <div key={finding.id} className="detail-list__item">
-                        <span>{formatMaintenanceFindingKind(finding.kind, ui)}</span>
-                        <strong>{finding.message}</strong>
-                        <small>{finding.repairable ? ui.maintenanceRepairable : ui.maintenanceFollowUp}</small>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {maintenanceReport.actions.length > 0 ? (
-                <div className="panel-section">
-                  <div className="section-line">
-                    <strong>{ui.maintenanceActions}</strong>
-                    <span>{maintenanceReport.actions.length}</span>
-                  </div>
-                  <div className="detail-list">
-                    {maintenanceReport.actions.map((action) => (
-                      <div key={action.id} className="detail-list__item">
-                        <span>{action.status}</span>
-                        <strong>{action.message}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <p className="section-empty">{ui.maintenanceNoReport}</p>
-          )}
-        </div>
-      </details>
+      </section>
 
       <details className="workspace-advanced">
         <summary>{ui.workspaceManageContinuity}</summary>
@@ -974,6 +882,122 @@ export function WorkspacePanel({
       </details>
 
       <details className="workspace-advanced">
+        <summary>{ui.workspaceMaintenance}</summary>
+
+        <div className="workspace-advanced__body">
+          <p className="section-empty">
+            {state.workspaceRoot ? ui.workspaceMaintenanceHint : ui.workspaceMaintenanceUnavailable}
+          </p>
+
+          <div className="action-row">
+            <button
+              type="button"
+              className="action-button action-button--ghost"
+              disabled={!state.workspaceRoot || maintenancePending !== null}
+              onClick={() => void runMaintenance('scan')}
+            >
+              {ui.maintenanceScan}
+            </button>
+            <button
+              type="button"
+              className="action-button action-button--ghost"
+              disabled={!state.workspaceRoot || maintenancePending !== null}
+              onClick={() => void runMaintenance('rebuild')}
+            >
+              {ui.maintenanceRebuild}
+            </button>
+            {maintenanceRepairArmed ? (
+              <>
+                <button
+                  type="button"
+                  className="action-button action-button--danger"
+                  disabled={!state.workspaceRoot || maintenancePending !== null}
+                  onClick={() => void runMaintenance('repair')}
+                >
+                  {ui.maintenanceRepair}
+                </button>
+                <button
+                  type="button"
+                  className="action-button action-button--ghost"
+                  disabled={maintenancePending !== null}
+                  onClick={() => setMaintenanceRepairArmed(false)}
+                >
+                  {ui.cancel}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="action-button action-button--ghost action-button--danger"
+                disabled={!state.workspaceRoot || maintenancePending !== null}
+                onClick={() => setMaintenanceRepairArmed(true)}
+              >
+                {ui.maintenanceRepairArm}
+              </button>
+            )}
+          </div>
+
+          {maintenanceReport ? (
+            <>
+              <div className="stats-row">
+                <article className="stat-block">
+                  <span>{ui.maintenanceFindings}</span>
+                  <strong>{maintenanceReport.summary.findingCount}</strong>
+                </article>
+                <article className="stat-block">
+                  <span>{ui.maintenanceRepairable}</span>
+                  <strong>{maintenanceReport.summary.repairableCount}</strong>
+                </article>
+                <article className="stat-block">
+                  <span>{ui.maintenanceChangedFiles}</span>
+                  <strong>{maintenanceReport.summary.changedFileCount}</strong>
+                </article>
+              </div>
+
+              <div className="panel-section">
+                <div className="section-line">
+                  <strong>{ui.maintenanceFindings}</strong>
+                  <span>{maintenanceReport.mode}</span>
+                </div>
+                {maintenanceReport.findings.length === 0 ? (
+                  <p className="section-empty">{ui.maintenanceNoFindings}</p>
+                ) : (
+                  <div className="detail-list">
+                    {maintenanceReport.findings.map((finding) => (
+                      <div key={finding.id} className="detail-list__item">
+                        <span>{formatMaintenanceFindingKind(finding.kind, ui)}</span>
+                        <strong>{finding.message}</strong>
+                        <small>{finding.repairable ? ui.maintenanceRepairable : ui.maintenanceFollowUp}</small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {maintenanceReport.actions.length > 0 ? (
+                <div className="panel-section">
+                  <div className="section-line">
+                    <strong>{ui.maintenanceActions}</strong>
+                    <span>{maintenanceReport.actions.length}</span>
+                  </div>
+                  <div className="detail-list">
+                    {maintenanceReport.actions.map((action) => (
+                      <div key={action.id} className="detail-list__item">
+                        <span>{action.status}</span>
+                        <strong>{action.message}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="section-empty">{ui.maintenanceNoReport}</p>
+          )}
+        </div>
+      </details>
+
+      <details className="workspace-advanced">
         <summary>{ui.advancedWorkspaceTools}</summary>
 
         <div className="workspace-advanced__body">
@@ -996,6 +1020,23 @@ export function WorkspacePanel({
               <input value={state.projectId} readOnly />
             </label>
           </div>
+
+          {selectedArtifactsCount > 0 ? (
+            <div className="panel-section">
+              <div className="section-line">
+                <strong>{ui.artifactSelection}</strong>
+                <span>{selectedArtifactsCount} {ui.selectedCount}</span>
+              </div>
+              <div className="detail-list">
+                {selectedArtifacts.map((artifact) => (
+                  <div key={`selected-${artifact.id}`} className="detail-list__item">
+                    <span>{formatArtifactTitle(artifact, locale)}</span>
+                    <strong>{artifact.id}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="panel-section">
             <div className="section-line">
@@ -1090,20 +1131,6 @@ export function WorkspacePanel({
           <strong>{state.bucketCounts['logs/'] ?? 0}</strong>
         </article>
       </div>
-
-      {!state.initialized || state.lastError ? (
-        <div className="panel-section">
-          <div className="detail-list">
-            {!state.initialized ? <strong>{ui.workspaceInitializationPending}</strong> : null}
-            {state.lastError ? (
-              <div className="detail-list__item">
-                <span>{ui.error}</span>
-                <strong>{state.lastError}</strong>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

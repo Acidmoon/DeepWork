@@ -32,6 +32,21 @@ async page => {
   await searchBox.fill('111')
   await page.waitForTimeout(300)
 
+  const routineInspectionState = {
+    scopeListVisible: await page.getByText('会话列表').count(),
+    selectedSummaryVisible: await page.getByText('当前上下文摘要').count(),
+    sessionPreviewVisible: await page.getByText('会话预览').count(),
+    maintenanceSummaryVisible: await page.locator('summary').filter({ hasText: '工作区维护' }).count()
+  }
+  if (
+    routineInspectionState.scopeListVisible < 1 ||
+    routineInspectionState.selectedSummaryVisible < 1 ||
+    routineInspectionState.sessionPreviewVisible < 1 ||
+    routineInspectionState.maintenanceSummaryVisible < 1
+  ) {
+    throw new Error(`Routine inspection hierarchy was not visible before advanced sections opened: ${JSON.stringify(routineInspectionState)}`)
+  }
+
   const sessionResults = await page.getByText('1 搜索结果').count()
   const deepseekSessionVisible = await page.getByRole('button', { name: /用户询问数字111含义/ }).count()
   const minimaxSessionVisible = await page.getByRole('button', { name: /MiniMax Agent/ }).count()

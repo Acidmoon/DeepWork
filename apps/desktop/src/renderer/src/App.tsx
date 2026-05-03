@@ -785,6 +785,11 @@ function WorkspacePanelActions({
           if (snapshot) {
             useWorkbenchStore.getState().syncWorkspaceState(snapshot)
           }
+
+          const settings = await window.workbenchShell.settings.getState()
+          if (settings) {
+            useWorkbenchStore.getState().syncSettingsState(settings)
+          }
         }}
       >
         <FolderOpen size={14} aria-hidden="true" />

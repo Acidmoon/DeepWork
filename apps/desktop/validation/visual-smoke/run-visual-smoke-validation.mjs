@@ -114,8 +114,33 @@ function buildBootstrapScript(payload) {
   await page.setViewportSize({ width: 1366, height: 900 })
   await page.addInitScript((injected) => {
     const clone = value => JSON.parse(JSON.stringify(value))
-    const workspaceRoot = injected.workspaceRoot
+    const activeWorkspaceRoot = injected.workspaceRoot
     const workspaceSnapshot = clone(injected.snapshot)
+    const emptyWorkspaceSnapshot = {
+      ...clone(injected.snapshot),
+      workspaceRoot: '',
+      manifestPath: '',
+      contextIndexPath: '',
+      originManifestsPath: '',
+      threadIndexPath: '',
+      threadManifestsPath: '',
+      rulesPath: '',
+      initialized: false,
+      artifactCount: 0,
+      bucketCounts: {
+        'artifacts/': 0,
+        'outputs/': 0,
+        'logs/': 0
+      },
+      contextEntries: [],
+      threads: [],
+      activeThreadId: null,
+      activeThreadTitle: null,
+      artifacts: [],
+      recentArtifacts: [],
+      lastSavedArtifactId: null,
+      lastError: null
+    }
     const artifactContents = clone(injected.contents)
     const webListeners = new Set()
     const terminalListeners = new Set()
@@ -167,12 +192,28 @@ function buildBootstrapScript(payload) {
       }
     }
     let terminalRetrievalScenario = 'selected-scope'
+    let currentWorkspaceSnapshot = clone(emptyWorkspaceSnapshot)
     let settings = {
       language: 'en-US',
       theme: 'light',
-      workspaceRoot,
-      workspaceProfiles: [],
-      defaultWorkspaceProfileId: null,
+      workspaceRoot: null,
+      workspaceProfiles: [
+        {
+          id: 'profile-default',
+          name: 'Default Project',
+          root: activeWorkspaceRoot,
+          createdAt: '2026-04-25T12:00:00.000Z',
+          lastUsedAt: '2026-04-26T09:15:00.000Z'
+        },
+        {
+          id: 'profile-archive',
+          name: 'Archive Notes',
+          root: 'C:/Users/17740/Documents/AI-Workspace/projects/archive-notes',
+          createdAt: '2026-04-20T08:00:00.000Z',
+          lastUsedAt: '2026-04-21T16:20:00.000Z'
+        }
+      ],
+      defaultWorkspaceProfileId: 'profile-default',
       terminalPreludeCommands: ['proxy_on'],
       terminalBehavior: { scrollbackLines: 1000, copyOnSelection: false, confirmMultilinePaste: true },
       threadContinuationPreference: 'continue-active-thread',
@@ -215,7 +256,7 @@ function buildBootstrapScript(payload) {
       title: 'Codex CLI',
       shell: 'powershell.exe',
       shellArgs: ['-NoLogo', '-ExecutionPolicy', 'Bypass'],
-      cwd: workspaceRoot,
+      cwd: currentWorkspaceSnapshot.workspaceRoot || activeWorkspaceRoot,
       startupCommand: 'codex',
       status: 'running',
       hasSession: true,
@@ -329,20 +370,61 @@ function buildBootstrapScript(payload) {
         }
       },
       workspace: {
-        getState: async () => clone(workspaceSnapshot),
+        getState: async () => clone(currentWorkspaceSnapshot),
         readArtifact: async artifactId => {
           const artifact = workspaceSnapshot.artifacts.find(item => item.id === artifactId)
           return artifact ? { artifact, content: artifactContents[artifactId] ?? '' } : null
         },
-        deleteScope: async () => clone(workspaceSnapshot),
-        createThread: async () => clone(workspaceSnapshot),
-        selectThread: async () => clone(workspaceSnapshot),
-        renameThread: async () => clone(workspaceSnapshot),
-        reassignScopeThread: async () => clone(workspaceSnapshot),
-        resync: async () => clone(workspaceSnapshot),
-        chooseRoot: async () => clone(workspaceSnapshot),
-        openProfile: async () => ({ settings: clone(settings), workspace: clone(workspaceSnapshot), error: 'Workspace profile is unavailable.' }),
-        saveClipboard: async () => ({ snapshot: clone(workspaceSnapshot), artifact: null }),
+        deleteScope: async () => clone(currentWorkspaceSnapshot),
+        createThread: async () => clone(currentWorkspaceSnapshot),
+        selectThread: async () => clone(currentWorkspaceSnapshot),
+        renameThread: async () => clone(currentWorkspaceSnapshot),
+        reassignScopeThread: async () => clone(currentWorkspaceSnapshot),
+        resync: async () => clone(currentWorkspaceSnapshot),
+        chooseRoot: async () => {
+          currentWorkspaceSnapshot = clone(workspaceSnapshot)
+          settings = { ...settings, workspaceRoot: activeWorkspaceRoot }
+          for (const listener of workspaceListeners) {
+            listener(clone(currentWorkspaceSnapshot))
+          }
+          return clone(currentWorkspaceSnapshot)
+        },
+        openProfile: async profileId => {
+          const profile = settings.workspaceProfiles.find(item => item.id === profileId)
+          if (!profile) {
+            return { settings: clone(settings), workspace: clone(currentWorkspaceSnapshot), error: 'Workspace profile is unavailable.' }
+          }
+
+          if (profile.id === 'profile-default') {
+            currentWorkspaceSnapshot = clone(workspaceSnapshot)
+          } else {
+            currentWorkspaceSnapshot = {
+              ...clone(emptyWorkspaceSnapshot),
+              workspaceRoot: profile.root,
+              initialized: true
+            }
+          }
+
+          settings = {
+            ...settings,
+            workspaceRoot: profile.root,
+            workspaceProfiles: settings.workspaceProfiles.map(item =>
+              item.id === profile.id
+                ? {
+                    ...item,
+                    lastUsedAt: '2026-04-26T12:58:00.000Z'
+                  }
+                : item
+            )
+          }
+
+          for (const listener of workspaceListeners) {
+            listener(clone(currentWorkspaceSnapshot))
+          }
+
+          return { settings: clone(settings), workspace: clone(currentWorkspaceSnapshot), error: null }
+        },
+        saveClipboard: async () => ({ snapshot: clone(currentWorkspaceSnapshot), artifact: null }),
         onStateChanged(listener) {
           workspaceListeners.add(listener)
           return () => {
