@@ -33,10 +33,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     'minimax-web': {
       title: 'MiniMax 网页',
       group: '网页应用',
-      summary: '作为可选预设网页目标保留，并沿用与自定义网页相同的配置驱动打开能力。',
-      nextStep: '需要固定入口时可直接启用，或者在网页应用中新增任意自定义网页。',
-      delivery: '可选网页预设。',
-      signal: '可选预设'
+      summary: 'MiniMax 作为内置网页预设接入托管 WebContentsView，并使用 persist partition 保持登录态。',
+      nextStep: '需要固定 MiniMax 入口时直接打开，也可以通过配置面板禁用或调整主页。',
+      delivery: '托管网页面板：内置 MiniMax 预设、持久分区、安全导航与配置覆盖。',
+      signal: '持久网页会话'
     },
     'codex-cli': {
       title: 'Codex CLI',
@@ -65,10 +65,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     logs: {
       title: '日志',
       group: '工作区',
-      summary: '公共工作区已建立日志桶位，用于保存和检查日志类工作区材料。',
-      nextStep: '需要时可按当前工作区检查归档到 logs/ 的记录。',
-      delivery: '工作区日志桶和基础检查入口。',
-      signal: '日志桶已就绪'
+      summary: '工作区日志检查面可按 logs/ 桶位查看终端转录、检索审计和其他日志类记录。',
+      nextStep: '用这里筛选、搜索和预览归档到 logs/ 的审计或排障材料。',
+      delivery: '工作区日志检查面：日志桶筛选、元数据列表和文本预览。',
+      signal: '日志检查在线'
     },
     settings: {
       title: '设置',
@@ -99,10 +99,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     'minimax-web': {
       title: 'MiniMax Web',
       group: 'Web Apps',
-      summary: 'Kept as an optional preset target and opened through the same configuration-driven flow as custom web pages.',
-      nextStep: 'Enable it when you want a fixed MiniMax entry, or add any custom webpage from Web Apps.',
-      delivery: 'Optional web preset.',
-      signal: 'Optional preset'
+      summary: 'MiniMax is available as a built-in managed WebContentsView preset with a persist partition for login retention.',
+      nextStep: 'Open MiniMax directly when you want a fixed entry, or disable and adjust its home page from configuration.',
+      delivery: 'Managed web panel: built-in MiniMax preset, persist partition, safe navigation, and configuration overrides.',
+      signal: 'Persistent web session'
     },
     'codex-cli': {
       title: 'Codex CLI',
@@ -131,10 +131,10 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
     logs: {
       title: 'Logs',
       group: 'Workspace',
-      summary: 'The shared workspace includes a logs bucket for saved log-style workspace materials.',
-      nextStep: 'Use the current workspace inspector when records are archived under logs/.',
-      delivery: 'Workspace logs bucket and basic inspection entry.',
-      signal: 'Log bucket ready'
+      summary: 'The Workspace Logs inspector shows terminal transcripts, retrieval audits, and other records stored under logs/.',
+      nextStep: 'Use this surface to filter, search, and preview audit or debugging material archived under logs/.',
+      delivery: 'Workspace Logs inspector: log-bucket filtering, metadata rows, and text preview.',
+      signal: 'Logs inspector live'
     },
     settings: {
       title: 'Settings',
@@ -155,7 +155,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     web: {
       title: '网页应用',
-      caption: '内置站点与自定义网页共用同一套网页面板生命周期，可按需新增、启用和保活。'
+      caption: 'DeepSeek、MiniMax 与自定义网页共用同一套托管网页面板生命周期。'
     },
     agents: {
       title: 'CLI 智能体',
@@ -163,7 +163,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     workspace: {
       title: '工作区',
-      caption: '工作区已经落地到真实目录与 manifest，并支持列表、预览、线程和自动检索检查。'
+      caption: '工作区已经落地到真实目录与 manifest，并支持工件、日志、预览、线程和自动检索检查。'
     },
     system: {
       title: '系统',
@@ -177,7 +177,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     web: {
       title: 'Web Apps',
-      caption: 'Built-in sites and custom webpages share one managed web-panel lifecycle for add, enable, and restore flows.'
+      caption: 'DeepSeek, MiniMax, and custom webpages share one managed web-panel lifecycle.'
     },
     agents: {
       title: 'CLI Agents',
@@ -185,7 +185,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     workspace: {
       title: 'Workspace',
-      caption: 'The workspace exists on disk with manifests plus list, preview, thread, and automatic retrieval inspection.'
+      caption: 'The workspace exists on disk with manifests plus artifact, log, preview, thread, and automatic retrieval inspection.'
     },
     system: {
       title: 'System',
@@ -328,6 +328,26 @@ const uiText = {
     bufferSize: '缓冲区大小',
     lastExit: '上次退出',
     active: '活跃中',
+    retrievalContext: '检索上下文',
+    retrievalQuery: '查询',
+    retrievalQueryUnknown: '未记录查询',
+    retrievalMode: '检索模式',
+    retrievalModeThreadLocal: '当前线程',
+    retrievalModeGlobalFallback: '全局回退',
+    retrievalModeGlobalPreferred: '全局优先',
+    retrievalModeUnknown: '未知',
+    retrievalOutcomeSelectedScope: '已选择范围',
+    retrievalOutcomeGlobalFallback: '全局回退已选择',
+    retrievalOutcomeGlobalPreferred: '全局优先已选择',
+    retrievalOutcomeNoMatch: '未匹配',
+    retrievalOutcomeSuperseded: '已被后续检索替换',
+    retrievalSelectedScope: '选中范围',
+    retrievalNoSelection: '未附加范围',
+    retrievalCandidates: '候选数量',
+    retrievalAudit: '审计引用',
+    retrievalAuditUnavailable: '未记录审计',
+    retrievalReason: '原因',
+    retrievalInspectionHint: '这里只显示检索元数据；需要检查原始审计或记录时从 Workspace 日志面进入。',
     restartToApply: '重启以应用',
     terminalConfigApplyHint: '保存会立即更新已保存配置，但不会打断当前 PTY。新的配置会在下次启动或手动重启后生效。',
     builtInTerminalConfigHint:
@@ -372,6 +392,28 @@ const uiText = {
     cliCommandArtifact: '查看某条具体记录',
     cliCommandThreads: '列出当前工作区中的线程摘要',
     cliCommandThread: '查看某个线程的成员范围与摘要',
+    cliCommandMaintenanceScan: '扫描工作区维护诊断',
+    cliCommandMaintenanceRebuild: '检查维护诊断并准备派生索引重建',
+    workspaceMaintenance: '工作区维护',
+    workspaceMaintenanceHint: '维护工具只用于检查和修复索引漂移；普通对话和预览流程不需要打开这里。',
+    workspaceMaintenanceUnavailable: '选择工作区后才能运行维护操作。',
+    maintenanceScan: '扫描',
+    maintenanceRebuild: '重建索引',
+    maintenanceRepair: '安全修复',
+    maintenanceRepairArm: '准备安全修复',
+    maintenanceNoReport: '尚未运行维护扫描。',
+    maintenanceNoFindings: '未发现维护问题。',
+    maintenanceFindings: '维护发现',
+    maintenanceActions: '维护动作',
+    maintenanceChangedFiles: '变更文件',
+    maintenanceRepairable: '可安全修复',
+    maintenanceFollowUp: '需人工跟进',
+    maintenanceFindingUninitialized: '未初始化工作区',
+    maintenanceFindingMissingFile: '缺失文件',
+    maintenanceFindingOrphanedRecord: '孤立记录',
+    maintenanceFindingStaleIndex: '派生索引过期',
+    maintenanceFindingDuplicateId: '重复 ID',
+    maintenanceFindingUnsafePath: '不安全路径',
     bucket: '桶位',
     projectId: '项目 ID',
     workspaceRoot: '工作区根目录',
@@ -404,6 +446,12 @@ const uiText = {
     artifactPreviewLoading: '正在加载工件预览...',
     artifactPreviewUnavailable: '未能读取这条工件，可能已被删除或暂时不可用。',
     artifactPreviewUnsupported: '该工件类型暂不支持文本预览。',
+    logSources: '日志来源',
+    logRecords: '日志记录',
+    logPreview: '日志预览',
+    logInspectionHint: '日志面用于检查终端转录、检索审计和排障记录，不会把内容发送给 CLI。',
+    logsEmptyHint: '当前工作区还没有保存日志记录。',
+    noLogsForFilter: '当前筛选条件下还没有可选日志。',
     cliSelfSearch: 'CLI 自动工作区检索',
     cliSelfSearchHint: 'CLI 现在会默认进入当前工作区，并在你提到某个会话或来源时优先自动查索引；下面这些命令主要用于显式检查或排障。',
     defaultContextLabel: '默认上下文',
@@ -624,6 +672,26 @@ const uiText = {
     bufferSize: 'Buffer Size',
     lastExit: 'Last Exit',
     active: 'Active',
+    retrievalContext: 'Retrieval Context',
+    retrievalQuery: 'Query',
+    retrievalQueryUnknown: 'Query not recorded',
+    retrievalMode: 'Retrieval Mode',
+    retrievalModeThreadLocal: 'Thread local',
+    retrievalModeGlobalFallback: 'Global fallback',
+    retrievalModeGlobalPreferred: 'Global preferred',
+    retrievalModeUnknown: 'Unknown',
+    retrievalOutcomeSelectedScope: 'Selected scope',
+    retrievalOutcomeGlobalFallback: 'Global fallback selected',
+    retrievalOutcomeGlobalPreferred: 'Global preferred selected',
+    retrievalOutcomeNoMatch: 'No match',
+    retrievalOutcomeSuperseded: 'Superseded',
+    retrievalSelectedScope: 'Selected Scope',
+    retrievalNoSelection: 'No scope attached',
+    retrievalCandidates: 'Candidates',
+    retrievalAudit: 'Audit Reference',
+    retrievalAuditUnavailable: 'No audit recorded',
+    retrievalReason: 'Reason',
+    retrievalInspectionHint: 'Only retrieval metadata is shown here. Inspect raw audit records from Workspace logs.',
     restartToApply: 'Restart To Apply',
     terminalConfigApplyHint:
       'Saving updates the persisted launch configuration immediately, but the current PTY keeps running until you start or restart the panel explicitly.',
@@ -669,6 +737,28 @@ const uiText = {
     cliCommandArtifact: 'inspect one specific record',
     cliCommandThreads: 'list thread summaries from the current workspace',
     cliCommandThread: 'inspect one thread before opening any artifact',
+    cliCommandMaintenanceScan: 'scan workspace maintenance diagnostics',
+    cliCommandMaintenanceRebuild: 'check maintenance diagnostics before derived-index rebuild',
+    workspaceMaintenance: 'Workspace Maintenance',
+    workspaceMaintenanceHint: 'Maintenance tools are for inspecting and repairing index drift. Normal conversation and preview flows do not need this section.',
+    workspaceMaintenanceUnavailable: 'Select a workspace before running maintenance operations.',
+    maintenanceScan: 'Scan',
+    maintenanceRebuild: 'Rebuild Indexes',
+    maintenanceRepair: 'Safe Repair',
+    maintenanceRepairArm: 'Prepare Safe Repair',
+    maintenanceNoReport: 'No maintenance scan has run yet.',
+    maintenanceNoFindings: 'No maintenance issues found.',
+    maintenanceFindings: 'Maintenance Findings',
+    maintenanceActions: 'Maintenance Actions',
+    maintenanceChangedFiles: 'Changed Files',
+    maintenanceRepairable: 'Safe repair',
+    maintenanceFollowUp: 'Manual follow-up',
+    maintenanceFindingUninitialized: 'Uninitialized workspace',
+    maintenanceFindingMissingFile: 'Missing file',
+    maintenanceFindingOrphanedRecord: 'Orphaned record',
+    maintenanceFindingStaleIndex: 'Stale derived index',
+    maintenanceFindingDuplicateId: 'Duplicate ID',
+    maintenanceFindingUnsafePath: 'Unsafe path',
     bucket: 'Bucket',
     projectId: 'Project ID',
     workspaceRoot: 'Workspace Root',
@@ -701,6 +791,12 @@ const uiText = {
     artifactPreviewLoading: 'Loading artifact preview...',
     artifactPreviewUnavailable: 'This artifact could not be read. It may have been removed or is temporarily unavailable.',
     artifactPreviewUnsupported: 'This artifact type does not support text preview yet.',
+    logSources: 'Log Sources',
+    logRecords: 'Log Records',
+    logPreview: 'Log Preview',
+    logInspectionHint: 'Logs are for inspecting terminal transcripts, retrieval audits, and debugging records; browsing does not send content to the CLI.',
+    logsEmptyHint: 'No log records have been saved in this workspace yet.',
+    noLogsForFilter: 'There are no selectable logs for the current filter.',
     cliSelfSearch: 'Automatic CLI Workspace Retrieval',
     cliSelfSearchHint: 'Managed CLI sessions enter the current workspace automatically and should consult indexes when you mention a prior session or source. These commands are mainly for explicit inspection and debugging.',
     defaultContextLabel: 'default-context',

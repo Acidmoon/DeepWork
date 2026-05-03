@@ -230,9 +230,13 @@ function buildAssertScript() {
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.waitForTimeout(300)
 
-  const placeholderCount = await page.getByText('Terminal Behavior', { exact: true }).count()
-  if (placeholderCount < 1) {
+  const terminalBehaviorHeadingCount = await page.getByText('Terminal Behavior', { exact: true }).count()
+  if (terminalBehaviorHeadingCount < 1) {
     throw new Error('Terminal behavior controls did not render in Settings.')
+  }
+  const upcomingPreferencesCount = await page.getByText('Upcoming Preferences', { exact: true }).count()
+  if (upcomingPreferencesCount > 0) {
+    throw new Error('Settings rendered an empty deferred preferences section.')
   }
 
   await page.getByLabel('Scrollback Lines').fill('2400')

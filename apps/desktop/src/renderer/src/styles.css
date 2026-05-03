@@ -993,6 +993,15 @@ summary:focus-visible {
   padding-bottom: 8px;
 }
 
+.retrieval-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
 .drawer-note {
   margin: 0;
   color: var(--muted);
@@ -1126,6 +1135,12 @@ summary:focus-visible {
 
 .detail-list__item strong {
   min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.detail-list__item small {
+  color: var(--muted);
   text-align: right;
   overflow-wrap: anywhere;
 }

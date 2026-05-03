@@ -5,6 +5,7 @@ import { Terminal } from '@xterm/xterm'
 import { getTerminalStatusLabel, getUiText, resolveLocale } from '../i18n'
 import { asTerminalViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
+import type { TerminalRetrievalSummary } from '@ai-workbench/core/desktop/terminal-panels'
 
 function parseShellArgs(editorText: string): string[] {
   return editorText
@@ -26,6 +27,63 @@ function isMultilineTerminalInput(data: string): boolean {
 
   const carriageReturns = normalizedData.match(/\r/gu)?.length ?? 0
   return carriageReturns > 1 || (carriageReturns === 1 && normalizedData.trim().length > 1)
+}
+
+function normalizeRetrievalToken(value: string | null): string {
+  return (value ?? '').trim().toLowerCase().replaceAll('-', '_')
+}
+
+function formatRetrievalMode(
+  summary: TerminalRetrievalSummary,
+  ui: ReturnType<typeof getUiText>
+): string {
+  switch (normalizeRetrievalToken(summary.retrievalMode)) {
+    case 'thread_local':
+      return ui.retrievalModeThreadLocal
+    case 'global_fallback':
+      return ui.retrievalModeGlobalFallback
+    case 'global_preferred':
+      return ui.retrievalModeGlobalPreferred
+    default:
+      return summary.retrievalMode ?? ui.retrievalModeUnknown
+  }
+}
+
+function formatRetrievalOutcome(
+  summary: TerminalRetrievalSummary,
+  ui: ReturnType<typeof getUiText>
+): string {
+  const outcome = normalizeRetrievalToken(summary.outcome)
+  const mode = normalizeRetrievalToken(summary.retrievalMode)
+
+  if (outcome === 'selected_scope' && mode === 'global_fallback') {
+    return ui.retrievalOutcomeGlobalFallback
+  }
+
+  if (outcome === 'selected_scope' && mode === 'global_preferred') {
+    return ui.retrievalOutcomeGlobalPreferred
+  }
+
+  switch (outcome) {
+    case 'selected_scope':
+      return ui.retrievalOutcomeSelectedScope
+    case 'no_match':
+      return ui.retrievalOutcomeNoMatch
+    case 'superseded':
+      return ui.retrievalOutcomeSuperseded
+    default:
+      return summary.outcome || ui.retrievalModeUnknown
+  }
+}
+
+function formatAuditReference(summary: TerminalRetrievalSummary, ui: ReturnType<typeof getUiText>): string {
+  if (!summary.auditPath) {
+    return ui.retrievalAuditUnavailable
+  }
+
+  const parts = summary.auditPath.split(/[\\/]/u)
+  const filename = parts[parts.length - 1] || summary.auditPath
+  return summary.auditLine ? `${filename}:${summary.auditLine}` : filename
 }
 
 export function TerminalPanel({
@@ -492,6 +550,44 @@ export function TerminalPanel({
                 <strong>{state.lastExitCode ?? ui.active}</strong>
               </article>
             </div>
+
+            {state.retrievalSummary ? (
+              <section className="retrieval-summary" aria-label={ui.retrievalContext}>
+                <div className="stats-row">
+                  <article className="stat-block">
+                    <span>{ui.retrievalContext}</span>
+                    <strong>{formatRetrievalOutcome(state.retrievalSummary, ui)}</strong>
+                  </article>
+                  <article className="stat-block">
+                    <span>{ui.retrievalMode}</span>
+                    <strong>{formatRetrievalMode(state.retrievalSummary, ui)}</strong>
+                  </article>
+                  <article className="stat-block">
+                    <span>{ui.retrievalSelectedScope}</span>
+                    <strong>{state.retrievalSummary.selectedScopeId ?? ui.retrievalNoSelection}</strong>
+                  </article>
+                </div>
+
+                <div className="stats-row">
+                  <article className="stat-block">
+                    <span>{ui.retrievalQuery}</span>
+                    <strong>{state.retrievalSummary.query || ui.retrievalQueryUnknown}</strong>
+                  </article>
+                  <article className="stat-block">
+                    <span>{ui.retrievalCandidates}</span>
+                    <strong>{state.retrievalSummary.candidateCount}</strong>
+                  </article>
+                  <article className="stat-block">
+                    <span>{ui.retrievalAudit}</span>
+                    <strong>{formatAuditReference(state.retrievalSummary, ui)}</strong>
+                  </article>
+                </div>
+
+                <p className="drawer-note">
+                  {state.retrievalSummary.reason ? `${ui.retrievalReason}: ${state.retrievalSummary.reason}` : ui.retrievalInspectionHint}
+                </p>
+              </section>
+            ) : null}
 
             <div className="action-row">
               <button

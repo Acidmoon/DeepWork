@@ -2,12 +2,16 @@
   "name": "@ai-workbench/desktop",
   "private": true,
   "version": "0.1.0",
+  "description": "DeepWork desktop workbench",
+  "author": "DeepWork",
+  "license": "UNLICENSED",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "package:win": "npm run build && electron-builder --win dir --x64",
     "rebuild:native": "electron-rebuild -f -w node-pty",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "validate:workspace-regression": "node validation/workspace-regression/run-workspace-regression.mjs",
@@ -18,9 +22,51 @@
     "validate:terminal-behavior": "node validation/terminal-behavior/run-terminal-behavior-validation.mjs",
     "validate:workspace-profiles": "node validation/workspace-profiles/run-workspace-profiles-validation.mjs",
     "validate:visual-smoke": "node validation/visual-smoke/run-visual-smoke-validation.mjs",
+    "validate:package-win": "node validation/package-win/run-package-win-validation.mjs",
     "validate:renderer-entrypoint": "node validation/renderer-entrypoint.mjs",
     "validate:security-boundaries": "node validation/security-boundaries/run-security-boundaries-validation.mjs",
-    "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:security-boundaries && npm run validate:visual-smoke && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration && npm run validate:terminal-behavior && npm run validate:workspace-profiles"
+    "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:security-boundaries && npm run validate:visual-smoke && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration && npm run validate:terminal-behavior && npm run validate:workspace-profiles",
+    "release:win-alpha": "npm run validate:internal-alpha && npm run package:win && npm run validate:package-win"
+  },
+  "build": {
+    "appId": "cn.deepwork.alpha",
+    "productName": "DeepWork",
+    "electronVersion": "37.10.3",
+    "directories": {
+      "output": "../../release/windows-alpha"
+    },
+    "files": [
+      "out/**",
+      "package.json",
+      "!src/**",
+      "!validation/**",
+      "!*.ts",
+      "!electron.vite.config.ts",
+      "!tsconfig*.json",
+      "!dist/**",
+      "!release/**",
+      "!node_modules/.vite/**",
+      "!**/*.map",
+      "!**/.playwright-cli/**",
+      "!**/artifacts/**",
+      "!**/*.log"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
   },
   "dependencies": {
     "@ai-workbench/core": "0.1.0",
@@ -40,6 +86,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^5.0.0",
     "electron": "^37.2.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^4.0.0",
     "typescript": "^5.8.3",
     "vite": "^7.0.0"

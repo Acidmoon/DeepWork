@@ -196,9 +196,56 @@ $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 
 如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。
 
-## 12. 常见问题
+## 12. Windows alpha 打包
 
-### 12.1 `npm run dev` 前就报依赖缺失
+内部 alpha 的 Windows 打包使用 `electron-builder`，当前产物是未签名的 unpacked 目录包，面向本机或小范围手动验证，不包含自动更新或代码签名。
+
+打包前建议确认：
+
+1. Windows 10/11
+2. Node.js 22+ 和 npm 11+
+3. Electron native module 构建工具可用
+4. 已安装项目依赖
+
+常用命令：
+
+```powershell
+npm run package:win
+```
+
+该命令会先执行桌面构建，再生成：
+
+```text
+release/windows-alpha/win-unpacked/DeepWork.exe
+```
+
+生成目录 `release/` 是本地输出目录，不应提交到源码仓库。打包配置会只包含运行时需要的 Electron 输出、依赖和 native module unpack 内容，并排除源码验证 fixture、Playwright 临时文件、验证截图、日志和本机 Workspace 数据。
+
+准备给别人试用前，跑完整 preflight：
+
+```powershell
+npm run release:win-alpha
+```
+
+它会按顺序执行：
+
+1. `npm run validate:internal-alpha`
+2. `npm run package:win`
+3. `npm run validate:package-win`
+
+打包命令不会强制重编译 native module；它会把 `node-pty` 的运行时文件 unpack 到 asar 外。更换 Node、Electron 或 Visual Studio build tools 后，如果 `node-pty` 或其他 native module 在开发、打包 smoke 或启动时异常，先运行：
+
+```powershell
+npm run rebuild:native
+```
+
+`validate:internal-alpha` 用于确认源码构建和 focused flows；`package:win` 用于生成 Windows alpha 目录包；`validate:package-win` 会确认 packaged app 存在，并用隔离的 userData/documents 启动，验证首次打开能进入 renderer shell 且不会隐式创建 Workspace。
+
+未签名 alpha 在 Windows 上可能出现 SmartScreen 或安全提示，这是当前阶段的预期限制。当前目录包会跳过 Windows executable signing/resource edit，避免内部 alpha 机器必须具备代码签名工具链；正式分发前再处理签名、安装器、图标资源和发布通道。
+
+## 13. 常见问题
+
+### 13.1 `npm run dev` 前就报依赖缺失
 
 通常是还没安装依赖，重新执行：
 
@@ -206,7 +253,7 @@ $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 npm install
 ```
 
-### 12.2 `node-pty` 相关原生模块报错
+### 13.2 `node-pty` 相关原生模块报错
 
 项目里的 Terminal Panel 依赖 `node-pty`。如果你更换了 Node / Electron 环境，或者本机原生模块 ABI 不匹配，可以尝试：
 
@@ -214,7 +261,7 @@ npm install
 npm run rebuild:native
 ```
 
-### 12.3 `npm run rebuild:native` 失败，提示 `MSB8040`
+### 13.3 `npm run rebuild:native` 失败，提示 `MSB8040`
 
 这通常不是仓库代码问题，而是本机 Visual Studio C++ 组件缺失。
 
@@ -224,7 +271,7 @@ npm run rebuild:native
 MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs
 ```
 
-### 12.4 为什么本地目录会很大
+### 13.4 为什么本地目录会很大
 
 如果你发现本地目录接近 `1GB+`，通常不是源码本身，而是这些内容在占空间：
 
@@ -233,7 +280,7 @@ MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs
 3. `tech-validation/.playwright-browsers/`
 4. `tech-validation/.npm-cache/`
 
-## 13. 当前最短打开路径
+## 14. 当前最短打开路径
 
 如果你只想最快把应用跑起来，只做下面两步：
 

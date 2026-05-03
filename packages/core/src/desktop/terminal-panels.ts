@@ -3,6 +3,18 @@ import type { ManagedSessionContinuitySummary } from './workspace'
 
 export type TerminalPanelStatus = 'idle' | 'starting' | 'running' | 'exited' | 'error'
 
+export interface TerminalRetrievalSummary {
+  query: string
+  retrievalMode: string | null
+  outcome: string
+  reason: string | null
+  selectedScopeId: string | null
+  candidateCount: number
+  auditPath: string | null
+  auditLine: number | null
+  timestamp: string | null
+}
+
 export interface TerminalPanelConfig {
   id: string
   title: string
@@ -38,6 +50,7 @@ export interface TerminalPanelSnapshot {
   threadId: string | null
   threadTitle: string | null
   continuitySummary: ManagedSessionContinuitySummary | null
+  retrievalSummary: TerminalRetrievalSummary | null
 }
 
 export interface TerminalPanelAttachPayload {

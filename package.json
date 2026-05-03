@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "npm run dev -w @ai-workbench/desktop",
     "build": "npm run build -w @ai-workbench/desktop",
+    "package:win": "npm run package:win -w @ai-workbench/desktop",
     "rebuild:native": "npm run rebuild:native -w @ai-workbench/desktop",
     "typecheck": "npm run typecheck -w @ai-workbench/desktop",
     "validate:workspace-regression": "npm run validate:workspace-regression -w @ai-workbench/desktop",
@@ -22,6 +23,8 @@
     "validate:visual-smoke": "npm run validate:visual-smoke -w @ai-workbench/desktop",
     "validate:renderer-entrypoint": "npm run validate:renderer-entrypoint -w @ai-workbench/desktop",
     "validate:security-boundaries": "npm run validate:security-boundaries -w @ai-workbench/desktop",
-    "validate:internal-alpha": "npm run validate:internal-alpha -w @ai-workbench/desktop"
+    "validate:internal-alpha": "npm run validate:internal-alpha -w @ai-workbench/desktop",
+    "validate:package-win": "npm run validate:package-win -w @ai-workbench/desktop",
+    "release:win-alpha": "npm run validate:internal-alpha && npm run package:win && npm run validate:package-win"
   }
 }

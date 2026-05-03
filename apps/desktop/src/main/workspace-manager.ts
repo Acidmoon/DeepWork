@@ -40,6 +40,12 @@ import { saveTextArtifactToWorkspace } from './workspace-manager/workspace-artif
 import { type WorkspaceManifestContext, type WorkspaceSnapshotContext } from './workspace-manager/workspace-context'
 import { writeContextIndexFiles } from './workspace-manager/workspace-index'
 import { buildWorkspaceSnapshot } from './workspace-manager/workspace-snapshot'
+import {
+  rebuildWorkspaceDerivedIndexes,
+  repairWorkspaceMaintenance,
+  scanWorkspaceMaintenance
+} from './workspace-manager/workspace-maintenance'
+import type { WorkspaceMaintenanceReport } from '@ai-workbench/core/desktop/workspace'
 
 interface SaveWebContextOptions {
   transcriptArtifactId?: string | null
@@ -571,6 +577,31 @@ export class WorkspaceManager {
     }
 
     return snapshot
+  }
+
+  scanMaintenance(): WorkspaceMaintenanceReport {
+    return scanWorkspaceMaintenance(this.getManifestContext())
+  }
+
+  rebuildMaintenanceIndexes(): WorkspaceMaintenanceReport {
+    if (this.hasWorkspaceRoot()) {
+      this.ensureInitialized()
+    }
+
+    const report = rebuildWorkspaceDerivedIndexes(this.getManifestContext())
+    this.emitSnapshot()
+    return report
+  }
+
+  repairMaintenance(): WorkspaceMaintenanceReport {
+    if (this.hasWorkspaceRoot()) {
+      this.ensureInitialized()
+    }
+
+    const report = repairWorkspaceMaintenance(this.getManifestContext())
+    this.lastSavedArtifactId = report.changedFiles.includes(this.manifestPath) ? null : this.lastSavedArtifactId
+    this.emitSnapshot()
+    return report
   }
 
   private applyWorkspaceRoot(root: string): void {

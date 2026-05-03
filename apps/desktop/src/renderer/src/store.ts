@@ -658,6 +658,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         sessionScopeId: snapshot.sessionScopeId,
         threadId: snapshot.threadId,
         threadTitle: snapshot.threadTitle,
+        retrievalSummary: snapshot.retrievalSummary ?? null,
         continuitySummary: resolveManagedContinuitySummary(
           snapshot.panelId,
           {

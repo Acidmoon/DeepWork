@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -431,6 +431,55 @@ assert('Invariant: current MAX gives positive tailLength',
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
+
+section('4.4 Workspace Maintenance Path Confinement')
+
+const maintenanceRoot = join(tmpdir(), `deepwork-maintenance-${Date.now()}`)
+const maintenanceManifestDir = join(maintenanceRoot, 'manifests')
+const maintenanceArtifactDir = join(maintenanceRoot, 'artifacts')
+mkdirSync(maintenanceManifestDir, { recursive: true })
+mkdirSync(maintenanceArtifactDir, { recursive: true })
+writeFileSync(join(maintenanceArtifactDir, 'safe.txt'), 'safe artifact', 'utf8')
+const maintenanceManifest = {
+  artifacts: [
+    { id: 'safe_0001', path: 'artifacts/safe.txt' },
+    { id: 'missing_0001', path: 'artifacts/missing.txt' },
+    { id: 'duplicate_0001', path: 'artifacts/safe.txt' },
+    { id: 'duplicate_0001', path: 'artifacts/safe.txt' },
+    { id: 'unsafe_0001', path: '../outside/unsafe.txt' }
+  ]
+}
+writeFileSync(join(maintenanceManifestDir, 'artifacts.json'), JSON.stringify(maintenanceManifest, null, 2), 'utf8')
+
+const maintenanceFindings = []
+const seenMaintenanceIds = new Set()
+for (const artifact of maintenanceManifest.artifacts) {
+  if (seenMaintenanceIds.has(artifact.id)) {
+    maintenanceFindings.push('duplicate_artifact_id')
+    continue
+  }
+  seenMaintenanceIds.add(artifact.id)
+
+  const resolvedPath = resolveWorkspaceRelativePath(maintenanceRoot, artifact.path)
+  if (!resolvedPath) {
+    maintenanceFindings.push('unsafe_artifact_path')
+    continue
+  }
+  if (!existsSync(resolvedPath)) {
+    maintenanceFindings.push('missing_artifact_file')
+  }
+}
+
+assert('Maintenance scan fixture reports unsafe path',
+  maintenanceFindings.includes('unsafe_artifact_path'))
+assert('Maintenance scan fixture reports missing artifact file',
+  maintenanceFindings.includes('missing_artifact_file'))
+assert('Maintenance scan fixture reports duplicate artifact id',
+  maintenanceFindings.includes('duplicate_artifact_id'))
+assert('Unsafe maintenance path is never resolved for file access',
+  resolveWorkspaceRelativePath(maintenanceRoot, '../outside/unsafe.txt') === null)
+
+rmSync(maintenanceRoot, { recursive: true, force: true })
 
 console.log(`\n========================================`)
 console.log(`Passed: ${passed}`)

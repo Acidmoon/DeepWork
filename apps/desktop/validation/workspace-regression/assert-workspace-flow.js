@@ -58,12 +58,35 @@ async page => {
   await page.waitForTimeout(300)
   await searchBox.fill('session-0001')
   await page.waitForTimeout(300)
+  const logSourcesHeadingVisible = await page.getByText('日志来源').count()
+  const logRecordsHeadingVisible = await page.getByText('日志记录').count()
+  const logPreviewHeadingVisible = await page.getByText('日志预览').count()
+  const terminalTranscriptMetaVisible = await page.getByText('终端转录').count()
+  const retrievalAuditMetaVisible = await page.getByText('检索审计').count()
   const logResultVisible = await page.getByText('1 搜索结果').count()
   await page.getByRole('button', { name: '预览' }).click()
   await page.waitForTimeout(400)
   const logPreviewVisible = await page.getByText('electron-vite dev').count()
-  if (logResultVisible < 1 || logPreviewVisible < 1) {
-    throw new Error(`Log filter/preview failed: results=${logResultVisible}, preview=${logPreviewVisible}`)
+  if (
+    logSourcesHeadingVisible < 1 ||
+    logRecordsHeadingVisible < 1 ||
+    logPreviewHeadingVisible < 1 ||
+    terminalTranscriptMetaVisible < 1 ||
+    retrievalAuditMetaVisible < 1 ||
+    logResultVisible < 1 ||
+    logPreviewVisible < 1
+  ) {
+    throw new Error(
+      `Log inspection failed: ${JSON.stringify({
+        logSourcesHeadingVisible,
+        logRecordsHeadingVisible,
+        logPreviewHeadingVisible,
+        terminalTranscriptMetaVisible,
+        retrievalAuditMetaVisible,
+        logResultVisible,
+        logPreviewVisible
+      })}`
+    )
   }
 
   await page.getByRole('combobox', { name: '内容类型' }).selectOption('artifacts/')
@@ -168,6 +191,51 @@ async page => {
     throw new Error(`Workspace snapshot drifted after create/rename/activate flows: ${JSON.stringify(afterActivation)}`)
   }
 
+  await page.locator('summary').filter({ hasText: '工作区维护' }).click()
+  await page.waitForTimeout(300)
+
+  const beforeMaintenanceScan = await page.evaluate(() => JSON.stringify(window.__workspaceRegressionValidation.getState().snapshot))
+  await page.getByRole('button', { name: '扫描' }).click()
+  await page.waitForTimeout(300)
+  const afterMaintenanceScan = await page.evaluate(() => JSON.stringify(window.__workspaceRegressionValidation.getState().snapshot))
+  if (beforeMaintenanceScan !== afterMaintenanceScan) {
+    throw new Error('Maintenance scan mutated the workspace snapshot.')
+  }
+
+  const maintenanceLabels = {
+    missing: await page.getByText('缺失文件').count(),
+    orphaned: await page.getByText('孤立记录').count(),
+    stale: await page.getByText('派生索引过期').count(),
+    duplicate: await page.getByText('重复 ID').count(),
+    unsafe: await page.getByText('不安全路径').count()
+  }
+  if (
+    maintenanceLabels.missing < 1 ||
+    maintenanceLabels.orphaned < 1 ||
+    maintenanceLabels.stale < 1 ||
+    maintenanceLabels.duplicate < 1 ||
+    maintenanceLabels.unsafe < 1
+  ) {
+    throw new Error(`Maintenance scan findings did not render: ${JSON.stringify(maintenanceLabels)}`)
+  }
+
+  await page.getByRole('button', { name: '重建索引' }).click()
+  await page.waitForTimeout(300)
+  const rebuildActionVisible = await page.getByText('Rebuilt derived workspace indexes.').count()
+  const rebuildChangedFilesVisible = await page.getByText('2').count()
+  if (rebuildActionVisible < 1 || rebuildChangedFilesVisible < 1) {
+    throw new Error(`Maintenance rebuild result did not render: action=${rebuildActionVisible}, changed=${rebuildChangedFilesVisible}`)
+  }
+
+  await page.getByRole('button', { name: '准备安全修复' }).click()
+  await page.getByRole('button', { name: '安全修复' }).click()
+  await page.waitForTimeout(300)
+  const repairActionVisible = await page.getByText('Removed unsafe or orphaned manifest reference markdown_missing.').count()
+  const maintenanceCalls = await page.evaluate(() => window.__workspaceRegressionValidation.getState().maintenanceCalls)
+  if (repairActionVisible < 1 || JSON.stringify(maintenanceCalls) !== JSON.stringify(['scan', 'rebuild', 'repair'])) {
+    throw new Error(`Maintenance repair result did not render or calls drifted: ${JSON.stringify({ repairActionVisible, maintenanceCalls })}`)
+  }
+
   await page.locator('.nav-item__button').filter({ hasText: 'Codex CLI' }).click()
   await page.waitForTimeout(400)
 
@@ -197,12 +265,19 @@ async page => {
       selectedCountAfterCheck,
       previewStillJson,
       logResultVisible,
+      logSourcesHeadingVisible,
+      logRecordsHeadingVisible,
+      logPreviewHeadingVisible,
+      terminalTranscriptMetaVisible,
+      retrievalAuditMetaVisible,
       logPreviewVisible,
       minimaxSessionVisibleBefore,
       activeThreadSessionCount,
       createdThreadId: createdThreadState.activeThreadId,
       renamedThreadTitle: renamedThreadState.activeThreadTitle,
       releasePlanningScopeCount: afterActivation.releasePlanningScopeCount,
+      maintenanceLabels,
+      maintenanceCalls,
       continuityStatusVisible,
       activeThreadBadgeVisible,
       inspectWorkspaceButtonVisible,

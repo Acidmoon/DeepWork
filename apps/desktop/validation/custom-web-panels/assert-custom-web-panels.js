@@ -1,6 +1,64 @@
 async page => {
   const screenshotPath = '__SCREENSHOT_PATH__'
 
+  const minimaxVisible = await page.getByRole('button', { name: 'MiniMax Web', exact: true }).count()
+  if (minimaxVisible !== 1) {
+    throw new Error(`Expected MiniMax built-in web panel to be visible in navigation, count=${minimaxVisible}`)
+  }
+
+  await page.getByRole('button', { name: 'MiniMax Web', exact: true }).click()
+  await page.waitForTimeout(400)
+
+  const initialMinimaxState = await page.evaluate(() => window.__customWebValidation.getState())
+  const initialMinimax = initialMinimaxState.snapshots['minimax-web']
+  if (!initialMinimax || initialMinimax.enabled !== true || initialMinimax.lastError !== null) {
+    throw new Error(`MiniMax did not start as an enabled managed panel: ${JSON.stringify(initialMinimax)}`)
+  }
+
+  await page.getByLabel('Address').fill('https://agent.minimaxi.com/')
+  await page.getByRole('button', { name: 'Go' }).click()
+  await page.waitForTimeout(400)
+
+  const browsedMinimaxState = await page.evaluate(() => window.__customWebValidation.getState())
+  const browsedMinimax = browsedMinimaxState.snapshots['minimax-web']
+  if (
+    !browsedMinimax ||
+    browsedMinimax.currentUrl !== 'https://agent.minimaxi.com/' ||
+    browsedMinimaxState.settings.webPanels['minimax-web']?.homeUrl
+  ) {
+    throw new Error(`MiniMax runtime navigation did not stay separate from saved home URL: ${JSON.stringify({ browsedMinimax, settings: browsedMinimaxState.settings.webPanels['minimax-web'] })}`)
+  }
+
+  await page.getByRole('button', { name: 'Show Details' }).click()
+  await page.waitForTimeout(200)
+  await page.getByRole('button', { name: 'Disable Panel' }).click()
+  await page.waitForTimeout(400)
+
+  const disabledMinimaxState = await page.evaluate(() => window.__customWebValidation.getState())
+  const disabledMinimax = disabledMinimaxState.snapshots['minimax-web']
+  const disabledMinimaxOverride = disabledMinimaxState.settings.webPanels['minimax-web']
+  const minimaxEnableVisible = await page.getByRole('button', { name: 'Enable Panel' }).count()
+  const minimaxDisabledHeadingVisible = await page.getByText('Disabled Web Panel').count()
+  if (
+    !disabledMinimax ||
+    disabledMinimax.enabled !== false ||
+    disabledMinimaxOverride?.enabled !== false ||
+    minimaxEnableVisible < 1 ||
+    minimaxDisabledHeadingVisible < 1
+  ) {
+    throw new Error(`MiniMax disable did not produce reserved state: ${JSON.stringify({ disabledMinimax, disabledMinimaxOverride, minimaxEnableVisible, minimaxDisabledHeadingVisible })}`)
+  }
+
+  await page.getByRole('button', { name: 'Enable Panel' }).click()
+  await page.waitForTimeout(400)
+
+  const reenabledMinimaxState = await page.evaluate(() => window.__customWebValidation.getState())
+  const reenabledMinimax = reenabledMinimaxState.snapshots['minimax-web']
+  const reenabledMinimaxOverride = reenabledMinimaxState.settings.webPanels['minimax-web']
+  if (!reenabledMinimax || reenabledMinimax.enabled !== true || reenabledMinimax.currentUrl !== 'https://chat.minimax.io/' || reenabledMinimaxOverride?.enabled !== true) {
+    throw new Error(`MiniMax re-enable did not restore managed lifecycle from saved home: ${JSON.stringify({ reenabledMinimax, reenabledMinimaxOverride })}`)
+  }
+
   await page.evaluate(() => {
     window.__customWebValidation.enqueuePrompts('javascript:alert(1)', 'https://news.ycombinator.com/')
   })

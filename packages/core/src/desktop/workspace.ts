@@ -178,6 +178,61 @@ export interface ArtifactContentPayload {
   content: string
 }
 
+export type WorkspaceMaintenanceMode = 'scan' | 'rebuild' | 'repair'
+
+export type WorkspaceMaintenanceFindingKind =
+  | 'uninitialized_workspace'
+  | 'missing_artifact_file'
+  | 'orphaned_manifest_record'
+  | 'stale_derived_index'
+  | 'duplicate_artifact_id'
+  | 'unsafe_artifact_path'
+
+export type WorkspaceMaintenanceSeverity = 'info' | 'warning' | 'error'
+
+export interface WorkspaceMaintenanceFinding {
+  id: string
+  kind: WorkspaceMaintenanceFindingKind
+  severity: WorkspaceMaintenanceSeverity
+  message: string
+  artifactId: string | null
+  path: string | null
+  source: string
+  repairable: boolean
+}
+
+export type WorkspaceMaintenanceActionKind =
+  | 'rebuild_derived_indexes'
+  | 'remove_orphaned_manifest_record'
+  | 'skip_destructive_follow_up'
+
+export type WorkspaceMaintenanceActionStatus = 'applied' | 'skipped' | 'unchanged'
+
+export interface WorkspaceMaintenanceAction {
+  id: string
+  kind: WorkspaceMaintenanceActionKind
+  status: WorkspaceMaintenanceActionStatus
+  message: string
+  artifactId: string | null
+  path: string | null
+}
+
+export interface WorkspaceMaintenanceReport {
+  mode: WorkspaceMaintenanceMode
+  workspaceRoot: string
+  generatedAt: string
+  initialized: boolean
+  findings: WorkspaceMaintenanceFinding[]
+  actions: WorkspaceMaintenanceAction[]
+  changedFiles: string[]
+  summary: {
+    findingCount: number
+    repairableCount: number
+    destructiveFollowUpCount: number
+    changedFileCount: number
+  }
+}
+
 export interface BuildContextEntriesOptions<TArtifact extends ArtifactRecord = ArtifactRecord> {
   isArtifactSubstantive?: (artifact: TArtifact) => boolean
 }

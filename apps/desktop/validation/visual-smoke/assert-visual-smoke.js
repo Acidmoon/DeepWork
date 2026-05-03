@@ -124,6 +124,43 @@ async page => {
   await requireNonBlank('.terminal-host', 'terminal host')
   await assertToolbarStable('terminal')
   await ensureDetailsOpen('terminal details inspector')
+  await page.getByText('Retrieval Context').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByText('Thread local').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByText('deepseek-web__a-chat-s-9b9f89a2-ceff').waitFor({ state: 'visible', timeout: 5000 })
+
+  const rawArtifactContentVisible = await page.getByText('你只发了数字').count()
+  if (rawArtifactContentVisible > 0) {
+    throw new Error('Terminal retrieval summary rendered raw artifact content instead of bounded metadata.')
+  }
+
+  await page.evaluate(() => window.__visualSmokeValidation.setTerminalRetrievalScenario('global-fallback'))
+  await page.getByText('Global fallback selected').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByText('manual-note__research-note').waitFor({ state: 'visible', timeout: 5000 })
+
+  await page.evaluate(() => window.__visualSmokeValidation.setTerminalRetrievalScenario('global-preferred'))
+  await page.getByText('Global preferred selected').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByText('minimax-web__minimax-agent').waitFor({ state: 'visible', timeout: 5000 })
+
+  await page.evaluate(() => window.__visualSmokeValidation.setTerminalRetrievalScenario('no-match'))
+  await page.getByText('No match').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByText('No scope attached').waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByText('Reason: no candidates met threshold').waitFor({ state: 'visible', timeout: 5000 })
+
+  const deprecatedContinuityChrome = {
+    linkedContext: await page.getByText('Linked Context').count(),
+    currentThread: await page.getByText('Current Thread: Release Planning Thread').count(),
+    openWorkspaceButton: await page.getByRole('button', { name: 'Open In Workspace' }).count(),
+    manageThreadsButton: await page.getByRole('button', { name: 'Manage Threads In Workspace' }).count()
+  }
+  if (
+    deprecatedContinuityChrome.linkedContext !== 0 ||
+    deprecatedContinuityChrome.currentThread !== 0 ||
+    deprecatedContinuityChrome.openWorkspaceButton !== 0 ||
+    deprecatedContinuityChrome.manageThreadsButton !== 0
+  ) {
+    throw new Error(`Terminal panel exposed deprecated continuity chrome: ${JSON.stringify(deprecatedContinuityChrome)}`)
+  }
+
   await assertNoCriticalOverlap('.stage-drawer', 'terminal inspector')
   await page.screenshot({ path: screenshot('terminal-inspector-light'), fullPage: true })
 

@@ -22,6 +22,30 @@ import {
 } from './workspace-panel-helpers'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
 import { getArtifactScopeId } from '@ai-workbench/core/desktop/workspace'
+import type {
+  WorkspaceMaintenanceFindingKind,
+  WorkspaceMaintenanceReport
+} from '@ai-workbench/core/desktop/workspace'
+
+function formatMaintenanceFindingKind(
+  kind: WorkspaceMaintenanceFindingKind,
+  ui: ReturnType<typeof getUiText>
+): string {
+  switch (kind) {
+    case 'uninitialized_workspace':
+      return ui.maintenanceFindingUninitialized
+    case 'missing_artifact_file':
+      return ui.maintenanceFindingMissingFile
+    case 'orphaned_manifest_record':
+      return ui.maintenanceFindingOrphanedRecord
+    case 'stale_derived_index':
+      return ui.maintenanceFindingStaleIndex
+    case 'duplicate_artifact_id':
+      return ui.maintenanceFindingDuplicateId
+    case 'unsafe_artifact_path':
+      return ui.maintenanceFindingUnsafePath
+  }
+}
 
 export function WorkspacePanel({
   panel,
@@ -45,6 +69,9 @@ export function WorkspacePanel({
   const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [threadActionFeedback, setThreadActionFeedback] = useState<string | null>(null)
   const [deleteScopeArmedId, setDeleteScopeArmedId] = useState<string | null>(null)
+  const [maintenanceReport, setMaintenanceReport] = useState<WorkspaceMaintenanceReport | null>(null)
+  const [maintenancePending, setMaintenancePending] = useState<'scan' | 'rebuild' | 'repair' | null>(null)
+  const [maintenanceRepairArmed, setMaintenanceRepairArmed] = useState(false)
 
   useEffect(() => {
     void window.workbenchShell.workspace.getState().then((snapshot) => {
@@ -55,6 +82,7 @@ export function WorkspacePanel({
   }, [syncWorkspaceState])
 
   const normalizedQuery = normalizeWorkspaceSearchQuery(state.searchQuery)
+  const isLogInspection = state.selectedBucket === 'logs/'
   const activeThread = state.threads.find((thread) => thread.threadId === state.activeThreadId) ?? null
   const visibleThreadId = state.threadFilterMode === 'active' ? state.activeThreadId : null
   const visibleContextEntries = visibleThreadId
@@ -100,6 +128,16 @@ export function WorkspacePanel({
     ? null
     : visibleContextEntries.find((entry) => entry.scopeId === effectiveSelectedOrigin) ?? null
   const workspaceFolderName = getWorkspaceFolderName(state.workspaceRoot)
+  const emptyWorkspaceMessage = isLogInspection ? ui.logsEmptyHint : ui.workspaceEmptyHint
+  const noFilteredArtifactsMessage = isLogInspection ? ui.noLogsForFilter : ui.noArtifactsForFilter
+  const inspectionHint = isLogInspection ? ui.logInspectionHint : ui.findContextHint
+  const sourceListTitle = isLogInspection ? ui.logSources : ui.sessionList
+  const artifactListTitle = isLogInspection
+    ? ui.logRecords
+    : selectedScope
+      ? ui.currentSessionContent
+      : ui.recentArtifacts
+  const previewTitle = isLogInspection ? ui.logPreview : ui.artifactPreview
   const selectedScopeArtifacts = selectedScope
     ? state.artifacts.filter((artifact) => getArtifactScopeId(artifact) === selectedScope.scopeId)
     : []
@@ -239,6 +277,30 @@ export function WorkspacePanel({
     }
     setDeleteScopeArmedId(null)
     finishThreadMutation(ui.deleteSessionDone)
+  }
+
+  const runMaintenance = async (mode: 'scan' | 'rebuild' | 'repair'): Promise<void> => {
+    setMaintenancePending(mode)
+    try {
+      const report =
+        mode === 'scan'
+          ? await window.workbenchShell.workspace.maintenanceScan()
+          : mode === 'rebuild'
+            ? await window.workbenchShell.workspace.maintenanceRebuild()
+            : await window.workbenchShell.workspace.maintenanceRepair()
+      if (report) {
+        setMaintenanceReport(report)
+      }
+      if (mode !== 'scan') {
+        const snapshot = await window.workbenchShell.workspace.getState()
+        if (snapshot) {
+          syncWorkspaceState(snapshot)
+        }
+      }
+    } finally {
+      setMaintenancePending(null)
+      setMaintenanceRepairArmed(false)
+    }
   }
 
   useEffect(() => {
@@ -437,19 +499,19 @@ export function WorkspacePanel({
         </label>
 
         <p className="section-empty">
-          {selectedScope ? formatContextEntryDescription(selectedScope, locale) : ui.findContextHint}
+          {selectedScope ? formatContextEntryDescription(selectedScope, locale) : inspectionHint}
         </p>
       </div>
 
       <div className="panel-section">
         <div className="section-line">
-          <strong>{ui.sessionList}</strong>
+          <strong>{sourceListTitle}</strong>
           <span>{filteredSessionSummaries.length} {ui.searchResultsCount}</span>
         </div>
         {state.contextEntries.length === 0 ? (
-          <p className="section-empty">{ui.workspaceEmptyHint}</p>
+          <p className="section-empty">{emptyWorkspaceMessage}</p>
         ) : filteredSessionSummaries.length === 0 ? (
-          <p className="section-empty">{ui.noArtifactsForFilter}</p>
+          <p className="section-empty">{noFilteredArtifactsMessage}</p>
         ) : (
           <div className="artifact-list">
             {filteredSessionSummaries.map((session) => (
@@ -545,11 +607,11 @@ export function WorkspacePanel({
 
       <div className="panel-section">
         <div className="section-line">
-          <strong>{selectedScope ? ui.currentSessionContent : ui.recentArtifacts}</strong>
+          <strong>{artifactListTitle}</strong>
           <span>{filteredArtifacts.length} {ui.searchResultsCount}</span>
         </div>
         {filteredArtifacts.length === 0 ? (
-          <p className="section-empty">{ui.noArtifactsForFilter}</p>
+          <p className="section-empty">{noFilteredArtifactsMessage}</p>
         ) : (
           <div className="artifact-list">
             {filteredArtifacts.map((artifact) => (
@@ -589,7 +651,7 @@ export function WorkspacePanel({
 
       <div className="panel-section">
         <div className="section-line">
-          <strong>{ui.artifactPreview}</strong>
+          <strong>{previewTitle}</strong>
           <span>{selectedPreviewArtifact?.id ?? ui.artifactPreviewEmpty}</span>
         </div>
         {!selectedPreviewArtifact ? (
@@ -615,6 +677,122 @@ export function WorkspacePanel({
           </div>
         )}
       </div>
+
+      <details className="workspace-advanced">
+        <summary>{ui.workspaceMaintenance}</summary>
+
+        <div className="workspace-advanced__body">
+          <p className="section-empty">
+            {state.workspaceRoot ? ui.workspaceMaintenanceHint : ui.workspaceMaintenanceUnavailable}
+          </p>
+
+          <div className="action-row">
+            <button
+              type="button"
+              className="action-button action-button--ghost"
+              disabled={!state.workspaceRoot || maintenancePending !== null}
+              onClick={() => void runMaintenance('scan')}
+            >
+              {ui.maintenanceScan}
+            </button>
+            <button
+              type="button"
+              className="action-button action-button--ghost"
+              disabled={!state.workspaceRoot || maintenancePending !== null}
+              onClick={() => void runMaintenance('rebuild')}
+            >
+              {ui.maintenanceRebuild}
+            </button>
+            {maintenanceRepairArmed ? (
+              <>
+                <button
+                  type="button"
+                  className="action-button action-button--danger"
+                  disabled={!state.workspaceRoot || maintenancePending !== null}
+                  onClick={() => void runMaintenance('repair')}
+                >
+                  {ui.maintenanceRepair}
+                </button>
+                <button
+                  type="button"
+                  className="action-button action-button--ghost"
+                  disabled={maintenancePending !== null}
+                  onClick={() => setMaintenanceRepairArmed(false)}
+                >
+                  {ui.cancel}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="action-button action-button--ghost action-button--danger"
+                disabled={!state.workspaceRoot || maintenancePending !== null}
+                onClick={() => setMaintenanceRepairArmed(true)}
+              >
+                {ui.maintenanceRepairArm}
+              </button>
+            )}
+          </div>
+
+          {maintenanceReport ? (
+            <>
+              <div className="stats-row">
+                <article className="stat-block">
+                  <span>{ui.maintenanceFindings}</span>
+                  <strong>{maintenanceReport.summary.findingCount}</strong>
+                </article>
+                <article className="stat-block">
+                  <span>{ui.maintenanceRepairable}</span>
+                  <strong>{maintenanceReport.summary.repairableCount}</strong>
+                </article>
+                <article className="stat-block">
+                  <span>{ui.maintenanceChangedFiles}</span>
+                  <strong>{maintenanceReport.summary.changedFileCount}</strong>
+                </article>
+              </div>
+
+              <div className="panel-section">
+                <div className="section-line">
+                  <strong>{ui.maintenanceFindings}</strong>
+                  <span>{maintenanceReport.mode}</span>
+                </div>
+                {maintenanceReport.findings.length === 0 ? (
+                  <p className="section-empty">{ui.maintenanceNoFindings}</p>
+                ) : (
+                  <div className="detail-list">
+                    {maintenanceReport.findings.map((finding) => (
+                      <div key={finding.id} className="detail-list__item">
+                        <span>{formatMaintenanceFindingKind(finding.kind, ui)}</span>
+                        <strong>{finding.message}</strong>
+                        <small>{finding.repairable ? ui.maintenanceRepairable : ui.maintenanceFollowUp}</small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {maintenanceReport.actions.length > 0 ? (
+                <div className="panel-section">
+                  <div className="section-line">
+                    <strong>{ui.maintenanceActions}</strong>
+                    <span>{maintenanceReport.actions.length}</span>
+                  </div>
+                  <div className="detail-list">
+                    {maintenanceReport.actions.map((action) => (
+                      <div key={action.id} className="detail-list__item">
+                        <span>{action.status}</span>
+                        <strong>{action.message}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="section-empty">{ui.maintenanceNoReport}</p>
+          )}
+        </div>
+      </details>
 
       <details className="workspace-advanced">
         <summary>{ui.workspaceManageContinuity}</summary>
@@ -790,7 +968,7 @@ export function WorkspacePanel({
               </div>
             </div>
           ) : (
-            <p className="section-empty">{ui.findContextHint}</p>
+            <p className="section-empty">{inspectionHint}</p>
           )}
         </div>
       </details>
@@ -848,6 +1026,14 @@ export function WorkspacePanel({
               <div className="detail-list__item">
                 <span>`aw-thread &lt;threadId&gt;`</span>
                 <strong>{ui.cliCommandThread}</strong>
+              </div>
+              <div className="detail-list__item">
+                <span>`aw-maintenance-scan -Json`</span>
+                <strong>{ui.cliCommandMaintenanceScan}</strong>
+              </div>
+              <div className="detail-list__item">
+                <span>`aw-maintenance-rebuild`</span>
+                <strong>{ui.cliCommandMaintenanceRebuild}</strong>
               </div>
             </div>
           </div>

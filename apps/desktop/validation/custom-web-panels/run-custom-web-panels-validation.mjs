@@ -114,8 +114,8 @@ function buildBootstrapScript() {
         canGoBack: false,
         canGoForward: false,
         isLoading: false,
-        enabled: false,
-        lastError: disabledError
+        enabled: true,
+        lastError: null
       }
     }
 

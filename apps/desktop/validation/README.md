@@ -12,6 +12,7 @@ The desktop app keeps focused validation flows under this directory instead of o
 - `terminal-behavior/`: global terminal behavior settings, scrollback synchronization, copy-on-selection, and multi-line paste confirmation
 - `workspace-profiles/`: workspace profile persistence, default startup selection, profile switching, and non-destructive profile removal
 - `visual-smoke/`: modern minimal UI smoke coverage for Web, Terminal, Workspace, Settings, light/dark theme, and constrained viewport screenshots
+- `package-win/`: Windows alpha package smoke coverage for the generated unpacked app artifact and first-launch workspace behavior
 
 ## Recommended Order
 
@@ -43,3 +44,15 @@ Browser-driven validation defaults to `apps/desktop/out/renderer/index.html` and
 $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 npm run validate:workspace-regression
 ```
+
+## Windows Alpha Distribution
+
+For release preparation on Windows, use the root preflight:
+
+```powershell
+npm run release:win-alpha
+```
+
+That command runs `validate:internal-alpha`, generates the unpacked Windows package with `npm run package:win`, and then runs `npm run validate:package-win`. The package smoke expects `release/windows-alpha/win-unpacked/DeepWork.exe`, launches it with isolated userData/documents directories, and verifies that the renderer shell loads without implicitly selecting or creating a Workspace.
+
+The package command keeps native modules unpacked from asar but does not force a rebuild on every package run. Run `npm run rebuild:native` before packaging when `node-pty` ABI errors appear after changing Node, Electron, or Visual Studio build tools. The generated `release/` directory is local build output and remains ignored by git.

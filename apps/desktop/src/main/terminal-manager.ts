@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
@@ -18,6 +18,7 @@ import {
   type TerminalOutputEvent,
   type TerminalPanelAttachPayload,
   type TerminalPanelConfig,
+  type TerminalRetrievalSummary,
   type TerminalPanelSnapshot,
   type TerminalResizePayload
 } from '@ai-workbench/core/desktop/terminal-panels'
@@ -217,6 +218,89 @@ interface PersistTerminalTranscriptPayload {
   transcriptLimit?: number
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeAuditString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+function readLatestRetrievalSummary(auditPath: string | null): TerminalRetrievalSummary | null {
+  if (!auditPath || !existsSync(auditPath)) {
+    return null
+  }
+
+  let lines: string[]
+  try {
+    lines = readFileSync(auditPath, 'utf8').split(/\r?\n/u)
+  } catch {
+    return null
+  }
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index].trim()
+    if (!line) {
+      continue
+    }
+
+    let entry: unknown
+    try {
+      entry = JSON.parse(line)
+    } catch {
+      continue
+    }
+
+    if (!isRecord(entry)) {
+      continue
+    }
+
+    const outcome = normalizeAuditString(entry.outcome)
+    const query = normalizeAuditString(entry.query)
+    if (!outcome && !query) {
+      continue
+    }
+
+    return {
+      query: query ?? '',
+      retrievalMode: normalizeAuditString(entry.retrievalMode),
+      outcome: outcome ?? 'unknown',
+      reason: normalizeAuditString(entry.reason),
+      selectedScopeId: normalizeAuditString(entry.selectedScopeId),
+      candidateCount: Array.isArray(entry.candidateScopeIds) ? entry.candidateScopeIds.length : 0,
+      auditPath,
+      auditLine: index + 1,
+      timestamp: normalizeAuditString(entry.timestamp)
+    }
+  }
+
+  return null
+}
+
+function areRetrievalSummariesEqual(
+  left: TerminalRetrievalSummary | null,
+  right: TerminalRetrievalSummary | null
+): boolean {
+  if (left === right) {
+    return true
+  }
+  if (!left || !right) {
+    return false
+  }
+
+  return (
+    left.query === right.query &&
+    left.retrievalMode === right.retrievalMode &&
+    left.outcome === right.outcome &&
+    left.reason === right.reason &&
+    left.selectedScopeId === right.selectedScopeId &&
+    left.candidateCount === right.candidateCount &&
+    left.auditPath === right.auditPath &&
+    left.auditLine === right.auditLine &&
+    left.timestamp === right.timestamp
+  )
+}
+
 function attachSessionContinuity(
   snapshot: TerminalPanelSnapshot,
   continuity: {
@@ -297,7 +381,8 @@ function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath
     sessionScopeId: null,
     threadId: null,
     threadTitle: null,
-    continuitySummary: null
+    continuitySummary: null,
+    retrievalSummary: null
   }
 }
 
@@ -455,7 +540,8 @@ export class TerminalManager {
           bufferSize: 0,
           lastExitCode: null,
           lastExitSignal: null,
-          lastError: null
+          lastError: null,
+          retrievalSummary: null
         },
         session,
         this.buildContinuitySummary(session.config.id, session)
@@ -494,7 +580,8 @@ export class TerminalManager {
           hasSession: false,
           isRunning: false,
           pid: null,
-          lastError: error instanceof Error ? error.message : String(error)
+          lastError: error instanceof Error ? error.message : String(error),
+          retrievalSummary: null
         },
         session,
         this.buildContinuitySummary(session.config.id, session)
@@ -652,6 +739,10 @@ export class TerminalManager {
         session.threadTitle = sessionIdentity?.threadTitle ?? session.threadTitle
         session.retrievalAuditPath = sessionIdentity?.retrievalAuditPath ?? null
         session.retrievalStatePath = sessionIdentity?.retrievalStatePath ?? null
+        session.snapshot = {
+          ...session.snapshot,
+          retrievalSummary: readLatestRetrievalSummary(session.retrievalAuditPath)
+        }
         session.ptyProcess.write(
           `${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity, this.cliRetrievalPreference)}\r`
         )
@@ -992,6 +1083,14 @@ export class TerminalManager {
     }
 
     this.syncRetrievalAuditArtifacts(session.sessionScopeId)
+    const retrievalSummary = readLatestRetrievalSummary(session.retrievalAuditPath)
+    if (!areRetrievalSummariesEqual(session.snapshot.retrievalSummary, retrievalSummary)) {
+      session.snapshot = {
+        ...session.snapshot,
+        retrievalSummary
+      }
+      this.publishState(session.snapshot)
+    }
   }
 
   private clearPendingRetrievalState(session: ManagedTerminalSession): void {

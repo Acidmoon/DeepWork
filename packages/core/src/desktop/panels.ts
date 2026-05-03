@@ -10,7 +10,7 @@ import {
   type WorkspaceProfileSettings
 } from './settings'
 import { getTerminalPanelConfig } from './terminal-panels'
-import type { TerminalPanelSnapshot, TerminalPanelStatus } from './terminal-panels'
+import type { TerminalPanelSnapshot, TerminalPanelStatus, TerminalRetrievalSummary } from './terminal-panels'
 import { getWebPanelConfig } from './web-panels'
 import type { WebPanelSnapshot } from './web-panels'
 import type {
@@ -108,6 +108,7 @@ export interface TerminalPanelViewState {
   threadId: string | null
   threadTitle: string | null
   continuitySummary: ManagedSessionContinuitySummary | null
+  retrievalSummary: TerminalRetrievalSummary | null
 }
 
 export interface WorkspacePanelViewState {
@@ -219,11 +220,11 @@ export const panelRegistry: PanelDefinition[] = [
     sectionId: 'web',
     group: 'Web Apps',
     kind: 'web',
-    state: 'scaffolded',
-    summary: '保留为配置驱动的预留网页入口，当前版本不创建真实浏览器实例。',
-    nextStep: '后续只需把配置切到 enabled，即可挂载真实 Web Panel。',
-    delivery: '保留扩展位。',
-    signal: 'Reserved config'
+    state: 'validated',
+    summary: 'MiniMax 作为内置网页预设接入托管 WebContentsView，并使用 persist partition 保持登录态。',
+    nextStep: '需要固定 MiniMax 入口时直接打开，也可以通过配置面板禁用或调整主页。',
+    delivery: '托管网页面板：内置 MiniMax 预设、持久分区、安全导航与配置覆盖。',
+    signal: 'Persistent web session'
   },
   {
     id: 'codex-cli',
@@ -267,11 +268,11 @@ export const panelRegistry: PanelDefinition[] = [
     sectionId: 'workspace',
     group: 'Workspace',
     kind: 'workspace',
-    state: 'scaffolded',
-    summary: '公共 Workspace 已建立 logs 桶位，用于保存和检查日志类工作区材料。',
-    nextStep: '需要时可按当前 Workspace 检查归档到 logs/ 的记录。',
-    delivery: 'Workspace 日志桶和基础检查入口。',
-    signal: 'Log bucket ready'
+    state: 'validated',
+    summary: 'Workspace 日志检查面可按 logs/ 桶位查看终端转录、检索审计和其他日志类记录。',
+    nextStep: '用这里筛选、搜索和预览归档到 logs/ 的审计或排障材料。',
+    delivery: 'Workspace 日志检查面：日志桶筛选、元数据列表和文本预览。',
+    signal: 'Logs inspector live'
   },
   {
     id: 'settings',
@@ -297,7 +298,7 @@ export const navigationSections: NavigationSection[] = [
   {
     id: 'web',
     title: 'Web Apps',
-    caption: 'DeepSeek 已正式接入，MiniMax 仍按配置保留为后续扩展位。',
+    caption: 'DeepSeek、MiniMax 与自定义网页共用同一套托管网页面板生命周期。',
     panelIds: ['deepseek-web', 'minimax-web']
   },
   {
@@ -309,7 +310,7 @@ export const navigationSections: NavigationSection[] = [
   {
     id: 'workspace',
     title: 'Workspace',
-    caption: '工作区已经落地到真实目录与 manifest，并支持列表、预览、线程和自动检索检查。',
+    caption: '工作区已经落地到真实目录与 manifest，并支持工件、日志、预览、线程和自动检索检查。',
     panelIds: ['artifacts', 'logs']
   },
   {
@@ -399,7 +400,8 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         sessionScopeId: null,
         threadId: null,
         threadTitle: null,
-        continuitySummary: null
+        continuitySummary: null,
+        retrievalSummary: null
       }
     }
     case 'workspace':
@@ -574,7 +576,8 @@ export function createCustomTerminalPanelViewState(
     sessionScopeId: null,
     threadId: null,
     threadTitle: null,
-    continuitySummary: null
+    continuitySummary: null,
+    retrievalSummary: null
   }
 }
 

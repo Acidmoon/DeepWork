@@ -65,7 +65,7 @@ export const webPanelConfigs: WebPanelConfig[] = [
     title: 'MiniMax Web',
     homeUrl: 'https://chat.minimax.io/',
     partition: 'persist:minimax-web',
-    enabled: false
+    enabled: true
   }
 ]
 

@@ -120,6 +120,53 @@ function buildBootstrapScript(payload) {
     const webListeners = new Set()
     const terminalListeners = new Set()
     const workspaceListeners = new Set()
+    const terminalRetrievalSummaries = {
+      'selected-scope': {
+        query: 'release workspace controls',
+        retrievalMode: 'thread_local',
+        outcome: 'selected_scope',
+        reason: 'highest ranked candidate',
+        selectedScopeId: 'deepseek-web__a-chat-s-9b9f89a2-ceff',
+        candidateCount: 2,
+        auditPath: 'C:\\\\validation\\\\retrieval\\\\codex-cli__session-visual.jsonl',
+        auditLine: 3,
+        timestamp: '2026-04-26T12:54:18.000Z'
+      },
+      'global-fallback': {
+        query: 'older onboarding notes',
+        retrievalMode: 'global_fallback',
+        outcome: 'selected_scope',
+        reason: 'thread candidates missed and global index matched',
+        selectedScopeId: 'manual-note__research-note',
+        candidateCount: 4,
+        auditPath: 'C:\\\\validation\\\\retrieval\\\\codex-cli__session-visual.jsonl',
+        auditLine: 4,
+        timestamp: '2026-04-26T12:55:00.000Z'
+      },
+      'global-preferred': {
+        query: 'global architecture constraints',
+        retrievalMode: 'global_preferred',
+        outcome: 'selected_scope',
+        reason: 'global preference selected the highest ranked scope',
+        selectedScopeId: 'minimax-web__minimax-agent',
+        candidateCount: 3,
+        auditPath: 'C:\\\\validation\\\\retrieval\\\\codex-cli__session-visual.jsonl',
+        auditLine: 5,
+        timestamp: '2026-04-26T12:56:00.000Z'
+      },
+      'no-match': {
+        query: 'unseen deployment credential',
+        retrievalMode: 'thread_local',
+        outcome: 'no_match',
+        reason: 'no candidates met threshold',
+        selectedScopeId: null,
+        candidateCount: 0,
+        auditPath: 'C:\\\\validation\\\\retrieval\\\\codex-cli__session-visual.jsonl',
+        auditLine: 6,
+        timestamp: '2026-04-26T12:57:00.000Z'
+      }
+    }
+    let terminalRetrievalScenario = 'selected-scope'
     let settings = {
       language: 'en-US',
       theme: 'light',
@@ -186,7 +233,8 @@ function buildBootstrapScript(payload) {
       sessionScopeId: 'codex-cli__session-visual',
       threadId: 'thread-release-planning',
       threadTitle: 'Release Planning Thread',
-      continuitySummary: 'Visual smoke terminal session'
+      continuitySummary: 'Visual smoke terminal session',
+      retrievalSummary: clone(terminalRetrievalSummaries[terminalRetrievalScenario])
     })
 
     const publishWebSnapshot = panelId => {
@@ -205,6 +253,16 @@ function buildBootstrapScript(payload) {
         listener(snapshot)
       }
       return snapshot
+    }
+
+    window.__visualSmokeValidation = {
+      setTerminalRetrievalScenario(scenario) {
+        if (!terminalRetrievalSummaries[scenario]) {
+          throw new Error('Unknown terminal retrieval scenario: ' + scenario)
+        }
+        terminalRetrievalScenario = scenario
+        return publishTerminalSnapshot()
+      }
     }
 
     window.workbenchShell = {

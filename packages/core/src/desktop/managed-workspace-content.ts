@@ -441,6 +441,91 @@ function aw-suggest {
       Expression = { ($_.matchedTerms -join ', ') }
     }, scopeSummary |
     Format-Table -AutoSize
+}
+
+function Resolve-AwWorkspaceRelativePath {
+  param([Parameter(Mandatory=$true)][string]$RelativePath)
+
+  $root = [string]$env:AI_WORKBENCH_WORKSPACE_ROOT
+  if ([string]::IsNullOrWhiteSpace($root) -or [string]::IsNullOrWhiteSpace($RelativePath) -or [System.IO.Path]::IsPathRooted($RelativePath)) {
+    return $null
+  }
+
+  $resolvedRoot = [System.IO.Path]::GetFullPath($root)
+  $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot $RelativePath))
+  if ($resolvedPath -eq $resolvedRoot -or $resolvedPath.StartsWith($resolvedRoot.TrimEnd('\\') + '\\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $resolvedPath
+  }
+
+  return $null
+}
+
+function aw-maintenance-scan {
+  param([switch]$Json)
+
+  $root = [string]$env:AI_WORKBENCH_WORKSPACE_ROOT
+  $findings = New-Object System.Collections.Generic.List[object]
+  if ([string]::IsNullOrWhiteSpace($root)) {
+    $findings.Add([pscustomobject]@{ kind = 'uninitialized_workspace'; severity = 'info'; message = 'Workspace root is not configured.'; artifactId = $null; path = $null; repairable = $false })
+  } else {
+    $manifestPath = Join-Path $root 'manifests\\artifacts.json'
+    $contextIndexPath = Join-Path $root 'manifests\\context-index.json'
+    $threadIndexPath = Join-Path $root 'manifests\\thread-index.json'
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+      $findings.Add([pscustomobject]@{ kind = 'uninitialized_workspace'; severity = 'info'; message = 'artifacts.json is not initialized.'; artifactId = $null; path = $manifestPath; repairable = $false })
+    } else {
+      $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+      $seen = @{}
+      foreach ($artifact in @($manifest.artifacts)) {
+        $artifactId = [string]$artifact.id
+        if ($seen.ContainsKey($artifactId)) {
+          $findings.Add([pscustomobject]@{ kind = 'duplicate_artifact_id'; severity = 'warning'; message = "Duplicate artifact id $artifactId."; artifactId = $artifactId; path = [string]$artifact.path; repairable = $true })
+          continue
+        }
+        $seen[$artifactId] = $true
+        $resolvedPath = Resolve-AwWorkspaceRelativePath -RelativePath ([string]$artifact.path)
+        if (-not $resolvedPath) {
+          $findings.Add([pscustomobject]@{ kind = 'unsafe_artifact_path'; severity = 'error'; message = "Artifact $artifactId points outside the workspace root."; artifactId = $artifactId; path = [string]$artifact.path; repairable = $true })
+        } elseif (-not (Test-Path -LiteralPath $resolvedPath)) {
+          $findings.Add([pscustomobject]@{ kind = 'missing_artifact_file'; severity = 'warning'; message = "Artifact file is missing for $artifactId."; artifactId = $artifactId; path = [string]$artifact.path; repairable = $true })
+        }
+      }
+      if (Test-Path -LiteralPath $contextIndexPath) {
+        $contextIndex = Get-Content -LiteralPath $contextIndexPath -Raw | ConvertFrom-Json
+        foreach ($entry in @($contextIndex.origins)) {
+          foreach ($artifactId in @($entry.artifactIds)) {
+            if (-not $seen.ContainsKey([string]$artifactId)) {
+              $findings.Add([pscustomobject]@{ kind = 'orphaned_manifest_record'; severity = 'warning'; message = "Context index references missing artifact $artifactId."; artifactId = [string]$artifactId; path = $contextIndexPath; repairable = $true })
+            }
+          }
+        }
+      }
+      if (-not (Test-Path -LiteralPath $contextIndexPath) -or -not (Test-Path -LiteralPath $threadIndexPath)) {
+        $findings.Add([pscustomobject]@{ kind = 'stale_derived_index'; severity = 'warning'; message = 'One or more derived indexes are missing.'; artifactId = $null; path = $root; repairable = $true })
+      }
+    }
+  }
+
+  $report = [pscustomobject]@{
+    mode = 'scan'
+    workspaceRoot = $root
+    generatedAt = [DateTime]::UtcNow.ToString('o')
+    findings = @($findings)
+    summary = [pscustomobject]@{
+      findingCount = $findings.Count
+      repairableCount = @($findings | Where-Object { $_.repairable }).Count
+    }
+  }
+
+  if ($Json) {
+    $report | ConvertTo-Json -Depth 8
+  } else {
+    $report.findings | Select-Object kind, severity, artifactId, path, message | Format-Table -AutoSize
+  }
+}
+
+function aw-maintenance-rebuild {
+  aw-maintenance-scan -Json
 }`
 
 export type ManagedWorkspaceRuleTemplateKey =

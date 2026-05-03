@@ -6,7 +6,13 @@ import type {
   TerminalResizePayload,
   TerminalPanelSnapshot
 } from '@ai-workbench/core/desktop/terminal-panels'
-import type { ArtifactContentPayload, SaveClipboardOptions, SaveClipboardResult, WorkspaceSnapshot } from '@ai-workbench/core/desktop/workspace'
+import type {
+  ArtifactContentPayload,
+  SaveClipboardOptions,
+  SaveClipboardResult,
+  WorkspaceMaintenanceReport,
+  WorkspaceSnapshot
+} from '@ai-workbench/core/desktop/workspace'
 
 interface WorkbenchShellApi {
   platform: string
@@ -48,6 +54,9 @@ interface WorkbenchShellApi {
     renameThread: (threadId: string, title: string) => Promise<WorkspaceSnapshot | null>
     reassignScopeThread: (scopeId: string, threadId: string) => Promise<WorkspaceSnapshot | null>
     resync: (panelId?: string) => Promise<WorkspaceSnapshot | null>
+    maintenanceScan: () => Promise<WorkspaceMaintenanceReport | null>
+    maintenanceRebuild: () => Promise<WorkspaceMaintenanceReport | null>
+    maintenanceRepair: () => Promise<WorkspaceMaintenanceReport | null>
     chooseRoot: () => Promise<WorkspaceSnapshot | null>
     openProfile: (profileId: string) => Promise<{
       settings: AppSettingsSnapshot

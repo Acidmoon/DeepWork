@@ -7,7 +7,13 @@ import type {
   TerminalPanelSnapshot
 } from '@ai-workbench/core/desktop/terminal-panels'
 import type { AppSettingsSnapshot, AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
-import type { ArtifactContentPayload, SaveClipboardOptions, SaveClipboardResult, WorkspaceSnapshot } from '@ai-workbench/core/desktop/workspace'
+import type {
+  ArtifactContentPayload,
+  SaveClipboardOptions,
+  SaveClipboardResult,
+  WorkspaceMaintenanceReport,
+  WorkspaceSnapshot
+} from '@ai-workbench/core/desktop/workspace'
 
 contextBridge.exposeInMainWorld('workbenchShell', {
   platform: process.platform,
@@ -83,6 +89,9 @@ contextBridge.exposeInMainWorld('workbenchShell', {
     reassignScopeThread: (scopeId: string, threadId: string) =>
       ipcRenderer.invoke('workspace:reassign-scope-thread', scopeId, threadId) as Promise<WorkspaceSnapshot | null>,
     resync: (panelId?: string) => ipcRenderer.invoke('workspace:resync', panelId) as Promise<WorkspaceSnapshot | null>,
+    maintenanceScan: () => ipcRenderer.invoke('workspace:maintenance-scan') as Promise<WorkspaceMaintenanceReport | null>,
+    maintenanceRebuild: () => ipcRenderer.invoke('workspace:maintenance-rebuild') as Promise<WorkspaceMaintenanceReport | null>,
+    maintenanceRepair: () => ipcRenderer.invoke('workspace:maintenance-repair') as Promise<WorkspaceMaintenanceReport | null>,
     chooseRoot: () => ipcRenderer.invoke('workspace:choose-root') as Promise<WorkspaceSnapshot | null>,
     openProfile: (profileId: string) =>
       ipcRenderer.invoke('workspace:open-profile', profileId) as Promise<{

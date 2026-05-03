@@ -80,6 +80,78 @@ function buildBootstrapScript(payload) {
     let currentContents = clone(injected.contents)
     const workspaceListeners = new Set()
     let threadCounter = (currentSnapshot.threads ?? []).length
+    let maintenanceCalls = []
+    const maintenanceFindings = [
+      {
+        id: 'missing_artifact_file:markdown_missing',
+        kind: 'missing_artifact_file',
+        severity: 'warning',
+        message: 'Artifact file is missing for markdown_missing.',
+        artifactId: 'markdown_missing',
+        path: 'artifacts/markdown/markdown_missing.md',
+        source: 'artifacts.json',
+        repairable: true
+      },
+      {
+        id: 'orphaned_manifest_record:json_orphan',
+        kind: 'orphaned_manifest_record',
+        severity: 'warning',
+        message: 'Derived index references missing artifact json_orphan.',
+        artifactId: 'json_orphan',
+        path: null,
+        source: 'derived-index',
+        repairable: true
+      },
+      {
+        id: 'stale_derived_index:context-index',
+        kind: 'stale_derived_index',
+        severity: 'warning',
+        message: 'Context index is stale relative to current safe artifact metadata.',
+        artifactId: null,
+        path: \`\${workspaceRoot}/manifests/context-index.json\`,
+        source: 'context-index.json',
+        repairable: true
+      },
+      {
+        id: 'duplicate_artifact_id:text_0003',
+        kind: 'duplicate_artifact_id',
+        severity: 'warning',
+        message: 'Duplicate artifact id text_0003 appears in the manifest.',
+        artifactId: 'text_0003',
+        path: 'artifacts/text/text_0003-copy.txt',
+        source: 'artifacts.json',
+        repairable: true
+      },
+      {
+        id: 'unsafe_artifact_path:unsafe_0001',
+        kind: 'unsafe_artifact_path',
+        severity: 'error',
+        message: 'Artifact unsafe_0001 points outside the workspace root.',
+        artifactId: 'unsafe_0001',
+        path: '../outside/unsafe.txt',
+        source: 'artifacts.json',
+        repairable: true
+      }
+    ]
+    const buildMaintenanceReport = (mode, overrides = {}) => {
+      const findings = overrides.findings ?? maintenanceFindings
+      const changedFiles = overrides.changedFiles ?? []
+      return {
+        mode,
+        workspaceRoot,
+        generatedAt: '2026-04-26T13:00:00.000Z',
+        initialized: true,
+        findings: clone(findings),
+        actions: clone(overrides.actions ?? []),
+        changedFiles: clone(changedFiles),
+        summary: {
+          findingCount: findings.length,
+          repairableCount: findings.filter(finding => finding.repairable).length,
+          destructiveFollowUpCount: findings.filter(finding => !finding.repairable && finding.severity !== 'info').length,
+          changedFileCount: changedFiles.length
+        }
+      }
+    }
     const threadRegistry = new Map((currentSnapshot.threads ?? []).map(thread => [
       thread.threadId,
       {
@@ -216,7 +288,8 @@ function buildBootstrapScript(payload) {
     window.__workspaceRegressionValidation = {
       getState: () => clone({
         snapshot: currentSnapshot,
-        contents: currentContents
+        contents: currentContents,
+        maintenanceCalls
       })
     }
 
@@ -306,6 +379,59 @@ function buildBootstrapScript(payload) {
           rebuildThreadState()
           publishWorkspaceSnapshot()
           return clone(currentSnapshot)
+        },
+        maintenanceScan: async () => {
+          maintenanceCalls.push('scan')
+          return buildMaintenanceReport('scan')
+        },
+        maintenanceRebuild: async () => {
+          maintenanceCalls.push('rebuild')
+          return buildMaintenanceReport('rebuild', {
+            findings: [],
+            actions: [
+              {
+                id: 'rebuild_derived_indexes:workspace',
+                kind: 'rebuild_derived_indexes',
+                status: 'applied',
+                message: 'Rebuilt derived workspace indexes.',
+                artifactId: null,
+                path: null
+              }
+            ],
+            changedFiles: [
+              \`\${workspaceRoot}/manifests/context-index.json\`,
+              \`\${workspaceRoot}/manifests/thread-index.json\`
+            ]
+          })
+        },
+        maintenanceRepair: async () => {
+          maintenanceCalls.push('repair')
+          return buildMaintenanceReport('repair', {
+            findings: [],
+            actions: [
+              {
+                id: 'remove_orphaned_manifest_record:markdown_missing',
+                kind: 'remove_orphaned_manifest_record',
+                status: 'applied',
+                message: 'Removed unsafe or orphaned manifest reference markdown_missing.',
+                artifactId: 'markdown_missing',
+                path: 'artifacts/markdown/markdown_missing.md'
+              },
+              {
+                id: 'rebuild_derived_indexes:workspace',
+                kind: 'rebuild_derived_indexes',
+                status: 'applied',
+                message: 'Rebuilt derived workspace indexes after safe repair.',
+                artifactId: null,
+                path: null
+              }
+            ],
+            changedFiles: [
+              \`\${workspaceRoot}/manifests/artifacts.json\`,
+              \`\${workspaceRoot}/manifests/context-index.json\`,
+              \`\${workspaceRoot}/manifests/thread-index.json\`
+            ]
+          })
         },
         resync: async () => clone(currentSnapshot),
         chooseRoot: async () => clone(currentSnapshot),

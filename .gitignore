@@ -2,12 +2,14 @@ node_modules/
 .npm-cache/
 dist/
 out/
+release/
 *.log
 
 apps/*/dist/
 apps/*/out/
 apps/*/node_modules/.vite/
 apps/desktop/validation/*/artifacts/
+apps/desktop/validation/package-win/.smoke-*/
 tech-validation/.playwright-browsers/
 tech-validation/.npm-cache/
 tech-validation/node_modules/
