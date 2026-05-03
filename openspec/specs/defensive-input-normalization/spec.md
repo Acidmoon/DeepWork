@@ -1,4 +1,9 @@
-## ADDED Requirements
+# defensive-input-normalization Specification
+
+## Purpose
+Define defensive normalization behavior for externally persisted or IPC-provided input fields so unexpected value shapes do not crash desktop configuration flows.
+
+## Requirements
 
 ### Requirement: Partition field handles non-string values safely
 The `normalizeManagedWebPanelConfig` function SHALL coerce `partition` to a string safely so that `null`, `undefined`, or other non-string values do not cause a runtime TypeError. When the coerced value is empty, the function SHALL fall back to `persist:${config.id}`.

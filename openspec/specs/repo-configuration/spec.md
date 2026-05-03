@@ -1,4 +1,9 @@
-## ADDED Requirements
+# repo-configuration Specification
+
+## Purpose
+Define repository-level configuration that keeps cross-platform development behavior predictable for contributors and automation.
+
+## Requirements
 
 ### Requirement: Repository has line-ending normalization
 The repository SHALL include a `.gitattributes` file at the root that declares `* text=auto` so that Git normalizes line endings for all text files to LF in the repository.

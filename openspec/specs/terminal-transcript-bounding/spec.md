@@ -1,4 +1,9 @@
-## ADDED Requirements
+# terminal-transcript-bounding Specification
+
+## Purpose
+Define safety bounds for terminal transcript capture so truncation metadata cannot exceed the configured persisted transcript size.
+
+## Requirements
 
 ### Requirement: Transcript capture size must exceed notice length
 The `MAX_TRANSCRIPT_CAPTURE_SIZE` constant SHALL be enforced to be greater than `TRANSCRIPT_TRUNCATION_NOTICE.length` at module load time. If the invariant is violated, the process SHALL fail immediately with a descriptive error.
