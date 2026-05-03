@@ -11,7 +11,9 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "package:win": "npm run build && electron-builder --win dir --x64",
+    "package:win": "npm run package:win-alpha",
+    "package:win-alpha": "npm run build && electron-builder --config electron-builder.alpha.json --win dir --x64",
+    "package:win-beta": "npm run build && electron-builder --config electron-builder.beta.json --win dir --x64",
     "rebuild:native": "electron-rebuild -f -w node-pty",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "validate:workspace-regression": "node validation/workspace-regression/run-workspace-regression.mjs",
@@ -22,51 +24,13 @@
     "validate:terminal-behavior": "node validation/terminal-behavior/run-terminal-behavior-validation.mjs",
     "validate:workspace-profiles": "node validation/workspace-profiles/run-workspace-profiles-validation.mjs",
     "validate:visual-smoke": "node validation/visual-smoke/run-visual-smoke-validation.mjs",
-    "validate:package-win": "node validation/package-win/run-package-win-validation.mjs",
+    "validate:package-win": "node validation/package-win/run-package-win-validation.mjs --channel alpha",
+    "validate:package-win-beta": "node validation/package-win/run-package-win-validation.mjs --channel beta",
     "validate:renderer-entrypoint": "node validation/renderer-entrypoint.mjs",
     "validate:security-boundaries": "node validation/security-boundaries/run-security-boundaries-validation.mjs",
     "validate:internal-alpha": "npm run typecheck && npm run validate:workspace-retrieval && npm run build && npm run validate:renderer-entrypoint && npm run validate:security-boundaries && npm run validate:visual-smoke && npm run validate:workspace-regression && npm run validate:workspace-web-capture && npm run validate:custom-web-panels && npm run validate:terminal-panel-configuration && npm run validate:terminal-behavior && npm run validate:workspace-profiles",
-    "release:win-alpha": "npm run validate:internal-alpha && npm run package:win && npm run validate:package-win"
-  },
-  "build": {
-    "appId": "cn.deepwork.alpha",
-    "productName": "DeepWork",
-    "electronVersion": "37.10.3",
-    "directories": {
-      "output": "../../release/windows-alpha"
-    },
-    "files": [
-      "out/**",
-      "package.json",
-      "!src/**",
-      "!validation/**",
-      "!*.ts",
-      "!electron.vite.config.ts",
-      "!tsconfig*.json",
-      "!dist/**",
-      "!release/**",
-      "!node_modules/.vite/**",
-      "!**/*.map",
-      "!**/.playwright-cli/**",
-      "!**/artifacts/**",
-      "!**/*.log"
-    ],
-    "asar": true,
-    "asarUnpack": [
-      "node_modules/node-pty/**"
-    ],
-    "npmRebuild": false,
-    "win": {
-      "signAndEditExecutable": false,
-      "target": [
-        {
-          "target": "dir",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    }
+    "release:win-alpha": "npm run validate:internal-alpha && npm run package:win-alpha && npm run validate:package-win",
+    "release:win-beta": "npm run validate:internal-alpha && npm run package:win-beta && npm run validate:package-win-beta"
   },
   "dependencies": {
     "@ai-workbench/core": "0.1.0",

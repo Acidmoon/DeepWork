@@ -1,0 +1,41 @@
+{
+  "appId": "cn.deepwork.alpha",
+  "productName": "DeepWork",
+  "electronVersion": "37.10.3",
+  "directories": {
+    "output": "../../release/windows-alpha"
+  },
+  "files": [
+    "out/**",
+    "package.json",
+    "!src/**",
+    "!validation/**",
+    "!*.ts",
+    "!electron.vite.config.ts",
+    "!electron-builder*.json",
+    "!tsconfig*.json",
+    "!dist/**",
+    "!release/**",
+    "!node_modules/.vite/**",
+    "!**/*.map",
+    "!**/.playwright-cli/**",
+    "!**/artifacts/**",
+    "!**/*.log"
+  ],
+  "asar": true,
+  "asarUnpack": [
+    "node_modules/node-pty/**"
+  ],
+  "npmRebuild": false,
+  "win": {
+    "signAndEditExecutable": false,
+    "target": [
+      {
+        "target": "dir",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  }
+}

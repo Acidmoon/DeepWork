@@ -105,7 +105,8 @@ function schedulePackageSmokeResult(): void {
           rendererReady,
           workspaceRoot: workspaceSnapshot?.workspaceRoot ?? null,
           workspaceInitialized: workspaceSnapshot?.initialized ?? null,
-          settingsWorkspaceRoot: settingsSnapshot?.workspaceRoot ?? null
+          settingsWorkspaceRoot: settingsSnapshot?.workspaceRoot ?? null,
+          settingsSnapshot
         }
         mkdirSync(dirname(resultPath), { recursive: true })
         writeFileSync(resultPath, JSON.stringify(payload, null, 2), 'utf8')

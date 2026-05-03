@@ -11,6 +11,8 @@
     "dev": "npm run dev -w @ai-workbench/desktop",
     "build": "npm run build -w @ai-workbench/desktop",
     "package:win": "npm run package:win -w @ai-workbench/desktop",
+    "package:win-alpha": "npm run package:win-alpha -w @ai-workbench/desktop",
+    "package:win-beta": "npm run package:win-beta -w @ai-workbench/desktop",
     "rebuild:native": "npm run rebuild:native -w @ai-workbench/desktop",
     "typecheck": "npm run typecheck -w @ai-workbench/desktop",
     "validate:workspace-regression": "npm run validate:workspace-regression -w @ai-workbench/desktop",
@@ -25,6 +27,8 @@
     "validate:security-boundaries": "npm run validate:security-boundaries -w @ai-workbench/desktop",
     "validate:internal-alpha": "npm run validate:internal-alpha -w @ai-workbench/desktop",
     "validate:package-win": "npm run validate:package-win -w @ai-workbench/desktop",
-    "release:win-alpha": "npm run validate:internal-alpha && npm run package:win && npm run validate:package-win"
+    "validate:package-win-beta": "npm run validate:package-win-beta -w @ai-workbench/desktop",
+    "release:win-alpha": "npm run validate:internal-alpha && npm run package:win-alpha && npm run validate:package-win",
+    "release:win-beta": "npm run validate:internal-alpha && npm run package:win-beta && npm run validate:package-win-beta"
   }
 }

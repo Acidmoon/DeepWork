@@ -233,9 +233,14 @@ $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 
 如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。当前验证覆盖包括 Logs 检查、Workspace 维护 scan/rebuild/safe repair、MiniMax 默认启用与配置覆盖、终端 retrieval summary、settings placeholder 移除、安全边界和 Windows package smoke。
 
-## 12. Windows alpha 打包
+## 12. Windows alpha / beta 打包
 
-内部 alpha 的 Windows 打包使用 `electron-builder`，当前产物是未签名的 unpacked 目录包，面向本机或小范围手动验证，不包含自动更新或代码签名。
+当前 Windows 分发分成两条独立路径，均使用 `electron-builder` 生成未签名的 unpacked 目录包：
+
+1. alpha：内部验证基线，输出到 `release/windows-alpha/`
+2. beta：更广泛试用前的分发准备，输出到 `release/windows-beta/`
+
+两条路径都不包含自动更新或代码签名。
 
 打包前建议确认：
 
@@ -247,13 +252,15 @@ $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 常用命令：
 
 ```powershell
-npm run package:win
+npm run package:win-alpha
+npm run package:win-beta
 ```
 
-该命令会先执行桌面构建，再生成：
+它们都会先执行桌面构建，再分别生成：
 
 ```text
 release/windows-alpha/win-unpacked/DeepWork.exe
+release/windows-beta/win-unpacked/DeepWork.exe
 ```
 
 生成目录 `release/` 是本地输出目录，不应提交到源码仓库。打包配置会只包含运行时需要的 Electron 输出、依赖和 native module unpack 内容，并排除源码验证 fixture、Playwright 临时文件、验证截图、日志和本机 Workspace 数据。
@@ -262,21 +269,34 @@ release/windows-alpha/win-unpacked/DeepWork.exe
 
 ```powershell
 npm run release:win-alpha
+npm run release:win-beta
 ```
 
-它会按顺序执行：
+`release:win-alpha` 会按顺序执行：
 
 1. `npm run validate:internal-alpha`
-2. `npm run package:win`
+2. `npm run package:win-alpha`
 3. `npm run validate:package-win`
+
+`release:win-beta` 会按顺序执行：
+
+1. `npm run validate:internal-alpha`
+2. `npm run package:win-beta`
+3. `npm run validate:package-win-beta`
+
+`validate:package-win` 会确认 alpha packaged app 存在，并用隔离的 userData/documents 启动，验证首次打开能进入 renderer shell 且不会隐式创建 Workspace。
+
+`validate:package-win-beta` 在此基础上还会验证三件事：
+
+1. beta 输出位于独立的 `release/windows-beta/` 目录
+2. `app.asar` 不包含 repo-only 验证、源码和本地运行残留
+3. 预写入的设置文件会在 packaged 启动时经过正常的 settings normalization，再恢复已保存默认工作区
 
 打包命令不会强制重编译 native module；它会把 `node-pty` 的运行时文件 unpack 到 asar 外。更换 Node、Electron 或 Visual Studio build tools 后，如果 `node-pty` 或其他 native module 在开发、打包 smoke 或启动时异常，先运行：
 
 ```powershell
 npm run rebuild:native
 ```
-
-`validate:internal-alpha` 用于确认源码构建和 focused flows；`package:win` 用于生成 Windows alpha 目录包；`validate:package-win` 会确认 packaged app 存在，并用隔离的 userData/documents 启动，验证首次打开能进入 renderer shell 且不会隐式创建 Workspace。
 
 未签名 alpha 在 Windows 上可能出现 SmartScreen 或安全提示，这是当前阶段的预期限制。当前目录包会跳过 Windows executable signing/resource edit，避免内部 alpha 机器必须具备代码签名工具链；正式分发前再处理签名、安装器、图标资源和发布通道。
 

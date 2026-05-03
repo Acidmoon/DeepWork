@@ -13,7 +13,7 @@ The desktop app keeps focused validation flows under this directory instead of o
 - `workspace-profiles/`: workspace profile persistence, default startup selection, profile switching, and non-destructive profile removal
 - `visual-smoke/`: modern minimal UI smoke coverage for Web, Terminal, inline retrieval context, Workspace, Logs, Settings, light/dark theme, and constrained viewport screenshots
 - `security-boundaries/`: main-process and workspace boundary checks for unsafe paths, workspace confinement, settings normalization, and maintenance fixtures
-- `package-win/`: Windows alpha package smoke coverage for the generated unpacked app artifact and first-launch workspace behavior
+- `package-win/`: Windows alpha and beta package smoke coverage for generated unpacked app artifacts, first-launch workspace behavior, and beta settings-normalization startup
 
 ## Recommended Order
 
@@ -63,5 +63,13 @@ npm run release:win-alpha
 ```
 
 That command runs `validate:internal-alpha`, generates the unpacked Windows package with `npm run package:win`, and then runs `npm run validate:package-win`. The package smoke expects `release/windows-alpha/win-unpacked/DeepWork.exe`, launches it with isolated userData/documents directories, and verifies that the renderer shell loads without implicitly selecting or creating a Workspace.
+
+For the broader beta packaging path, use:
+
+```powershell
+npm run release:win-beta
+```
+
+That command keeps the same focused validation gate, generates `release/windows-beta/win-unpacked/DeepWork.exe`, and then runs `npm run validate:package-win-beta`. The beta package smoke verifies the same first-launch unselected-workspace behavior, confirms the packaged archive excludes repo-only validation and development files, and checks that a prewritten settings file is normalized through the normal main-process startup path before a saved default workspace is restored.
 
 The package command keeps native modules unpacked from asar but does not force a rebuild on every package run. Run `npm run rebuild:native` before packaging when `node-pty` ABI errors appear after changing Node, Electron, or Visual Studio build tools. The generated `release/` directory is local build output and remains ignored by git.

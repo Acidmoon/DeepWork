@@ -1,0 +1,7 @@
+{
+  "extends": "./electron-builder.alpha.json",
+  "appId": "cn.deepwork.beta",
+  "directories": {
+    "output": "../../release/windows-beta"
+  }
+}
