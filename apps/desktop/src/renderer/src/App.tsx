@@ -14,7 +14,6 @@ import {
   Plus,
   RefreshCw,
   RotateCw,
-  Search,
   Settings,
   Terminal as TerminalIcon,
   type LucideIcon
@@ -257,13 +256,6 @@ function App(): JSX.Element {
             <p>{ui.appSubtitle}</p>
           </div>
         </div>
-
-        <label className="sidebar__search" aria-label={ui.searchTools}>
-          <Search className="sidebar__search-icon" size={15} aria-hidden="true" />
-          <input type="text" placeholder={ui.searchTools} />
-          <kbd>Ctrl+K</kbd>
-        </label>
-
         <nav className="sidebar__nav" aria-label={ui.workbenchNavigation}>
           {primarySections.map((section) => {
             const sectionAction =
