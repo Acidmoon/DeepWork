@@ -80,11 +80,11 @@ npm run dev
 从当前代码结构看，桌面应用主要由三类表面组成：
 
 1. `Managed Web Panels`
-   用来承载 DeepSeek 等网页 AI，会保留独立网页登录态和浏览状态。
+   用来承载 DeepSeek、MiniMax 和自定义网页 AI，会保留独立网页登录态和浏览状态。
 2. `Managed CLI Panels`
    用来承载 Codex CLI、Claude Code 等终端型 Agent，会保留会话、线程和日志状态。
 3. `Workspace`
-   用来保存 Artifact、线程、scope、检索审计和索引结果。
+   用来保存 Artifact、线程、scope、检索审计、日志和索引结果。
 
 这里最重要的理解是：
 
@@ -92,6 +92,10 @@ npm run dev
 Workspace 是系统底座，不是主操作台。
 Web / CLI 对话面才是主操作面。
 ```
+
+内置网页面板现在包括 DeepSeek 和 MiniMax。MiniMax 默认是 live managed web panel，会通过主进程托管的 `WebContentsView` 打开 HTTPS 首页，并使用持久 partition 保留登录态。你仍然可以在配置面板里禁用 MiniMax 或调整它的主页；普通浏览跳转只会更新当前地址，不会自动覆盖保存的 home URL。
+
+Terminal Panel 的详情抽屉会显示最近一次 CLI workspace retrieval 的摘要，包括 query、mode、outcome、选中的 scope、候选数量和 audit 引用。这个摘要只用于检查当前 CLI 为什么拿到某个上下文，不会在主对话表面增加持续占屏的 continuity toolbar。
 
 ## 7. Workspace 文件会写到哪里
 
@@ -112,13 +116,40 @@ logs/
 ```text
 manifests/artifacts.json
 manifests/context-index.json
-manifests/threads.json
+manifests/thread-index.json
 manifests/origins/<scopeId>.json
+```
+
+日志类记录会归档到 `logs/` 下。常见路径包括：
+
+```text
+logs/terminal/
+logs/retrieval/
 ```
 
 默认目录不是固定死的，你也可以在应用内切换到自己的 Workspace 根目录。
 
 如果某个工作区经常使用，可以在 Settings 里把当前工作区保存为 Workspace Profile。Profile 只保存名称、路径和最近使用信息，不会接管或删除目录本身。你也可以把某个 Profile 设为启动默认；后续打开应用时会优先恢复这个 Profile 指向的工作区。如果没有设置启动默认，也没有已保存的当前工作区，应用会保持未选择工作区状态，直到你手动选择。
+
+Workspace 面板现在有两个主要检查入口：
+
+1. `Artifacts`
+   用于浏览普通 artifact、outputs 和线程关联内容。
+2. `Logs`
+   用于检查 `logs/` bucket 下的终端转录、retrieval audit 和其他排障记录。
+
+Logs 是检查面，不是继续对话的主入口。它支持列表、搜索、origin 过滤、选择和预览；如果当前没有日志、过滤后没有匹配，或某条日志无法预览，会显示明确的空状态。
+
+Workspace 还提供一个次级维护区。维护操作需要你显式打开并点击：
+
+1. `Scan`
+   只生成结构化诊断，不修改 workspace 文件。
+2. `Rebuild`
+   从当前安全的 artifact metadata 重建 context indexes、origin manifests、thread indexes 和 per-thread manifests，不重写 raw artifact。
+3. `Safe repair`
+   只修复可非破坏性处理的派生 manifest/index 不一致；需要删除 raw artifact 或处理 workspace 外路径的情况会继续作为 follow-up 报告。
+
+维护诊断覆盖 missing artifact files、orphaned manifest records、stale derived indexes、duplicate IDs、unsafe paths 和未初始化 workspace。遇到 workspace root 外路径时，维护逻辑只报告并排除这些路径，不读取、写入或删除它们。
 
 ## 8. CLI 如何自动感知上下文
 
@@ -133,7 +164,7 @@ manifests/origins/<scopeId>.json
 3. 某个线程、来源或上下文标签
 4. 某个已经保存的文件或结果
 
-在这种情况下，CLI 应该先根据工作区索引按需定位相关 scope 或 thread，再决定是否读取具体 Artifact。
+在这种情况下，CLI 应该先根据工作区索引按需定位相关 scope 或 thread，再决定是否读取具体 Artifact。每次受管 retrieval 的结果会写入 `logs/retrieval/`，并同步成终端详情里的 compact summary，方便你回看本次上下文来自哪里。
 
 ## 9. PowerShell helper 有什么作用
 
@@ -151,9 +182,12 @@ aw-origins
 aw-suggest "<natural-language query>"
 aw-origin <scopeId>
 aw-artifact <id>
+aw-maintenance-scan
+aw-maintenance-scan -Json
+aw-maintenance-rebuild
 ```
 
-也就是说，这套命令更像自动上下文感知的底层检索面，而不是要求你手工做上下文交接的操作界面。
+也就是说，这套命令更像自动上下文感知的底层检索面，而不是要求你手工做上下文交接的操作界面。`aw-maintenance-scan` 和 `aw-maintenance-rebuild` 面向显式 inspection/debugging；它们不会递归读取无关 raw artifact 内容。
 
 ## 10. 如果你只想确认代码能构建
 
@@ -180,6 +214,9 @@ npm run validate:custom-web-panels -w @ai-workbench/desktop
 npm run validate:terminal-panel-configuration -w @ai-workbench/desktop
 npm run validate:terminal-behavior -w @ai-workbench/desktop
 npm run validate:workspace-profiles -w @ai-workbench/desktop
+npm run validate:security-boundaries -w @ai-workbench/desktop
+npm run validate:visual-smoke -w @ai-workbench/desktop
+npm run validate:package-win -w @ai-workbench/desktop
 ```
 
 内部 alpha 回归可以直接跑完整序列：
@@ -194,7 +231,7 @@ npm run validate:internal-alpha
 $env:AI_WORKBENCH_VALIDATION_RENDERER_URL='http://localhost:5174'
 ```
 
-如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。
+如果你的改动涉及 renderer browser flow，再看 [apps/desktop/validation/README.md](</E:/vibecoding/DeepWork/apps/desktop/validation/README.md>)。当前验证覆盖包括 Logs 检查、Workspace 维护 scan/rebuild/safe repair、MiniMax 默认启用与配置覆盖、终端 retrieval summary、settings placeholder 移除、安全边界和 Windows package smoke。
 
 ## 12. Windows alpha 打包
 
