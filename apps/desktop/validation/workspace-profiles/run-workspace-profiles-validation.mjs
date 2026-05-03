@@ -209,6 +209,20 @@ function buildAssertScript() {
     throw new Error('Saved workspace profile metadata did not match expected values')
   }
 
+  await page.getByRole('textbox', { name: /Profile Name/ }).fill('Project A Draft Rename')
+  await page.waitForTimeout(200)
+  state = await page.evaluate(() => window.__workspaceProfileValidation.getState())
+  if (state.settings.workspaceProfiles[0]?.name !== 'Project A') {
+    throw new Error('Draft profile rename should not persist before the explicit save action')
+  }
+
+  await page.getByRole('button', { name: /^Save$/ }).click()
+  await page.waitForTimeout(300)
+  state = await page.evaluate(() => window.__workspaceProfileValidation.getState())
+  if (state.settings.workspaceProfiles[0]?.name !== 'Project A Draft Rename') {
+    throw new Error('Expected explicit profile rename save to persist the new title')
+  }
+
   await page.getByRole('button', { name: /Set Startup Default/ }).click()
   await page.waitForTimeout(300)
   state = await page.evaluate(() => window.__workspaceProfileValidation.getState())

@@ -146,12 +146,8 @@ async page => {
     throw new Error(`Re-enabled custom web panel did not restart from the saved home URL: ${JSON.stringify(reenabledState.snapshots[customPanel.id])}`)
   }
 
-  await page.evaluate(() => {
-    window.__customWebValidation.enqueuePrompts('Docs Portal')
-  })
-  await page.getByRole('button', { name: 'news.ycombinator.com' }).click({ button: 'right' })
-  await page.waitForTimeout(200)
-  await page.getByRole('button', { name: 'Rename' }).click()
+  await page.getByLabel('Panel Name').fill('Docs Portal')
+  await page.getByRole('button', { name: 'Save' }).click()
   await page.waitForTimeout(400)
 
   const renamedVisible = await page.getByRole('button', { name: 'Docs Portal' }).count()
@@ -161,8 +157,7 @@ async page => {
     throw new Error(`Rename did not propagate through navigation and settings: visible=${renamedVisible}, state=${JSON.stringify(renamedPanel)}`)
   }
 
-  await page.getByRole('button', { name: 'Docs Portal' }).click({ button: 'right' })
-  await page.waitForTimeout(200)
+  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Delete' }).click()
   await page.waitForTimeout(400)
 

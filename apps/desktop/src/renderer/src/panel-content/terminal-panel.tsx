@@ -108,21 +108,28 @@ export function TerminalPanel({
   const pasteConfirmationPromptRef = useRef(ui.confirmMultilinePastePrompt)
   const inspectorLabel = `${panel.definition.title} ${ui.showDetails}`
   const isCustomPanel = panel.definition.userDefined === true
+  const [customPanelTitle, setCustomPanelTitle] = useState(panel.definition.title)
   const normalizedDraftShell = state.draftShell.trim()
   const normalizedDraftShellArgs = parseShellArgs(state.draftShellArgsText)
   const normalizedDraftCwd = state.draftCwd.trim()
   const normalizedDraftStartupCommand = state.draftStartupCommand.trim()
+  const normalizedCustomPanelTitle = customPanelTitle.trim()
   const hasConfigChanges = isCustomPanel
-    ? normalizedDraftShell !== state.savedShell ||
+    ? normalizedCustomPanelTitle !== panel.definition.title ||
+      normalizedDraftShell !== state.savedShell ||
       !areStringListsEqual(normalizedDraftShellArgs, state.savedShellArgs) ||
       normalizedDraftCwd !== state.savedCwd ||
       normalizedDraftStartupCommand !== state.savedStartupCommand
     : normalizedDraftCwd !== state.savedCwd || normalizedDraftStartupCommand !== state.savedStartupCommand
-  const canSaveConfig = isCustomPanel ? normalizedDraftShell.length > 0 && hasConfigChanges : hasConfigChanges
+  const canSaveConfig = isCustomPanel ? normalizedCustomPanelTitle.length > 0 && normalizedDraftShell.length > 0 && hasConfigChanges : hasConfigChanges
 
   useEffect(() => {
     setIsSaving(false)
   }, [panel.definition.id, state.savedShell, state.savedCwd, state.savedStartupCommand, state.pendingRestart])
+
+  useEffect(() => {
+    setCustomPanelTitle(panel.definition.title)
+  }, [panel.definition.id, panel.definition.title])
 
   useEffect(() => {
     terminalBehaviorRef.current = state.terminalBehavior
@@ -165,6 +172,15 @@ export function TerminalPanel({
 
     try {
       if (isCustomPanel) {
+        const nextTitle = normalizedCustomPanelTitle
+        if (!nextTitle) {
+          updatePanelViewState(panel.definition.id, {
+            ...state,
+            lastError: ui.workspaceProfileNeedsName
+          })
+          return
+        }
+
         const snapshot = await window.workbenchShell.settings.update({
           customTerminalPanels: settings.customTerminalPanels.map((item) => {
             if (item.id !== panel.definition.id) {
@@ -175,6 +191,7 @@ export function TerminalPanel({
 
             return {
               ...rest,
+              title: nextTitle,
               shell: normalizedDraftShell,
               shellArgs: normalizedDraftShellArgs,
               ...(normalizedDraftCwd ? { cwd: normalizedDraftCwd } : {}),
@@ -212,6 +229,25 @@ export function TerminalPanel({
       }
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const removeCustomPanel = async (): Promise<void> => {
+    if (!isCustomPanel || !window.confirm(ui.confirmDelete)) {
+      return
+    }
+
+    const settings = await window.workbenchShell.settings.getState()
+    if (!settings) {
+      return
+    }
+
+    const snapshot = await window.workbenchShell.settings.update({
+      customTerminalPanels: settings.customTerminalPanels.filter((item) => item.id !== panel.definition.id)
+    })
+
+    if (snapshot) {
+      syncSettingsState(snapshot)
     }
   }
 
@@ -459,6 +495,21 @@ export function TerminalPanel({
       <div className="terminal-stage terminal-stage--immersive">
         {state.showDetails ? (
           <div className="stage-drawer stage-inspector" aria-label={inspectorLabel}>
+            {isCustomPanel ? (
+              <label className="field field--wide">
+                <span>{ui.panelName}</span>
+                <input
+                  value={customPanelTitle}
+                  onChange={(event) => {
+                    setCustomPanelTitle(event.target.value)
+                    updatePanelViewState(panel.definition.id, {
+                      ...state,
+                      lastError: null
+                    })
+                  }}
+                />
+              </label>
+            ) : null}
             <div className={`detail-columns${isCustomPanel ? ' detail-columns--wide' : ''}`}>
               <label className={`field${isCustomPanel ? ' field--wide' : ''}`}>
                 <span>{ui.shell}</span>
@@ -596,7 +647,7 @@ export function TerminalPanel({
                 disabled={!canSaveConfig || isSaving}
                 onClick={() => void persistConfig()}
               >
-                {ui.saveConfig}
+                {isCustomPanel ? ui.save : ui.saveConfig}
               </button>
               <button
                 type="button"
@@ -606,6 +657,11 @@ export function TerminalPanel({
               >
                 {state.pendingRestart ? ui.restartToApply : state.isRunning || state.status === 'starting' ? ui.restart : ui.start}
               </button>
+              {isCustomPanel ? (
+                <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
+                  {ui.delete}
+                </button>
+              ) : null}
             </div>
 
             <p className="drawer-note">

@@ -422,6 +422,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             workspaceProfiles: snapshot.workspaceProfiles,
             defaultWorkspaceProfileId: snapshot.defaultWorkspaceProfileId,
             workspaceProfileDraftName: '',
+            workspaceProfileRenameDrafts: {},
             workspaceProfileError: null,
             terminalPreludeText: snapshot.terminalPreludeCommands.join('\n'),
             terminalBehavior: snapshot.terminalBehavior,

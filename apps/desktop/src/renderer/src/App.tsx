@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState, type MouseEvent } from 'react'
+import { startTransition, useEffect, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -100,27 +100,6 @@ function App(): JSX.Element {
   const ui = getUiText(locale)
   const primarySections = sections.filter((section) => section.id !== 'system')
   const footerSections = sections.filter((section) => section.id === 'system')
-  const [contextMenu, setContextMenu] = useState<{ panelId: string; x: number; y: number } | null>(null)
-
-  useEffect(() => {
-    if (!contextMenu) {
-      return
-    }
-
-    const dismiss = (): void => {
-      setContextMenu(null)
-    }
-
-    window.addEventListener('click', dismiss)
-    window.addEventListener('blur', dismiss)
-
-    return () => {
-      window.removeEventListener('click', dismiss)
-      window.removeEventListener('blur', dismiss)
-    }
-  }, [contextMenu])
-
-  const panelMenu = contextMenu ? panels[contextMenu.panelId] : null
 
   const handleWorkspaceResync = async (): Promise<void> => {
     const snapshot = await window.workbenchShell.workspace.resync()
@@ -194,41 +173,6 @@ function App(): JSX.Element {
     }
   }
 
-  const handleRenamePanel = async (panelId: string): Promise<void> => {
-    const panel = panels[panelId]
-    const settings = await window.workbenchShell.settings.getState()
-    if (!panel || !settings) {
-      return
-    }
-
-    const nextTitle = window.prompt(ui.renamePanelPrompt, panel.definition.title)?.trim()
-    if (!nextTitle || nextTitle === panel.definition.title) {
-      return
-    }
-
-    const customWebPanels = settings.customWebPanels.map((item) => (item.id === panelId ? { ...item, title: nextTitle } : item))
-    const customTerminalPanels = settings.customTerminalPanels.map((item) =>
-      item.id === panelId ? { ...item, title: nextTitle } : item
-    )
-
-    await persistSettingsUpdate(settings, {
-      customWebPanels,
-      customTerminalPanels
-    })
-  }
-
-  const handleDeletePanel = async (panelId: string): Promise<void> => {
-    const settings = await window.workbenchShell.settings.getState()
-    if (!settings) {
-      return
-    }
-
-    await persistSettingsUpdate(settings, {
-      customWebPanels: settings.customWebPanels.filter((item) => item.id !== panelId),
-      customTerminalPanels: settings.customTerminalPanels.filter((item) => item.id !== panelId)
-    })
-  }
-
   async function persistSettingsUpdate(
     current: AppSettingsSnapshot,
     update: Partial<Pick<AppSettingsSnapshot, 'customWebPanels' | 'customTerminalPanels'>>
@@ -240,7 +184,6 @@ function App(): JSX.Element {
 
     if (snapshot) {
       syncSettingsState(snapshot)
-      setContextMenu(null)
     }
 
     return snapshot
@@ -280,13 +223,6 @@ function App(): JSX.Element {
               onClose={(panelId) => {
                 startTransition(() => hidePanel(panelId))
               }}
-              onItemMenu={(panelId, event) => {
-                setContextMenu({
-                  panelId,
-                  x: event.clientX,
-                  y: event.clientY
-                })
-              }}
             />
             )
           })}
@@ -307,13 +243,6 @@ function App(): JSX.Element {
               onClose={(panelId) => {
                 startTransition(() => hidePanel(panelId))
               }}
-              onItemMenu={(panelId, event) => {
-                setContextMenu({
-                  panelId,
-                    x: event.clientX,
-                    y: event.clientY
-                  })
-                }}
               />
             ))}
           </div>
@@ -399,28 +328,6 @@ function App(): JSX.Element {
           </div>
         </footer>
       </main>
-
-      {contextMenu && panelMenu?.definition.userDefined ? (
-        <div
-          className="context-menu"
-          style={{
-            left: `${contextMenu.x}px`,
-            top: `${contextMenu.y}px`
-          }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <button type="button" className="context-menu__item" onClick={() => void handleRenamePanel(contextMenu.panelId)}>
-            {ui.rename}
-          </button>
-          <button
-            type="button"
-            className="context-menu__item context-menu__item--danger"
-            onClick={() => void handleDeletePanel(contextMenu.panelId)}
-          >
-            {ui.delete}
-          </button>
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -443,7 +350,6 @@ interface SidebarSectionProps {
   onSectionAction?: () => void
   onSelect: (panelId: string) => void
   onClose: (panelId: string) => void
-  onItemMenu: (panelId: string, event: MouseEvent<HTMLButtonElement>) => void
 }
 
 function SidebarSection({
@@ -454,8 +360,7 @@ function SidebarSection({
   actionLabel,
   onSectionAction,
   onSelect,
-  onClose,
-  onItemMenu
+  onClose
 }: SidebarSectionProps): JSX.Element {
   const ui = getUiText(locale)
 
@@ -483,14 +388,6 @@ function SidebarSection({
             <div
               key={panel.definition.id}
               className={`nav-item ${activePanelId === panel.definition.id ? ' nav-item--active' : ''}`}
-              onContextMenu={(event) => {
-                if (!panel.definition.userDefined) {
-                  return
-                }
-
-                event.preventDefault()
-                onItemMenu(panel.definition.id, event as unknown as MouseEvent<HTMLButtonElement>)
-              }}
             >
               <button type="button" className="nav-item__button" onClick={() => onSelect(panel.definition.id)}>
                 <span className="nav-item__main">

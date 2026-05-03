@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getUiText, localizePanelDefinition, resolveLocale } from '../i18n'
 import { asWebViewState, useWorkbenchStore } from '../store'
 import { getWebPanelUrlValidationMessage, validateWebPanelUrl } from '../web-panel-url'
@@ -18,6 +18,12 @@ export function WebPanel({
   const state = asWebViewState(panel.viewState)
   const ui = getUiText(locale)
   const definition = localizePanelDefinition(panel.definition, locale)
+  const isCustomPanel = panel.definition.userDefined === true
+  const [customPanelTitle, setCustomPanelTitle] = useState(panel.definition.title)
+
+  useEffect(() => {
+    setCustomPanelTitle(panel.definition.title)
+  }, [panel.definition.id, panel.definition.title])
 
   useEffect(() => {
     void window.workbenchShell.webPanels.getState(panel.definition.id).then((snapshot) => {
@@ -57,6 +63,74 @@ export function WebPanel({
 
     if (snapshot) {
       syncWebPanelState(snapshot)
+    }
+  }
+
+  const persistCustomPanelManagement = async (): Promise<void> => {
+    if (!isCustomPanel) {
+      return
+    }
+
+    const settings = await window.workbenchShell.settings.getState()
+    if (!settings) {
+      return
+    }
+
+    const nextTitle = customPanelTitle.trim()
+    const homeUrlResult = validateWebPanelUrl(state.homeUrl)
+    if (!nextTitle) {
+      updatePanelViewState(panel.definition.id, {
+        ...state,
+        lastError: ui.workspaceProfileNeedsName
+      })
+      return
+    }
+
+    if (!homeUrlResult.ok || !homeUrlResult.url) {
+      updatePanelViewState(panel.definition.id, {
+        ...state,
+        lastError: getWebPanelUrlValidationMessage(homeUrlResult.error, locale)
+      })
+      return
+    }
+
+    const normalizedHomeUrl = homeUrlResult.url
+    const normalizedPartition = state.partition.trim() || `persist:${panel.definition.id}`
+    const snapshot = await window.workbenchShell.settings.update({
+      customWebPanels: settings.customWebPanels.map((item) =>
+        item.id === panel.definition.id
+          ? {
+              ...item,
+              title: nextTitle,
+              homeUrl: normalizedHomeUrl,
+              partition: normalizedPartition,
+              enabled: state.enabled
+            }
+          : item
+      )
+    })
+
+    if (snapshot) {
+      useWorkbenchStore.getState().syncSettingsState(snapshot)
+    }
+  }
+
+  const removeCustomPanel = async (): Promise<void> => {
+    if (!isCustomPanel || !window.confirm(ui.confirmDelete)) {
+      return
+    }
+
+    const settings = await window.workbenchShell.settings.getState()
+    if (!settings) {
+      return
+    }
+
+    const snapshot = await window.workbenchShell.settings.update({
+      customWebPanels: settings.customWebPanels.filter((item) => item.id !== panel.definition.id)
+    })
+
+    if (snapshot) {
+      useWorkbenchStore.getState().syncSettingsState(snapshot)
     }
   }
 
@@ -152,6 +226,21 @@ export function WebPanel({
         </div>
 
         <div className="detail-columns detail-columns--wide">
+          {isCustomPanel ? (
+            <label className="field field--wide">
+              <span>{ui.panelName}</span>
+              <input
+                value={customPanelTitle}
+                onChange={(event) => {
+                  setCustomPanelTitle(event.target.value)
+                  updatePanelViewState(panel.definition.id, {
+                    ...state,
+                    lastError: null
+                  })
+                }}
+              />
+            </label>
+          ) : null}
           <label className="field field--wide">
             <span>{ui.homeUrl}</span>
             <input
@@ -160,7 +249,8 @@ export function WebPanel({
                 updatePanelViewState(panel.definition.id, {
                   ...state,
                   homeUrl: event.target.value,
-                  currentUrl: event.target.value
+                  currentUrl: event.target.value,
+                  lastError: null
                 })
               }
             />
@@ -172,7 +262,8 @@ export function WebPanel({
               onChange={(event) =>
                 updatePanelViewState(panel.definition.id, {
                   ...state,
-                  partition: event.target.value
+                  partition: event.target.value,
+                  lastError: null
                 })
               }
             />
@@ -180,12 +271,23 @@ export function WebPanel({
         </div>
 
         <div className="action-row">
-          <button type="button" className="action-button action-button--ghost" onClick={() => void persistConfig(false)}>
-            {ui.saveConfig}
-          </button>
+          {isCustomPanel ? (
+            <button type="button" className="action-button action-button--ghost" onClick={() => void persistCustomPanelManagement()}>
+              {ui.save}
+            </button>
+          ) : (
+            <button type="button" className="action-button action-button--ghost" onClick={() => void persistConfig(false)}>
+              {ui.saveConfig}
+            </button>
+          )}
           <button type="button" className="action-button" onClick={() => void persistConfig(true)}>
             {ui.enablePanel}
           </button>
+          {isCustomPanel ? (
+            <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
+              {ui.delete}
+            </button>
+          ) : null}
         </div>
       </div>
     )
@@ -197,6 +299,21 @@ export function WebPanel({
         {state.showDetails ? (
           <div className="stage-drawer stage-inspector" aria-label={`${definition.title} ${ui.showDetails}`}>
             <div className="detail-columns detail-columns--wide">
+              {isCustomPanel ? (
+                <label className="field field--wide">
+                  <span>{ui.panelName}</span>
+                  <input
+                    value={customPanelTitle}
+                    onChange={(event) => {
+                      setCustomPanelTitle(event.target.value)
+                      updatePanelViewState(panel.definition.id, {
+                        ...state,
+                        lastError: null
+                      })
+                    }}
+                  />
+                </label>
+              ) : null}
               <label className="field field--wide">
                 <span>{ui.homeUrl}</span>
                 <input
@@ -204,7 +321,8 @@ export function WebPanel({
                   onChange={(event) =>
                     updatePanelViewState(panel.definition.id, {
                       ...state,
-                      homeUrl: event.target.value
+                      homeUrl: event.target.value,
+                      lastError: null
                     })
                   }
                 />
@@ -216,7 +334,8 @@ export function WebPanel({
                   onChange={(event) =>
                     updatePanelViewState(panel.definition.id, {
                       ...state,
-                      partition: event.target.value
+                      partition: event.target.value,
+                      lastError: null
                     })
                   }
                 />
@@ -239,8 +358,12 @@ export function WebPanel({
             </div>
 
             <div className="action-row">
-              <button type="button" className="action-button action-button--ghost" onClick={() => void persistConfig(true)}>
-                {ui.saveConfig}
+              <button
+                type="button"
+                className="action-button action-button--ghost"
+                onClick={() => void (isCustomPanel ? persistCustomPanelManagement() : persistConfig(true))}
+              >
+                {isCustomPanel ? ui.save : ui.saveConfig}
               </button>
               <button
                 type="button"
@@ -249,6 +372,11 @@ export function WebPanel({
               >
                 {ui.disablePanel}
               </button>
+              {isCustomPanel ? (
+                <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
+                  {ui.delete}
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

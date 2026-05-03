@@ -239,6 +239,7 @@ const uiText = {
     deleteSessionWarning: '删除后会移除这组会话在工作区中的所有已保存记录，此操作不能撤销。',
     deleteSessionDone: '已从工作区删除该会话。',
     confirmDelete: '确认删除',
+    panelName: '面板名称',
     renamePanelPrompt: '输入新的面板名称',
     terminalLabel: '终端',
     sync: '同步',
@@ -491,6 +492,7 @@ const uiText = {
     workspaceProfileCurrent: '当前',
     workspaceProfileUnavailable: '工作区路径不可用。',
     workspaceProfileSaved: '工作区档案已保存。',
+    workspaceProfileRenameSaved: '工作区档案名称已更新。',
     workspaceProfileRemoved: '工作区档案已移除。',
     workspaceProfileDefaultSaved: '启动默认工作区已更新。',
     workspaceProfileOpened: '工作区档案已打开。',
@@ -587,6 +589,7 @@ const uiText = {
     deleteSessionWarning: 'Deleting this session removes all saved workspace records for it and cannot be undone.',
     deleteSessionDone: 'The session was removed from Workspace.',
     confirmDelete: 'Confirm Delete',
+    panelName: 'Panel Name',
     renamePanelPrompt: 'Enter a new panel name',
     terminalLabel: 'Terminal',
     sync: 'Sync',
@@ -840,6 +843,7 @@ const uiText = {
     workspaceProfileCurrent: 'Current',
     workspaceProfileUnavailable: 'Workspace path is unavailable.',
     workspaceProfileSaved: 'Workspace profile saved.',
+    workspaceProfileRenameSaved: 'Workspace profile name updated.',
     workspaceProfileRemoved: 'Workspace profile removed.',
     workspaceProfileDefaultSaved: 'Startup default workspace updated.',
     workspaceProfileOpened: 'Workspace profile opened.',
@@ -942,8 +946,8 @@ export function localizePanelDefinition(definition: PanelDefinition, locale: Sup
             : 'User-defined web panel for opening any HTTP/HTTPS page inside the workbench with persisted configuration.',
         nextStep:
           locale === 'zh-CN'
-            ? '直接在面板中修改地址、分区和启用状态，决定是否挂载为真实网页实例。'
-            : 'Edit the address, partition, and enabled state directly in the panel to control the live web instance.',
+            ? '直接在面板中修改名称、地址、分区和启用状态，决定是否挂载为真实网页实例。'
+            : 'Edit the title, address, partition, and enabled state directly in the panel to control the live web instance.',
         delivery: locale === 'zh-CN' ? '自定义网页配置。' : 'Custom webpage configuration.',
         signal: locale === 'zh-CN' ? '自定义网页' : 'Custom webpage'
       }
@@ -967,8 +971,8 @@ export function localizePanelDefinition(definition: PanelDefinition, locale: Sup
             : 'User-defined CLI panel. Use it as a dedicated terminal session for any command-line workflow.',
         nextStep:
           locale === 'zh-CN'
-            ? '可通过右键菜单重命名或删除，后续再继续补更细的 CLI 配置。'
-            : 'You can rename or delete it from the context menu, and add deeper CLI settings later.',
+            ? '直接在详情抽屉里重命名、保存或删除，后续再继续补更细的 CLI 配置。'
+            : 'Rename, save, or delete it directly from the details drawer, then keep extending the CLI configuration there.',
         delivery: locale === 'zh-CN' ? '自定义 CLI 配置。' : 'Custom CLI configuration.',
         signal: locale === 'zh-CN' ? '自定义 CLI' : 'Custom CLI'
       }

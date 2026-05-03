@@ -156,6 +156,7 @@ export interface SettingsPanelViewState {
   workspaceProfiles: WorkspaceProfileSettings[]
   defaultWorkspaceProfileId: string | null
   workspaceProfileDraftName: string
+  workspaceProfileRenameDrafts: Record<string, string>
   workspaceProfileError: string | null
   terminalPreludeText: string
   terminalBehavior: TerminalBehaviorSettings
@@ -447,6 +448,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         workspaceProfiles: defaultAppSettings.workspaceProfiles,
         defaultWorkspaceProfileId: defaultAppSettings.defaultWorkspaceProfileId,
         workspaceProfileDraftName: '',
+        workspaceProfileRenameDrafts: {},
         workspaceProfileError: null,
         terminalPreludeText: defaultAppSettings.terminalPreludeCommands.join('\n'),
         terminalBehavior: defaultAppSettings.terminalBehavior,

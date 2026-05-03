@@ -102,26 +102,35 @@ export function SettingsPanel({
       ...state,
       workspaceProfiles,
       workspaceProfileDraftName: '',
+      workspaceProfileRenameDrafts: {},
       workspaceProfileError: ui.workspaceProfileSaved
     })
     syncSettingsSnapshot(await window.workbenchShell.settings.update({ workspaceProfiles }))
   }
 
-  const renameWorkspaceProfile = async (profile: WorkspaceProfileSettings, name: string): Promise<void> => {
-    const normalizedName = name.trim()
+  const saveWorkspaceProfileRename = async (profile: WorkspaceProfileSettings): Promise<void> => {
+    const draftName = (state.workspaceProfileRenameDrafts[profile.id] ?? profile.name).trim()
+    if (!draftName) {
+      setProfileFeedback(ui.workspaceProfileNeedsName)
+      return
+    }
+
     const workspaceProfiles = state.workspaceProfiles.map((item) =>
       item.id === profile.id
         ? {
             ...item,
-            name: normalizedName || item.name
+            name: draftName
           }
         : item
     )
+    const workspaceProfileRenameDrafts = { ...state.workspaceProfileRenameDrafts }
+    delete workspaceProfileRenameDrafts[profile.id]
 
     updateSettingsState({
       ...state,
       workspaceProfiles,
-      workspaceProfileError: null
+      workspaceProfileRenameDrafts,
+      workspaceProfileError: ui.workspaceProfileRenameSaved
     })
     syncSettingsSnapshot(await window.workbenchShell.settings.update({ workspaceProfiles }))
   }
@@ -212,14 +221,25 @@ export function SettingsPanel({
               const isActive =
                 !!state.workspaceRoot && normalizeWorkspaceProfileKey(profile.root) === normalizeWorkspaceProfileKey(state.workspaceRoot)
               const isDefault = state.defaultWorkspaceProfileId === profile.id
+              const draftName = state.workspaceProfileRenameDrafts[profile.id] ?? profile.name
+              const hasRenameChanges = draftName.trim() !== profile.name
 
               return (
                 <article key={profile.id} className="settings-profile-row">
                   <div className="settings-profile-row__main">
                     <input
-                      value={profile.name}
+                      value={draftName}
                       aria-label={ui.workspaceProfileName}
-                      onChange={(event) => void renameWorkspaceProfile(profile, event.target.value)}
+                      onChange={(event) =>
+                        updateSettingsState({
+                          ...state,
+                          workspaceProfileRenameDrafts: {
+                            ...state.workspaceProfileRenameDrafts,
+                            [profile.id]: event.target.value
+                          },
+                          workspaceProfileError: null
+                        })
+                      }
                     />
                     <span>{profile.root}</span>
                     <div className="settings-profile-row__badges">
@@ -230,6 +250,14 @@ export function SettingsPanel({
                   <div className="settings-profile-row__actions">
                     <button type="button" className="action-button action-button--subtle" onClick={() => void openWorkspaceProfile(profile)}>
                       {ui.openWorkspaceProfile}
+                    </button>
+                    <button
+                      type="button"
+                      className="action-button action-button--ghost"
+                      disabled={!hasRenameChanges}
+                      onClick={() => void saveWorkspaceProfileRename(profile)}
+                    >
+                      {ui.save}
                     </button>
                     <button
                       type="button"

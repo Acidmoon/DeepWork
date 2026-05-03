@@ -76,7 +76,6 @@ function buildBootstrapScript() {
     const builtInIds = new Set(['deepseek-web', 'minimax-web'])
     const webListeners = new Set()
     const promptQueue = []
-
     let settings = {
       language: 'en-US',
       theme: 'light',

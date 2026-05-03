@@ -793,6 +793,17 @@ summary:focus-visible {
   background: var(--surface-muted);
 }
 
+.action-button--subtle {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+  background: var(--accent-subtle);
+  color: var(--accent-strong);
+}
+
+.action-button--subtle:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent-subtle) 70%, var(--surface));
+}
+
 .action-button--danger {
   border-color: color-mix(in srgb, var(--danger) 34%, var(--border));
   color: var(--danger);
@@ -848,6 +859,12 @@ summary:focus-visible {
 }
 
 .state-pill--validated {
+  color: var(--success);
+  background: var(--success-subtle);
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border));
+}
+
+.state-pill--success {
   color: var(--success);
   background: var(--success-subtle);
   border-color: color-mix(in srgb, var(--success) 28%, var(--border));
@@ -1574,6 +1591,10 @@ summary:focus-visible {
 
 .settings-profile-row__actions {
   justify-content: flex-end;
+}
+
+.settings-profile-row__actions .action-button {
+  min-width: 96px;
 }
 
 .settings-placeholder-list {
