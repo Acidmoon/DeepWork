@@ -18,16 +18,16 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: '项目首页',
       group: '工作台',
       summary: '先选择当前工作区位置，再从网页、CLI 和工作区检查面继续工作。',
-      nextStep: '工作区路径会持久保存，后续网页捕获、CLI 会话和工件索引都会写入这里。',
-      delivery: '首页现在承接工作区选择与当前工作区状态。',
+      nextStep: '工作区路径会持久保存，网页捕获、CLI 会话和工件索引都会写入这里。',
+      delivery: '首页承接工作区选择、当前工作区状态和档案入口。',
       signal: '工作区在线'
     },
     'deepseek-web': {
       title: 'DeepSeek 网页',
       group: '网页应用',
       summary: 'DeepSeek 现已通过独立 WebContentsView 接入，并使用 persist partition 保持登录态。',
-      nextStep: '后续在工件阶段增加网页内容捕获与工作区索引联动能力。',
-      delivery: 'Phase 2 交付物：真实网页面板可导航、可保活。',
+      nextStep: '网页会话可通过工作区同步保存，并与当前线程和范围元数据关联。',
+      delivery: '托管网页面板：安全导航、持久分区、捕获同步与配置恢复。',
       signal: '持久网页会话'
     },
     'minimax-web': {
@@ -42,32 +42,32 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Codex CLI',
       group: 'CLI 智能体',
       summary: 'Codex CLI 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-      nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
-      delivery: 'Phase 3 交付物：Codex 终端面板已可启动与保活。',
+      nextStep: 'CLI 会话会携带当前工作区与线程身份，按设置优先检索相关上下文。',
+      delivery: '托管终端面板：PTY 会话、配置持久化、终端行为设置与检索审计。',
       signal: 'Codex 终端在线'
     },
     'claude-code': {
       title: 'Claude Code',
       group: 'CLI 智能体',
       summary: 'Claude Code 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-      nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
-      delivery: 'Phase 3 交付物：Claude Code 终端面板已可启动与保活。',
+      nextStep: 'CLI 会话会携带当前工作区与线程身份，按设置优先检索相关上下文。',
+      delivery: '托管终端面板：PTY 会话、配置持久化、终端行为设置与检索审计。',
       signal: 'Claude 终端在线'
     },
     artifacts: {
       title: '工件',
       group: '工作区',
-      summary: '工作区目录、清单和剪贴板保存入口已落地，当前展示基础索引与最近工件。',
-      nextStep: '在 Phase 5 里接更完整的工件列表、选中态和预览入口。',
-      delivery: 'Phase 4 交付物：工作区 + artifacts.json 第一版。',
+      summary: '工作区清单、线程、搜索、筛选、多选和工件预览已接入检查面。',
+      nextStep: '用这里检查保存的手动、网页、终端和检索审计记录。',
+      delivery: '工作区检查面：索引、线程、范围、工件预览和修复入口。',
       signal: '清单在线'
     },
     logs: {
       title: '日志',
       group: '工作区',
-      summary: '公共工作区已建立日志桶位，后续 CLI 与渲染日志会统一归档到这里。',
-      nextStep: '在后续阶段补充真实日志索引、筛选和打开路径能力。',
-      delivery: 'Phase 4 交付物：日志目录结构已落地。',
+      summary: '公共工作区已建立日志桶位，用于保存和检查日志类工作区材料。',
+      nextStep: '需要时可按当前工作区检查归档到 logs/ 的记录。',
+      delivery: '工作区日志桶和基础检查入口。',
       signal: '日志桶已就绪'
     },
     settings: {
@@ -75,7 +75,7 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       group: '系统',
       summary: '设置面板承接应用级偏好项，当前版本已支持工作区档案、语言、主题、CLI 前置命令、终端行为与跨会话连续性设置。',
       nextStep: '继续根据真实使用补充更细粒度的应用偏好。',
-      delivery: '设置面板：工作区档案 + 基础外观配置 + 终端行为 + 跨会话连续性设置。',
+      delivery: '设置面板：工作区档案、外观、终端行为、跨会话连续性和 CLI 检索默认值。',
       signal: '偏好设置在线'
     }
   },
@@ -84,16 +84,16 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Project Home',
       group: 'Workbench',
       summary: 'Choose the current workspace location first, then continue from web, CLI, and Workspace inspection surfaces.',
-      nextStep: 'The workspace path is persisted, and later web captures, CLI sessions, and artifact indexes are written there.',
-      delivery: 'Home now owns workspace selection and current workspace status.',
+      nextStep: 'The workspace path is persisted, and web captures, CLI sessions, and artifact indexes are written there.',
+      delivery: 'Home owns workspace selection, current workspace status, and profile entry points.',
       signal: 'Workspace live'
     },
     'deepseek-web': {
       title: 'DeepSeek Web',
       group: 'Web Apps',
       summary: 'DeepSeek now runs through an isolated WebContentsView with a persist partition for login retention.',
-      nextStep: 'Add page capture and workspace-index integration in the Artifact phase.',
-      delivery: 'Phase 2 deliverable: the live web panel can navigate and stay alive.',
+      nextStep: 'Web sessions can be saved through Workspace Sync and linked with the current thread and scope metadata.',
+      delivery: 'Managed web panels: safe navigation, persist partitions, capture sync, and configuration restore.',
       signal: 'Persistent web session'
     },
     'minimax-web': {
@@ -108,32 +108,32 @@ const panelTexts: Record<SupportedLocale, Record<string, PanelText>> = {
       title: 'Codex CLI',
       group: 'CLI Agents',
       summary: 'Codex CLI is connected as a live persistent terminal through PowerShell, node-pty, and xterm.js.',
-      nextStep: 'Keep strengthening automatic workspace retrieval so the CLI can locate the right context when you mention a prior session.',
-      delivery: 'Phase 3 deliverable: the Codex terminal panel can start and stay alive.',
+      nextStep: 'CLI sessions carry the current workspace and thread identity, then use settings to prefer relevant context.',
+      delivery: 'Managed terminal panels: PTY sessions, persisted configuration, terminal behavior settings, and retrieval audit.',
       signal: 'Codex terminal live'
     },
     'claude-code': {
       title: 'Claude Code',
       group: 'CLI Agents',
       summary: 'Claude Code is connected as a live persistent terminal through PowerShell, node-pty, and xterm.js.',
-      nextStep: 'Keep strengthening automatic workspace retrieval so the CLI can locate the right context when you mention a prior session.',
-      delivery: 'Phase 3 deliverable: the Claude terminal panel can start and stay alive.',
+      nextStep: 'CLI sessions carry the current workspace and thread identity, then use settings to prefer relevant context.',
+      delivery: 'Managed terminal panels: PTY sessions, persisted configuration, terminal behavior settings, and retrieval audit.',
       signal: 'Claude terminal live'
     },
     artifacts: {
       title: 'Artifacts',
       group: 'Workspace',
-      summary: 'The workspace directory, manifest, and clipboard save entry are live, with the current UI showing a basic index and recent artifacts.',
-      nextStep: 'Build a fuller Artifact List, selection state, and preview entry in Phase 5.',
-      delivery: 'Phase 4 deliverable: first version of Workspace + artifacts.json.',
+      summary: 'Workspace manifests, threads, search, filtering, multi-select, and artifact preview are available in the inspector.',
+      nextStep: 'Use this surface to inspect saved manual, web, terminal, and retrieval-audit records.',
+      delivery: 'Workspace inspector: indexes, threads, scopes, artifact preview, and repair entry points.',
       signal: 'Manifest live'
     },
     logs: {
       title: 'Logs',
       group: 'Workspace',
-      summary: 'The shared workspace already contains a logs bucket for future CLI and renderer log archiving.',
-      nextStep: 'Add real log indexing, filtering, and open-path actions in a later phase.',
-      delivery: 'Phase 4 deliverable: log directory structure is in place.',
+      summary: 'The shared workspace includes a logs bucket for saved log-style workspace materials.',
+      nextStep: 'Use the current workspace inspector when records are archived under logs/.',
+      delivery: 'Workspace logs bucket and basic inspection entry.',
       signal: 'Log bucket ready'
     },
     settings: {
@@ -151,7 +151,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
   'zh-CN': {
     overview: {
       title: '工作台',
-      caption: '当前工作台已接入真实网页和终端面板，下一步进入公共工作区能力。'
+      caption: '当前工作台已接入真实网页、终端、工作区检查和设置同步能力。'
     },
     web: {
       title: '网页应用',
@@ -163,7 +163,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     workspace: {
       title: '工作区',
-      caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。'
+      caption: '工作区已经落地到真实目录与 manifest，并支持列表、预览、线程和自动检索检查。'
     },
     system: {
       title: '系统',
@@ -173,7 +173,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
   'en-US': {
     overview: {
       title: 'Workbench',
-      caption: 'The workbench already has live web and terminal panels; the next step is shared workspace capability.'
+      caption: 'The workbench has live web, terminal, Workspace inspection, and settings synchronization surfaces.'
     },
     web: {
       title: 'Web Apps',
@@ -185,7 +185,7 @@ const sectionTexts: Record<SupportedLocale, Record<string, SectionText>> = {
     },
     workspace: {
       title: 'Workspace',
-      caption: 'The workspace now exists on disk with a manifest, and list, preview, and automatic retrieval support will continue from here.'
+      caption: 'The workspace exists on disk with manifests plus list, preview, thread, and automatic retrieval inspection.'
     },
     system: {
       title: 'System',
@@ -208,26 +208,8 @@ const stateLabels: Record<SupportedLocale, Record<PanelState, string>> = {
 }
 
 const settingsPlaceholderTexts: Record<SupportedLocale, Record<string, Pick<SettingsOptionPlaceholder, 'label' | 'description'>>> = {
-  'zh-CN': {
-    'cli-prompt-template': {
-      label: 'CLI 工作区检索',
-      description: '后续允许为 Codex / Claude 配置默认检索策略、会话提示偏好与自动索引行为。'
-    },
-    'terminal-behavior': {
-      label: '终端行为',
-      description: '后续允许自定义 shell、启动命令、复制策略和终端交互偏好。'
-    }
-  },
-  'en-US': {
-    'cli-prompt-template': {
-      label: 'CLI Workspace Retrieval',
-      description: 'Later this will allow retrieval defaults, session disambiguation hints, and automatic indexing behavior for Codex and Claude.'
-    },
-    'terminal-behavior': {
-      label: 'Terminal Behavior',
-      description: 'Later this will allow custom shell, startup command, copy policy, and terminal interaction preferences.'
-    }
-  }
+  'zh-CN': {},
+  'en-US': {}
 }
 
 const uiText = {
@@ -498,7 +480,7 @@ const uiText = {
     notes: '备注',
     freeFormPlaceholder: '自由文本占位',
     settingsRoadmapNotes: '设置路线备注',
-    phaseSnapshot: '阶段快照',
+    phaseSnapshot: '状态快照',
     panelType: '面板类型',
     activationCount: '激活次数',
     lastStatusCheck: '最近状态检查',
@@ -795,7 +777,7 @@ const uiText = {
     notes: 'Notes',
     freeFormPlaceholder: 'Free-form placeholder',
     settingsRoadmapNotes: 'Settings Roadmap Notes',
-    phaseSnapshot: 'Phase Snapshot',
+    phaseSnapshot: 'Status Snapshot',
     panelType: 'Panel Type',
     activationCount: 'Activation Count',
     lastStatusCheck: 'Last Status Check',

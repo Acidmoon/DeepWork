@@ -194,9 +194,9 @@ export const panelRegistry: PanelDefinition[] = [
     group: 'Workbench',
     kind: 'home',
     state: 'scaffolded',
-    summary: '工作台壳层、真实 Web Panel、真实 Terminal Panel 与首版公共 Workspace 已经接入到正式应用。',
-    nextStep: '继续推进 Phase 5，把 Artifact List 与 Preview 从当前基础索引升级为真正可操作视图。',
-    delivery: 'Phase 4 交付物：公共 Workspace 已完成初始化并能保存剪贴板 Artifact。',
+    summary: '工作台壳层、Web/Terminal 面板、Workspace 检索与档案设置已经接入正式应用。',
+    nextStep: '先选择或恢复工作区，再从网页、CLI 和工作区检查面继续当前任务。',
+    delivery: '当前版本已支持工作区选择、网页捕获、终端会话、工件索引、线程连续性和设置同步。',
     signal: 'Workspace live',
     pinned: true,
     defaultVisible: true
@@ -209,8 +209,8 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'web',
     state: 'validated',
     summary: 'DeepSeek 现已通过独立 WebContentsView 接入，并使用 persist partition 保持登录态。',
-    nextStep: '后续在 Artifact 阶段增加网页内容捕获与工作区索引联动能力。',
-    delivery: 'Phase 2 交付物：真实网页面板可导航、可保活。',
+    nextStep: '网页会话可通过工作区同步保存，并与当前线程和范围元数据关联。',
+    delivery: '托管网页面板：安全导航、持久分区、捕获同步与配置恢复。',
     signal: 'Persistent web session'
   },
   {
@@ -233,8 +233,8 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'terminal',
     state: 'validated',
     summary: 'Codex CLI 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-    nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
-    delivery: 'Phase 3 交付物：Codex 终端面板已可启动与保活。',
+    nextStep: 'CLI 会话会携带当前工作区与线程身份，按设置优先检索相关上下文。',
+    delivery: '托管终端面板：PTY 会话、配置持久化、终端行为设置与检索审计。',
     signal: 'Codex terminal live'
   },
   {
@@ -245,8 +245,8 @@ export const panelRegistry: PanelDefinition[] = [
     kind: 'terminal',
     state: 'validated',
     summary: 'Claude Code 已通过 PowerShell + node-pty + xterm.js 接入为真实常驻终端面板。',
-    nextStep: '继续强化自动工作区检索，让 CLI 在提到某个会话时直接定位相关上下文。',
-    delivery: 'Phase 3 交付物：Claude Code 终端面板已可启动与保活。',
+    nextStep: 'CLI 会话会携带当前工作区与线程身份，按设置优先检索相关上下文。',
+    delivery: '托管终端面板：PTY 会话、配置持久化、终端行为设置与检索审计。',
     signal: 'Claude terminal live'
   },
   {
@@ -256,9 +256,9 @@ export const panelRegistry: PanelDefinition[] = [
     group: 'Workspace',
     kind: 'workspace',
     state: 'validated',
-    summary: '工作区目录、manifest 和剪贴板保存入口已落地，当前展示基础索引与最近 Artifact。',
-    nextStep: '在 Phase 5 里接更完整的 Artifact List、选中态和预览入口。',
-    delivery: 'Phase 4 交付物：Workspace + artifacts.json 第一版。',
+    summary: '工作区清单、线程、搜索、筛选、多选和工件预览已接入检查面。',
+    nextStep: '用这里检查保存的手动、网页、终端和检索审计记录。',
+    delivery: 'Workspace 检查面：索引、线程、范围、工件预览和修复入口。',
     signal: 'Manifest live'
   },
   {
@@ -268,9 +268,9 @@ export const panelRegistry: PanelDefinition[] = [
     group: 'Workspace',
     kind: 'workspace',
     state: 'scaffolded',
-    summary: '公共 Workspace 已建立 logs 桶位，后续 CLI 与渲染日志会统一归档到这里。',
-    nextStep: '在后续阶段补充真实日志索引、筛选和打开路径能力。',
-    delivery: 'Phase 4 交付物：日志目录结构已落地。',
+    summary: '公共 Workspace 已建立 logs 桶位，用于保存和检查日志类工作区材料。',
+    nextStep: '需要时可按当前 Workspace 检查归档到 logs/ 的记录。',
+    delivery: 'Workspace 日志桶和基础检查入口。',
     signal: 'Log bucket ready'
   },
   {
@@ -280,9 +280,9 @@ export const panelRegistry: PanelDefinition[] = [
     group: 'System',
     kind: 'settings',
     state: 'scaffolded',
-    summary: '设置面板已经开始承接应用级偏好项，当前版本已支持语言、主题、CLI 前置命令与跨会话连续性设置。',
-    nextStep: '继续把默认工作区和更细粒度的终端行为扩展成可配置项。',
-    delivery: '设置面板：基础外观配置 + 跨会话连续性设置。',
+    summary: '设置面板承接应用级偏好项，当前版本已支持工作区档案、语言、主题、CLI 前置命令、终端行为与跨会话连续性设置。',
+    nextStep: '继续根据真实使用补充更细粒度的应用偏好。',
+    delivery: '设置面板：工作区档案、外观、终端行为、跨会话连续性和 CLI 检索默认值。',
     signal: 'Preferences live'
   }
 ]
@@ -291,7 +291,7 @@ export const navigationSections: NavigationSection[] = [
   {
     id: 'overview',
     title: 'Workbench',
-    caption: '当前工作台已接入真实网页和终端面板，下一步进入公共工作区能力。',
+    caption: '当前工作台已接入真实网页、终端、工作区检查和设置同步能力。',
     panelIds: ['home']
   },
   {
@@ -309,13 +309,13 @@ export const navigationSections: NavigationSection[] = [
   {
     id: 'workspace',
     title: 'Workspace',
-    caption: '工作区已经落地到真实目录与 manifest，后续会继续把列表、预览和自动检索支撑接进来。',
+    caption: '工作区已经落地到真实目录与 manifest，并支持列表、预览、线程和自动检索检查。',
     panelIds: ['artifacts', 'logs']
   },
   {
     id: 'system',
     title: 'System',
-    caption: '应用级配置集中在这里，当前已支持连续性设置，并保留后续偏好扩展位。',
+    caption: '应用级配置集中在这里，当前已支持工作区档案、终端行为与连续性设置。',
     panelIds: ['settings']
   }
 ]
@@ -451,7 +451,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         threadContinuationPreference: defaultAppSettings.threadContinuationPreference,
         cliRetrievalPreference: defaultAppSettings.cliRetrievalPreference,
         placeholders: defaultSettingsPlaceholders,
-        notes: 'Settings panel now includes workspace profiles, continuity defaults, and later terminal preferences as placeholders.'
+        notes: 'Settings panel now includes workspace profiles, terminal behavior, continuity defaults, and CLI retrieval preferences.'
       }
   }
 }
