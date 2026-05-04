@@ -20,9 +20,11 @@ export function WebPanel({
   const definition = localizePanelDefinition(panel.definition, locale)
   const isCustomPanel = panel.definition.userDefined === true
   const [customPanelTitle, setCustomPanelTitle] = useState(panel.definition.title)
+  const [deleteArmed, setDeleteArmed] = useState(false)
 
   useEffect(() => {
     setCustomPanelTitle(panel.definition.title)
+    setDeleteArmed(false)
   }, [panel.definition.id, panel.definition.title])
 
   useEffect(() => {
@@ -116,7 +118,7 @@ export function WebPanel({
   }
 
   const removeCustomPanel = async (): Promise<void> => {
-    if (!isCustomPanel || !window.confirm(ui.confirmDelete)) {
+    if (!isCustomPanel) {
       return
     }
 
@@ -284,9 +286,21 @@ export function WebPanel({
             {ui.enablePanel}
           </button>
           {isCustomPanel ? (
-            <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
-              {ui.delete}
-            </button>
+            deleteArmed ? (
+              <>
+                <p className="drawer-note drawer-note--warning">{ui.confirmDelete}</p>
+                <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
+                  {ui.confirmDelete}
+                </button>
+                <button type="button" className="action-button action-button--ghost" onClick={() => setDeleteArmed(false)}>
+                  {ui.cancel}
+                </button>
+              </>
+            ) : (
+              <button type="button" className="action-button action-button--danger" onClick={() => setDeleteArmed(true)}>
+                {ui.delete}
+              </button>
+            )
           ) : null}
         </div>
       </div>
@@ -373,9 +387,21 @@ export function WebPanel({
                 {ui.disablePanel}
               </button>
               {isCustomPanel ? (
-                <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
-                  {ui.delete}
-                </button>
+                deleteArmed ? (
+                  <>
+                    <p className="drawer-note drawer-note--warning">{ui.confirmDelete}</p>
+                    <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
+                      {ui.confirmDelete}
+                    </button>
+                    <button type="button" className="action-button action-button--ghost" onClick={() => setDeleteArmed(false)}>
+                      {ui.cancel}
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="action-button action-button--danger" onClick={() => setDeleteArmed(true)}>
+                    {ui.delete}
+                  </button>
+                )
               ) : null}
             </div>
           </div>

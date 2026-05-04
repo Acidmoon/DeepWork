@@ -54,7 +54,7 @@ The system SHALL allow one saved workspace profile to be marked as the startup d
 - **THEN** later startup does not attempt to restore that removed profile
 
 ### Requirement: Profile management remains secondary settings behavior
-Workspace profile management SHALL live in Settings as an app-level preference workflow while Home remains the lightweight current-workspace status and quick-selection surface.
+Workspace profile management SHALL live in Settings as the administrative workflow while Home remains a lightweight current-workspace and quick-reentry surface.
 
 #### Scenario: Manage profiles from Settings
 - **WHEN** the user opens Settings
@@ -64,5 +64,6 @@ Workspace profile management SHALL live in Settings as an app-level preference w
 #### Scenario: Use Home for current workspace selection
 - **WHEN** the user opens Home
 - **THEN** the current workspace status and choose-workspace action remain available
-- **THEN** profile list management does not replace Home's quick current-workspace flow
+- **THEN** Home MAY show a bounded set of quick-open saved profiles or recent workspace shortcuts
+- **THEN** profile list management, rename, default selection, and removal remain in Settings rather than replacing Home's quick current-workspace flow
 

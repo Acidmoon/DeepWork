@@ -111,15 +111,20 @@ The renderer SHALL keep managed web and CLI conversation surfaces as the primary
 - **THEN** later captures and retrieval decisions reflect the new thread without requiring persistent control bars across the broader workbench
 
 ### Requirement: Managed-panel continuity metadata without dedicated chrome
-The workbench SHALL preserve session-linked continuity metadata for managed web and CLI panels so ordinary conversation flow can continue without adding a dedicated current-thread or current-session bar to the primary surface.
+The workbench SHALL preserve session-linked continuity and retrieval metadata for managed web and CLI panels so ordinary conversation flow can continue without adding a dedicated current-thread or current-session bar to the primary surface.
 
 #### Scenario: Preserve continuity metadata for an active managed panel
 - **WHEN** a managed web or CLI panel is active
-- **THEN** the renderer state for that panel includes session-linked continuity information such as thread identity, session scope identity, or fresh-session state
-- **THEN** the metadata is derived from indexed or session-linked state rather than requiring workspace preview reads
+- **THEN** the renderer state for that panel includes session-linked continuity information such as thread identity, session scope identity, fresh-session state, or latest retrieval outcome summary
+- **THEN** the metadata is derived from indexed, audit, or session-linked state rather than requiring workspace preview reads
+
+#### Scenario: Show compact CLI retrieval context
+- **WHEN** a managed CLI session has a latest retrieval outcome summary
+- **THEN** the terminal panel can display that summary in an existing status or inspector region
+- **THEN** the display remains subordinate to the terminal conversation and does not require opening Workspace first
 
 #### Scenario: Keep primary panel chrome focused on the conversation
-- **WHEN** continuity metadata exists for a managed panel
+- **WHEN** continuity or retrieval metadata exists for a managed panel
 - **THEN** the primary web or CLI surface does not require a persistent continuity toolbar, inspection button row, or thread-management strip
 - **THEN** deeper inspection and repair remain available through Workspace and other secondary flows
 
@@ -158,12 +163,12 @@ The workspace surface SHALL keep thread creation, activation, title editing, and
 - **THEN** the workspace surface reflects the updated thread membership in place
 
 ### Requirement: Modern minimal workbench shell
-The workbench shell SHALL present the desktop app as a modern minimal operational workspace with a compact sidebar, stable top toolbar, unframed primary canvas, and quiet status line.
+The workbench shell SHALL present the desktop app as a modern minimal operational workspace with a compact navigation-only sidebar, stable top toolbar, unframed primary canvas, and quiet status line.
 
 #### Scenario: Navigate with a compact sidebar
 - **WHEN** the renderer displays navigation sections and panel definitions
 - **THEN** the sidebar uses list-style rows with clear active, hover, open, and closed states
-- **THEN** the sidebar avoids oversized cards, decorative badges, and gradient active blocks
+- **THEN** the sidebar avoids oversized cards, decorative badges, gradient active blocks, and placeholder search or command controls that do not correspond to real navigation actions
 
 #### Scenario: Preserve a stable top toolbar
 - **WHEN** the active panel changes between Web, Terminal, Workspace, Settings, Home, or Tool surfaces
@@ -184,11 +189,12 @@ The Web and Terminal panel surfaces SHALL remain immersive primary work surfaces
 - **THEN** the terminal viewport remains the primary visual focus
 
 ### Requirement: Scannable secondary Workspace and Settings surfaces
-Workspace and Settings SHALL use scannable inspector-style layouts that support audit, debugging, repair, configuration, and workspace profile management without becoming card-heavy dashboards.
+Workspace and Settings SHALL use scannable inspector-style layouts that support audit, debugging, repair, configuration, and workspace profile management without flattening routine inspection and advanced operator controls into one visual layer.
 
 #### Scenario: Inspect workspace records with clear hierarchy
 - **WHEN** the user opens Workspace
-- **THEN** thread, scope, artifact, preview, and advanced repair regions are separated by clear headings, dividers, and list/detail hierarchy
+- **THEN** thread, scope, artifact, and preview regions appear as the primary inspection hierarchy
+- **THEN** maintenance, helper-command reference, and repair controls remain available in clearly secondary sections
 - **THEN** Workspace remains visually subordinate to Web and CLI conversation surfaces
 
 #### Scenario: Edit settings in a concise form layout
@@ -260,4 +266,86 @@ The renderer SHALL present Workspace and Logs as distinct secondary inspection s
 - **WHEN** the operator opens Logs to inspect terminal transcripts, retrieval audits, or debugging records
 - **THEN** the primary surface uses log-oriented headings and pane emphasis for source selection, record browsing, and raw preview
 - **THEN** the surface does not depend on conversation-first summary framing for routine log inspection
+
+### Requirement: Workspace maintenance inspector controls
+The Workspace surface SHALL expose maintenance tools as explicit secondary repair controls for scan, rebuild, and safe repair operations.
+
+#### Scenario: Run a maintenance scan from Workspace
+- **WHEN** the user opens the Workspace maintenance section and runs a scan
+- **THEN** the workbench displays structured findings without changing workspace files
+- **THEN** the maintenance section remains subordinate to thread, scope, artifact, and preview inspection
+
+#### Scenario: Run a safe repair from Workspace
+- **WHEN** the user explicitly applies safe repair after reviewing findings
+- **THEN** the workbench invokes the workspace maintenance repair operation
+- **THEN** the resulting report identifies repaired findings and any destructive follow-up left unresolved
+
+#### Scenario: Handle uninitialized workspace
+- **WHEN** the user opens maintenance controls before selecting a workspace root
+- **THEN** the workbench shows an explicit unavailable state
+- **THEN** no workspace directories or manifest files are created implicitly
+
+### Requirement: Logs panel inspection surface
+The Logs panel SHALL present a scannable workspace inspection surface for log-bucket artifacts instead of a placeholder-style bucket summary.
+
+#### Scenario: Inspect Logs from navigation
+- **WHEN** the user selects the Logs panel from Workspace navigation
+- **THEN** the workbench opens a Workspace-style inspector focused on `logs/`
+- **THEN** log list, filter, preview, and empty-state regions use the same compact hierarchy as the Artifacts workspace surface
+
+#### Scenario: Keep logs secondary
+- **WHEN** log records are visible in the Logs panel
+- **THEN** the panel copy and controls frame them as audit and debugging material
+- **THEN** Web and CLI panels remain the primary surfaces for continuing conversation work
+
+### Requirement: MiniMax built-in web preset availability
+The MiniMax built-in web panel SHALL be available as a live managed web panel by default while continuing to use the existing safe navigation, persistent partition, and reserved-state contracts.
+
+#### Scenario: Open MiniMax as a live built-in panel
+- **WHEN** the user selects the MiniMax built-in web panel without a persisted override disabling it
+- **THEN** the main process mounts a managed `WebContentsView` for MiniMax
+- **THEN** the panel loads the configured HTTPS home URL with a persistent partition
+- **THEN** the renderer receives normal loading, navigation, and availability state rather than a reserved placeholder snapshot
+
+#### Scenario: Disable MiniMax through configuration
+- **WHEN** the user saves a built-in MiniMax web-panel override with `enabled: false`
+- **THEN** the renderer shows MiniMax as reserved rather than live
+- **THEN** the main process does not keep a live `WebContentsView` mounted for that panel
+
+#### Scenario: Preserve browser-like navigation
+- **WHEN** the user browses from MiniMax to another safe HTTP or HTTPS URL
+- **THEN** the panel updates transient current-address state through the managed web-panel lifecycle
+- **THEN** the saved MiniMax home URL remains unchanged unless the user explicitly saves configuration
+
+### Requirement: Actionable Home onboarding surface
+The Home panel SHALL present explicit next-step actions for first-run, active-workspace, and returning-workspace states without becoming a full profile-management surface.
+
+#### Scenario: Guide a first-run user
+- **WHEN** the Home panel loads without an active workspace root
+- **THEN** it shows an explicit choose-workspace action
+- **THEN** it explains that selecting a workspace is the next step before captures and retrieval can persist data
+
+#### Scenario: Guide a returning user
+- **WHEN** the Home panel loads with an active workspace root or saved workspace profiles
+- **THEN** it shows the active workspace status and current thread summary when available
+- **THEN** it can surface a bounded set of quick-open saved workspace shortcuts for fast re-entry
+- **THEN** deeper profile administration remains outside the Home surface
+
+### Requirement: Panel management avoids native browser dialogs
+The workbench shell SHALL keep panel-management interactions inside the renderer UI so validation, cancellation, and destructive confirmation states remain testable and visually consistent.
+
+#### Scenario: Add web action opens app-managed editor
+- **WHEN** the user activates the sidebar add-web action
+- **THEN** the workbench opens an app-managed editor or modal within the renderer
+- **THEN** the flow does not call `window.prompt`
+
+#### Scenario: Delete panel action opens app-managed confirmation
+- **WHEN** the user requests deletion of a user-defined panel
+- **THEN** the workbench opens an app-managed confirmation affordance
+- **THEN** the flow does not call `window.confirm` for panel deletion
+
+#### Scenario: Panel management errors are visible in context
+- **WHEN** a custom panel management operation fails validation or persistence
+- **THEN** the error is displayed near the relevant in-app controls
+- **THEN** the user remains in the current workbench context without a native browser dialog interruption
 

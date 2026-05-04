@@ -96,15 +96,15 @@ The renderer SHALL allow users to create, configure, and reopen custom CLI panel
 - **THEN** the main process can reopen managed CLI sessions using the persisted configuration for each restored panel
 
 ### Requirement: Custom panel rename and deletion
-The renderer SHALL allow users to rename or delete user-defined web and CLI panels while synchronizing persisted settings, navigation state, and runtime managers.
+The renderer SHALL allow users to rename or delete user-defined web and CLI panels through explicit management flows that synchronize persisted settings, navigation state, and runtime managers without relying solely on transient prompt dialogs.
 
 #### Scenario: Rename or delete a custom panel
-- **WHEN** the user renames or deletes a user-defined panel from the context menu
-- **THEN** the renderer updates persisted settings
+- **WHEN** the user renames or deletes a user-defined panel from the supported management surface
+- **THEN** the renderer updates persisted settings only after the edit is explicitly committed
 - **THEN** the store and runtime managers synchronize the new title or remove the panel definition
 
 ### Requirement: Settings surface for implemented and deferred preferences
-The settings panel SHALL expose the preferences that are currently implemented, including workspace profiles and terminal behavior, and SHALL keep only still-deferred preference areas visible as placeholders rather than silently omitting them.
+The settings panel SHALL expose the preferences that are currently implemented, including workspace profiles and terminal behavior, and SHALL render deferred preference placeholders only when one or more product-defined deferred preference entries exist.
 
 #### Scenario: Edit implemented settings
 - **WHEN** the user changes language, theme, terminal prelude commands, terminal behavior settings, default thread continuation, managed CLI retrieval preference, or workspace profile settings in the settings panel
@@ -114,11 +114,16 @@ The settings panel SHALL expose the preferences that are currently implemented, 
 - **THEN** terminal panels use the updated terminal behavior settings for renderer-side interaction behavior without requiring a PTY restart
 - **THEN** workspace profile changes are reflected in the active workspace and startup-default behavior when applicable
 
-#### Scenario: View deferred preferences
-- **WHEN** the user opens the settings panel
+#### Scenario: View settings with no deferred preferences
+- **WHEN** the user opens the settings panel and no deferred preference entries are defined
 - **THEN** terminal behavior settings are presented as implemented controls rather than a future-facing placeholder
 - **THEN** workspace profiles are presented as implemented settings rather than a future-facing placeholder
-- **THEN** any remaining placeholder entries are presented as future-facing placeholders rather than active runtime configuration
+- **THEN** the settings panel does not render an empty upcoming-preferences or placeholder-only section
+
+#### Scenario: View settings with explicit deferred preferences
+- **WHEN** a future product change defines one or more deferred preference entries
+- **THEN** those entries are presented as future-facing placeholders rather than active runtime configuration
+- **THEN** implemented settings remain visually and semantically separate from deferred placeholders
 
 ### Requirement: Main-process settings boundary normalization
 The settings manager SHALL normalize persisted and IPC-provided panel settings at the main-process boundary before dependent managers or renderer state consume them.
@@ -142,3 +147,48 @@ The settings manager SHALL normalize persisted and IPC-provided panel settings a
 - **WHEN** custom web-panel settings contain valid user-defined panel definitions
 - **THEN** the settings snapshot preserves those definitions with normalized home URLs and partitions
 - **THEN** renderer navigation and main-process web panel synchronization continue to restore the panels
+
+### Requirement: MiniMax built-in web-panel defaults and overrides
+The system SHALL provide a valid default built-in web-panel configuration for MiniMax and SHALL let persisted built-in web-panel overrides customize or disable that default through the existing settings flow.
+
+#### Scenario: Load MiniMax default settings
+- **WHEN** application settings do not contain a MiniMax built-in web-panel override
+- **THEN** the resolved MiniMax panel configuration is enabled
+- **THEN** the resolved configuration includes a safe HTTPS home URL and non-empty persistent partition
+
+#### Scenario: Preserve a persisted MiniMax override
+- **WHEN** settings contain a persisted MiniMax built-in web-panel override
+- **THEN** the settings manager preserves the supported home URL, partition, and enabled fields after normalization
+- **THEN** renderer navigation and the web panel manager consume the normalized override instead of the catalog default
+
+#### Scenario: Reject unsafe MiniMax override URL
+- **WHEN** a persisted or IPC-provided MiniMax override contains a non-HTTP or non-HTTPS home URL
+- **THEN** the settings normalization flow does not expose that unsafe URL as a live panel target
+- **THEN** valid MiniMax configuration fields remain recoverable through later safe updates
+
+### Requirement: Custom panel management uses in-app explicit flows
+The renderer SHALL create, configure, rename, and delete user-defined web and CLI panels through in-app controls rather than native browser prompt or confirm dialogs.
+
+#### Scenario: Create custom web panel through in-app form
+- **WHEN** the user chooses to add a custom web panel
+- **THEN** the renderer shows an in-app form for title and HTTP or HTTPS home URL
+- **THEN** saving a valid form persists the custom web-panel definition and opens the new panel
+- **THEN** canceling the form leaves settings unchanged
+
+#### Scenario: Reject invalid custom web panel form
+- **WHEN** the user submits a custom web panel form with an empty title or unsupported URL
+- **THEN** the renderer shows an in-app validation error
+- **THEN** the settings snapshot remains unchanged
+
+#### Scenario: Create custom CLI panel through in-app flow
+- **WHEN** the user chooses to add a custom CLI panel
+- **THEN** the renderer creates the panel through an in-app flow that makes the initial configuration explicit
+- **THEN** saving persists a custom terminal-panel definition through the settings IPC path
+- **THEN** canceling leaves settings unchanged
+
+#### Scenario: Delete custom panel through in-app confirmation
+- **WHEN** the user requests deletion of a user-defined web or CLI panel
+- **THEN** the renderer shows an in-app destructive confirmation state naming the target panel
+- **THEN** confirming removes the custom panel from persisted settings and navigation state
+- **THEN** canceling keeps the panel definition and runtime state intact
+

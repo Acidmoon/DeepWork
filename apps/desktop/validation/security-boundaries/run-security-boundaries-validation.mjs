@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -147,6 +147,114 @@ function normalizeBuiltInWebPanels(value, baseConfigs) {
   }
 
   return Object.fromEntries(entries)
+}
+
+const SAFE_IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9:._-]*$/iu
+const WEB_PANEL_NAVIGATION_ACTIONS = new Set(['back', 'forward', 'reload', 'home', 'load-url'])
+
+function guardIdentifier(value) {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return trimmed && trimmed.length <= 256 && SAFE_IDENTIFIER_PATTERN.test(trimmed) ? trimmed : null
+}
+
+function guardOptionalIdentifier(value) {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  return guardIdentifier(value)
+}
+
+function guardPanelBounds(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const x = Number(value.x)
+  const y = Number(value.y)
+  const width = Number(value.width)
+  const height = Number(value.height)
+  if (![x, y, width, height].every(Number.isFinite)) {
+    return null
+  }
+
+  if (Math.abs(x) > 20_000 || Math.abs(y) > 20_000 || width < 0 || height < 0 || width > 20_000 || height > 20_000) {
+    return null
+  }
+
+  return { x, y, width, height }
+}
+
+function guardTerminalWrite(value) {
+  return typeof value === 'string' && value.length <= 1_000_000 ? value : null
+}
+
+function guardTerminalResize(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const cols = Number(value.cols)
+  const rows = Number(value.rows)
+  return Number.isInteger(cols) && Number.isInteger(rows) && cols >= 1 && rows >= 1 && cols <= 1000 && rows <= 1000
+    ? { cols, rows }
+    : null
+}
+
+function guardWebPanelNavigationAction(value) {
+  return WEB_PANEL_NAVIGATION_ACTIONS.has(value) ? value : null
+}
+
+function guardOptionalUrl(value) {
+  if (value === null || value === undefined) {
+    return undefined
+  }
+
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return trimmed && trimmed.length <= 4096 ? trimmed : null
+}
+
+function guardWebPanelConfigUpdate(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const homeUrl = guardOptionalUrl(value.homeUrl)
+  const partition = typeof value.partition === 'string' ? value.partition.trim() : null
+  return homeUrl && partition && partition.length <= 256 && typeof value.enabled === 'boolean'
+    ? { homeUrl, partition, enabled: value.enabled }
+    : null
+}
+
+function guardSettingsUpdate(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null
+}
+
+function guardSaveClipboardOptions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const origin = typeof value.origin === 'string' ? value.origin.trim() : null
+  const contextLabel = value.contextLabel === undefined ? undefined : typeof value.contextLabel === 'string' ? value.contextLabel.trim() : null
+  const threadId = value.threadId === undefined ? undefined : guardOptionalIdentifier(value.threadId)
+  if (!origin || origin.length > 256 || (value.contextLabel !== undefined && !contextLabel) || (value.threadId !== undefined && !threadId)) {
+    return null
+  }
+
+  return {
+    origin,
+    ...(contextLabel ? { contextLabel } : {}),
+    ...(threadId ? { threadId } : {})
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -480,6 +588,82 @@ assert('Unsafe maintenance path is never resolved for file access',
   resolveWorkspaceRelativePath(maintenanceRoot, '../outside/unsafe.txt') === null)
 
 rmSync(maintenanceRoot, { recursive: true, force: true })
+
+// ---------------------------------------------------------------------------
+// 4.5 IPC and Preload Boundary Guards
+// ---------------------------------------------------------------------------
+
+section('4.5 IPC and Preload Boundary Guards')
+
+assert('Valid panel identifier passes IPC guard',
+  guardIdentifier('custom-web-abc_123') === 'custom-web-abc_123')
+assert('Non-string panel identifier is rejected',
+  guardIdentifier(123) === null)
+assert('Path-like panel identifier is rejected',
+  guardIdentifier('../custom-web') === null)
+assert('Oversized panel identifier is rejected',
+  guardIdentifier('a'.repeat(300)) === null)
+
+assert('Valid panel bounds pass IPC guard',
+  JSON.stringify(guardPanelBounds({ x: 1, y: 2, width: 300, height: 200 })) === JSON.stringify({ x: 1, y: 2, width: 300, height: 200 }))
+assert('Negative panel width is rejected',
+  guardPanelBounds({ x: 0, y: 0, width: -1, height: 200 }) === null)
+assert('Non-finite panel coordinate is rejected',
+  guardPanelBounds({ x: Number.NaN, y: 0, width: 1, height: 1 }) === null)
+
+assert('Valid web navigation action passes IPC guard',
+  guardWebPanelNavigationAction('load-url') === 'load-url')
+assert('Unknown web navigation action is rejected',
+  guardWebPanelNavigationAction('open-devtools') === null)
+assert('Optional URL rejects non-string values',
+  guardOptionalUrl({ url: 'https://example.com' }) === null)
+
+assert('Valid web panel config update passes IPC guard',
+  guardWebPanelConfigUpdate({ homeUrl: 'https://example.com', partition: 'persist:test', enabled: true })?.enabled === true)
+assert('Malformed web panel config update is rejected',
+  guardWebPanelConfigUpdate({ homeUrl: 123, partition: 'persist:test', enabled: true }) === null)
+
+assert('Valid terminal write passes IPC guard',
+  guardTerminalWrite('hello') === 'hello')
+assert('Non-string terminal write is rejected',
+  guardTerminalWrite(Buffer.from('hello')) === null)
+assert('Oversized terminal write is rejected',
+  guardTerminalWrite('x'.repeat(1_000_001)) === null)
+
+assert('Valid terminal resize passes IPC guard',
+  JSON.stringify(guardTerminalResize({ cols: 120, rows: 32 })) === JSON.stringify({ cols: 120, rows: 32 }))
+assert('Zero terminal resize dimension is rejected',
+  guardTerminalResize({ cols: 0, rows: 32 }) === null)
+assert('Huge terminal resize dimension is rejected',
+  guardTerminalResize({ cols: 120, rows: 5000 }) === null)
+
+assert('Settings update accepts plain records for downstream normalization',
+  guardSettingsUpdate({ terminalBehavior: { scrollbackLines: '500' } }) !== null)
+assert('Settings update rejects arrays',
+  guardSettingsUpdate([]) === null)
+
+assert('Valid clipboard save options pass IPC guard',
+  guardSaveClipboardOptions({ origin: 'manual', contextLabel: 'Note', threadId: 'thread-1' })?.threadId === 'thread-1')
+assert('Clipboard save rejects missing origin',
+  guardSaveClipboardOptions({ contextLabel: 'Note' }) === null)
+assert('Clipboard save rejects malformed thread id',
+  guardSaveClipboardOptions({ origin: 'manual', threadId: '../thread' }) === null)
+
+const mainSource = readFileSync(join(process.cwd(), 'src', 'main', 'index.ts'), 'utf8')
+const preloadSource = readFileSync(join(process.cwd(), 'src', 'preload', 'index.ts'), 'utf8')
+
+assert('Main window keeps contextIsolation enabled',
+  mainSource.includes('contextIsolation: true'))
+assert('Main window keeps nodeIntegration disabled',
+  mainSource.includes('nodeIntegration: false'))
+assert('Main window preload sandbox is enabled',
+  mainSource.includes('sandbox: true'))
+assert('Main window denies secondary window creation',
+  mainSource.includes("setWindowOpenHandler(() => ({ action: 'deny' }))"))
+assert('Preload exposes purpose-specific workbench shell',
+  preloadSource.includes("contextBridge.exposeInMainWorld('workbenchShell'"))
+assert('Preload source does not expose raw ipcRenderer object',
+  !/ipcRenderer\s*:/u.test(preloadSource) && !/return\s+ipcRenderer\b/u.test(preloadSource))
 
 console.log(`\n========================================`)
 console.log(`Passed: ${passed}`)

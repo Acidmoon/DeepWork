@@ -75,7 +75,7 @@ function buildBootstrapScript() {
     const disabledError = 'Disabled until enabled'
     const builtInIds = new Set(['deepseek-web', 'minimax-web'])
     const webListeners = new Set()
-    const promptQueue = []
+    const terminalListeners = new Set()
     let settings = {
       language: 'en-US',
       theme: 'light',
@@ -156,18 +156,7 @@ function buildBootstrapScript() {
     syncCustomSnapshots()
 
     window.__customWebValidation = {
-      enqueuePrompts: (...responses) => {
-        promptQueue.push(...responses)
-      },
       getState: () => clone({ settings, snapshots })
-    }
-
-    window.prompt = (_message, defaultValue = '') => {
-      if (promptQueue.length > 0) {
-        return promptQueue.shift()
-      }
-
-      return defaultValue
     }
 
     window.workbenchShell = {
@@ -253,20 +242,90 @@ function buildBootstrapScript() {
         }
       },
       terminals: {
-        attach: async () => null,
-        getState: async () => ({ isRunning: false, status: 'idle' }),
-        start: async () => ({ isRunning: true, status: 'running' }),
+        attach: async panelId => ({
+          snapshot: {
+            panelId,
+            title: settings.customTerminalPanels.find(panel => panel.id === panelId)?.title ?? 'Custom CLI',
+            shell: settings.customTerminalPanels.find(panel => panel.id === panelId)?.shell ?? 'powershell.exe',
+            shellArgs: settings.customTerminalPanels.find(panel => panel.id === panelId)?.shellArgs ?? [],
+            cwd: settings.customTerminalPanels.find(panel => panel.id === panelId)?.cwd ?? '',
+            startupCommand: settings.customTerminalPanels.find(panel => panel.id === panelId)?.startupCommand ?? '',
+            status: 'idle',
+            hasSession: false,
+            isRunning: false,
+            launchCount: 0,
+            pid: null,
+            cols: 120,
+            rows: 32,
+            bufferSize: 0,
+            logPath: '',
+            lastExitCode: null,
+            lastExitSignal: null,
+            lastError: null,
+            contextLabel: null,
+            sessionScopeId: null,
+            threadId: null,
+            threadTitle: null,
+            continuitySummary: null,
+            retrievalSummary: null
+          },
+          buffer: ''
+        }),
+        getState: async panelId => ({
+          panelId,
+          isRunning: false,
+          status: 'idle'
+        }),
+        start: async panelId => ({
+          panelId,
+          title: settings.customTerminalPanels.find(panel => panel.id === panelId)?.title ?? 'Custom CLI',
+          shell: settings.customTerminalPanels.find(panel => panel.id === panelId)?.shell ?? 'powershell.exe',
+          shellArgs: settings.customTerminalPanels.find(panel => panel.id === panelId)?.shellArgs ?? [],
+          cwd: settings.customTerminalPanels.find(panel => panel.id === panelId)?.cwd ?? '',
+          startupCommand: settings.customTerminalPanels.find(panel => panel.id === panelId)?.startupCommand ?? '',
+          status: 'running',
+          hasSession: true,
+          isRunning: true,
+          launchCount: 1,
+          pid: 1234,
+          cols: 120,
+          rows: 32,
+          bufferSize: 0,
+          logPath: '',
+          lastExitCode: null,
+          lastExitSignal: null,
+          lastError: null,
+          contextLabel: null,
+          sessionScopeId: null,
+          threadId: null,
+          threadTitle: null,
+          continuitySummary: null,
+          retrievalSummary: null
+        }),
         restart: async () => null,
         write: async () => null,
         resize: async () => null,
         clear: async () => null,
         onOutput() { return () => {} },
-        onStateChanged() { return () => {} }
+        onStateChanged(listener) {
+          terminalListeners.add(listener)
+          return () => {
+            terminalListeners.delete(listener)
+          }
+        }
       },
       workspace: {
         getState: async () => null,
         readArtifact: async () => null,
         deleteScope: async () => null,
+        createThread: async () => null,
+        selectThread: async () => null,
+        renameThread: async () => null,
+        reassignScopeThread: async () => null,
+        resync: async () => null,
+        maintenanceScan: async () => null,
+        maintenanceRebuild: async () => null,
+        maintenanceRepair: async () => null,
         chooseRoot: async () => null,
         openProfile: async () => ({ settings: clone(settings), workspace: null, error: 'Workspace profile is unavailable.' }),
         saveClipboard: async () => null,

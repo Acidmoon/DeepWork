@@ -59,10 +59,20 @@ async page => {
     throw new Error(`MiniMax re-enable did not restore managed lifecycle from saved home: ${JSON.stringify({ reenabledMinimax, reenabledMinimaxOverride })}`)
   }
 
-  await page.evaluate(() => {
-    window.__customWebValidation.enqueuePrompts('javascript:alert(1)', 'https://news.ycombinator.com/')
-  })
   await page.getByRole('button', { name: /Add Web/ }).click()
+  await page.waitForTimeout(200)
+  const webCreateDialog = page.locator('.app-modal__dialog')
+  await webCreateDialog.getByLabel('Home URL').fill('javascript:alert(1)')
+  await webCreateDialog.getByRole('button', { name: 'Save' }).click()
+  await page.waitForTimeout(200)
+  const invalidCreateState = await page.evaluate(() => window.__customWebValidation.getState())
+  const invalidCreateErrorVisible = await page.getByText('Only HTTP and HTTPS URLs are supported.').count()
+  if (invalidCreateState.settings.customWebPanels.length !== 0 || invalidCreateErrorVisible < 1) {
+    throw new Error(`Invalid custom web creation did not stay in-app without persisting settings: ${JSON.stringify({ invalidCreateState, invalidCreateErrorVisible })}`)
+  }
+  await webCreateDialog.getByLabel('Home URL').fill('https://news.ycombinator.com/')
+  await page.waitForTimeout(400)
+  await webCreateDialog.getByRole('button', { name: 'Save' }).click()
   await page.waitForTimeout(400)
 
   const initialState = await page.evaluate(() => window.__customWebValidation.getState())
@@ -157,14 +167,70 @@ async page => {
     throw new Error(`Rename did not propagate through navigation and settings: visible=${renamedVisible}, state=${JSON.stringify(renamedPanel)}`)
   }
 
-  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Delete' }).click()
+  await page.waitForTimeout(200)
+
+  const cancelDeleteVisible = await page.getByRole('button', { name: 'Cancel' }).count()
+  if (cancelDeleteVisible < 1) {
+    throw new Error('Custom web delete did not show an in-app cancellation affordance.')
+  }
+
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.waitForTimeout(200)
+
+  const cancelDeleteState = await page.evaluate(() => window.__customWebValidation.getState())
+  if (cancelDeleteState.settings.customWebPanels.length !== 1) {
+    throw new Error(`Canceling custom web deletion unexpectedly changed settings: ${JSON.stringify(cancelDeleteState.settings.customWebPanels)}`)
+  }
+
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page.waitForTimeout(200)
+  await page.getByRole('button', { name: 'Confirm Delete' }).click()
   await page.waitForTimeout(400)
 
   const deletedCount = await page.getByRole('button', { name: 'Docs Portal' }).count()
   const finalState = await page.evaluate(() => window.__customWebValidation.getState())
   if (deletedCount !== 0 || finalState.settings.customWebPanels.length !== 0) {
     throw new Error(`Delete did not remove the custom panel cleanly: visible=${deletedCount}, state=${JSON.stringify(finalState.settings.customWebPanels)}`)
+  }
+
+  await page.getByRole('button', { name: /Add CLI/ }).click()
+  await page.waitForTimeout(200)
+  const cliCreateDialog = page.locator('.app-modal__dialog')
+  await cliCreateDialog.getByLabel('Panel Name').fill('Local Shell')
+  await cliCreateDialog.getByLabel('Shell').fill('powershell.exe')
+  await cliCreateDialog.getByLabel('Shell Arguments').fill('-NoLogo\\n-ExecutionPolicy\\nBypass')
+  await cliCreateDialog.getByRole('button', { name: 'Save' }).click()
+  await page.waitForTimeout(500)
+
+  const cliState = await page.evaluate(() => window.__customWebValidation.getState())
+  const customCliPanel = cliState.settings.customTerminalPanels[0]
+  const customCliVisible = await page.getByRole('button', { name: 'Local Shell' }).count()
+  if (!customCliPanel || customCliPanel.title !== 'Local Shell' || customCliPanel.shell !== 'powershell.exe' || customCliVisible !== 1) {
+    throw new Error(`Custom CLI panel was not created through the in-app flow: ${JSON.stringify({ customCliPanel, customCliVisible })}`)
+  }
+
+  await page.getByRole('button', { name: 'Show Details' }).click()
+  await page.waitForTimeout(200)
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page.waitForTimeout(200)
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.waitForTimeout(200)
+
+  const cliCancelDeleteState = await page.evaluate(() => window.__customWebValidation.getState())
+  if (cliCancelDeleteState.settings.customTerminalPanels.length !== 1) {
+    throw new Error(`Canceling custom CLI deletion unexpectedly changed settings: ${JSON.stringify(cliCancelDeleteState.settings.customTerminalPanels)}`)
+  }
+
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page.waitForTimeout(200)
+  await page.getByRole('button', { name: 'Confirm Delete' }).click()
+  await page.waitForTimeout(400)
+
+  const cliDeletedState = await page.evaluate(() => window.__customWebValidation.getState())
+  const cliDeletedVisible = await page.getByRole('button', { name: 'Local Shell' }).count()
+  if (cliDeletedVisible !== 0 || cliDeletedState.settings.customTerminalPanels.length !== 0) {
+    throw new Error(`Custom CLI delete did not remove the panel cleanly: ${JSON.stringify({ cliDeletedVisible, cliDeletedState })}`)
   }
 
   await page.screenshot({ path: screenshotPath, fullPage: true })
@@ -176,7 +242,8 @@ async page => {
       savedPartition: savedPanel.partition,
       renamedTitle: renamedPanel.title,
       deletedCount,
-      finalCustomWebPanels: finalState.settings.customWebPanels.length
+      finalCustomWebPanels: finalState.settings.customWebPanels.length,
+      finalCustomTerminalPanels: cliDeletedState.settings.customTerminalPanels.length
     })
   )
 }

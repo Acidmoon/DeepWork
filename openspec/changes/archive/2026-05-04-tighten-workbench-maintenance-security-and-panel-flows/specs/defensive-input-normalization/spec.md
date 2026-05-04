@@ -1,22 +1,4 @@
-# defensive-input-normalization Specification
-
-## Purpose
-Define defensive normalization behavior for externally persisted or IPC-provided input fields so unexpected value shapes do not crash desktop configuration flows.
-## Requirements
-### Requirement: Partition field handles non-string values safely
-The `normalizeManagedWebPanelConfig` function SHALL coerce `partition` to a string safely so that `null`, `undefined`, or other non-string values do not cause a runtime TypeError. When the coerced value is empty, the function SHALL fall back to `persist:${config.id}`.
-
-#### Scenario: Null partition falls back to default
-- **WHEN** `config.partition` is `null`
-- **THEN** the normalized config uses `persist:${config.id}` as the partition value
-
-#### Scenario: Undefined partition falls back to default
-- **WHEN** `config.partition` is `undefined`
-- **THEN** the normalized config uses `persist:${config.id}` as the partition value
-
-#### Scenario: Valid string partition is preserved
-- **WHEN** `config.partition` is a non-empty string like `"persist:custom"`
-- **THEN** the normalized config retains `"persist:custom"` as the partition value
+## ADDED Requirements
 
 ### Requirement: IPC payloads are validated before privileged desktop operations
 The main process SHALL validate renderer-originated IPC payload shapes before invoking manager operations that can mutate settings, workspace files, terminal sessions, web-panel navigation, or clipboard-backed artifacts.
@@ -66,4 +48,3 @@ The desktop app SHALL either run the main-window preload bridge with Electron sa
 - **WHEN** a required preload or runtime dependency cannot operate with `sandbox: true`
 - **THEN** the code or validation documentation records the specific blocker
 - **THEN** security-boundary validation continues to verify `contextIsolation`, disabled node integration, denied secondary windows, and bounded preload capabilities
-

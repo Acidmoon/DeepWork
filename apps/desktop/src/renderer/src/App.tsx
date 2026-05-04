@@ -30,6 +30,36 @@ import type { AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
 import { asTerminalViewState, asWebViewState, asWorkspaceViewState, useWorkbenchStore } from './store'
 import { getWebPanelUrlValidationMessage, validateWebPanelUrl } from './web-panel-url'
 
+type CustomPanelEditorState =
+  | {
+      kind: 'web'
+      sectionId: string
+      sectionTitle: string
+      title: string
+      homeUrl: string
+      error: string | null
+      saving: boolean
+    }
+  | {
+      kind: 'cli'
+      sectionId: string
+      sectionTitle: string
+      title: string
+      shell: string
+      shellArgsText: string
+      cwd: string
+      startupCommand: string
+      error: string | null
+      saving: boolean
+    }
+
+function parseEditorLines(value: string): string[] {
+  return value
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+}
+
 function App(): JSX.Element {
   const sections = useWorkbenchStore((state) => state.sections)
   const panels = useWorkbenchStore((state) => state.panels)
@@ -100,6 +130,7 @@ function App(): JSX.Element {
   const ui = getUiText(locale)
   const primarySections = sections.filter((section) => section.id !== 'system')
   const footerSections = sections.filter((section) => section.id === 'system')
+  const [customPanelEditor, setCustomPanelEditor] = useState<CustomPanelEditorState | null>(null)
 
   const handleWorkspaceResync = async (): Promise<void> => {
     const snapshot = await window.workbenchShell.workspace.resync()
@@ -115,32 +146,16 @@ function App(): JSX.Element {
     }
 
     const count = settings.customWebPanels.filter((panel) => panel.sectionId === sectionId).length + 1
-    const id = `custom-web-${Date.now().toString(36)}`
     const section = localizeSection(sections.find((item) => item.id === sectionId) ?? sections[0], locale)
-    const homeUrl = promptForCustomWebHomeUrl(locale)
-    if (!homeUrl) {
-      return
-    }
-    const titleFromUrl = deriveCustomWebTitle(homeUrl)
-    const title = titleFromUrl || (locale === 'zh-CN' ? `${section.title}${ui.customWebTitle}${count}` : `${section.title} ${ui.customWebTitle} ${count}`)
-
-    const snapshot = await persistSettingsUpdate(settings, {
-      customWebPanels: [
-        ...settings.customWebPanels,
-        {
-          id,
-          title,
-          sectionId,
-          homeUrl,
-          partition: `persist:${id}`,
-          enabled: true
-        }
-      ]
+    setCustomPanelEditor({
+      kind: 'web',
+      sectionId,
+      sectionTitle: section.title,
+      title: locale === 'zh-CN' ? `${section.title}${ui.customWebTitle}${count}` : `${section.title} ${ui.customWebTitle} ${count}`,
+      homeUrl: 'https://example.com/',
+      error: null,
+      saving: false
     })
-
-    if (snapshot) {
-      startTransition(() => openPanel(id))
-    }
   }
 
   const handleAddCustomCli = async (sectionId: string): Promise<void> => {
@@ -150,27 +165,123 @@ function App(): JSX.Element {
     }
 
     const count = settings.customTerminalPanels.filter((panel) => panel.sectionId === sectionId).length + 1
-    const id = `custom-cli-${Date.now().toString(36)}`
     const section = localizeSection(sections.find((item) => item.id === sectionId) ?? sections[0], locale)
-    const title = locale === 'zh-CN' ? `${section.title}${ui.customCliTitle}${count}` : `${section.title} ${ui.customCliTitle} ${count}`
+    setCustomPanelEditor({
+      kind: 'cli',
+      sectionId,
+      sectionTitle: section.title,
+      title: locale === 'zh-CN' ? `${section.title}${ui.customCliTitle}${count}` : `${section.title} ${ui.customCliTitle} ${count}`,
+      shell: 'powershell.exe',
+      shellArgsText: '-NoLogo\n-ExecutionPolicy\nBypass',
+      cwd: '',
+      startupCommand: '',
+      error: null,
+      saving: false
+    })
+  }
 
+  const persistCustomPanelEditor = async (): Promise<void> => {
+    if (!customPanelEditor || customPanelEditor.saving) {
+      return
+    }
+
+    const settings = await window.workbenchShell.settings.getState()
+    if (!settings) {
+      return
+    }
+
+    const title = customPanelEditor.title.trim()
+    if (!title) {
+      setCustomPanelEditor({
+        ...customPanelEditor,
+        error: ui.workspaceProfileNeedsName
+      })
+      return
+    }
+
+    setCustomPanelEditor({
+      ...customPanelEditor,
+      saving: true,
+      error: null
+    })
+
+    if (customPanelEditor.kind === 'web') {
+      const homeUrlResult = validateWebPanelUrl(customPanelEditor.homeUrl)
+      if (!homeUrlResult.ok || !homeUrlResult.url) {
+        setCustomPanelEditor({
+          ...customPanelEditor,
+          saving: false,
+          error: getWebPanelUrlValidationMessage(homeUrlResult.error, locale)
+        })
+        return
+      }
+
+      const id = `custom-web-${Date.now().toString(36)}`
+      const snapshot = await persistSettingsUpdate(settings, {
+        customWebPanels: [
+          ...settings.customWebPanels,
+          {
+            id,
+            title,
+            sectionId: customPanelEditor.sectionId,
+            homeUrl: homeUrlResult.url,
+            partition: `persist:${id}`,
+            enabled: true
+          }
+        ]
+      })
+
+      if (snapshot) {
+        setCustomPanelEditor(null)
+        startTransition(() => openPanel(id))
+        return
+      }
+
+      setCustomPanelEditor({
+        ...customPanelEditor,
+        saving: false,
+        error: ui.error
+      })
+      return
+    }
+
+    const shell = customPanelEditor.shell.trim()
+    if (!shell) {
+      setCustomPanelEditor({
+        ...customPanelEditor,
+        saving: false,
+        error: ui.shell
+      })
+      return
+    }
+
+    const id = `custom-cli-${Date.now().toString(36)}`
     const snapshot = await persistSettingsUpdate(settings, {
       customTerminalPanels: [
         ...settings.customTerminalPanels,
         {
           id,
           title,
-          sectionId,
-          shell: 'powershell.exe',
-          shellArgs: ['-NoLogo', '-ExecutionPolicy', 'Bypass'],
-          startupCommand: ''
+          sectionId: customPanelEditor.sectionId,
+          shell,
+          shellArgs: parseEditorLines(customPanelEditor.shellArgsText),
+          ...(customPanelEditor.cwd.trim() ? { cwd: customPanelEditor.cwd.trim() } : {}),
+          startupCommand: customPanelEditor.startupCommand.trim()
         }
       ]
     })
 
     if (snapshot) {
+      setCustomPanelEditor(null)
       startTransition(() => openPanel(id))
+      return
     }
+
+    setCustomPanelEditor({
+      ...customPanelEditor,
+      saving: false,
+      error: ui.error
+    })
   }
 
   async function persistSettingsUpdate(
@@ -328,17 +439,124 @@ function App(): JSX.Element {
           </div>
         </footer>
       </main>
+      {customPanelEditor ? (
+        <div className="app-modal" role="presentation">
+          <form
+            className="app-modal__dialog"
+            aria-label={customPanelEditor.kind === 'web' ? ui.addWeb : ui.addCli}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void persistCustomPanelEditor()
+            }}
+          >
+            <div className="app-modal__header">
+              <span className="eyebrow">{customPanelEditor.sectionTitle}</span>
+              <h2>{customPanelEditor.kind === 'web' ? ui.addWeb : ui.addCli}</h2>
+            </div>
+
+            <label className="field field--wide">
+              <span>{ui.panelName}</span>
+              <input
+                value={customPanelEditor.title}
+                onChange={(event) =>
+                  setCustomPanelEditor({
+                    ...customPanelEditor,
+                    title: event.target.value,
+                    error: null
+                  })
+                }
+              />
+            </label>
+
+            {customPanelEditor.kind === 'web' ? (
+              <label className="field field--wide">
+                <span>{ui.homeUrl}</span>
+                <input
+                  value={customPanelEditor.homeUrl}
+                  onChange={(event) =>
+                    setCustomPanelEditor({
+                      ...customPanelEditor,
+                      homeUrl: event.target.value,
+                      error: null
+                    })
+                  }
+                />
+              </label>
+            ) : (
+              <>
+                <label className="field field--wide">
+                  <span>{ui.shell}</span>
+                  <input
+                    value={customPanelEditor.shell}
+                    onChange={(event) =>
+                      setCustomPanelEditor({
+                        ...customPanelEditor,
+                        shell: event.target.value,
+                        error: null
+                      })
+                    }
+                  />
+                </label>
+                <label className="field field--wide">
+                  <span>{ui.shellArguments}</span>
+                  <textarea
+                    rows={4}
+                    value={customPanelEditor.shellArgsText}
+                    placeholder={ui.shellArgumentsPlaceholder}
+                    onChange={(event) =>
+                      setCustomPanelEditor({
+                        ...customPanelEditor,
+                        shellArgsText: event.target.value,
+                        error: null
+                      })
+                    }
+                  />
+                </label>
+                <label className="field field--wide">
+                  <span>{ui.workingDirectory}</span>
+                  <input
+                    value={customPanelEditor.cwd}
+                    onChange={(event) =>
+                      setCustomPanelEditor({
+                        ...customPanelEditor,
+                        cwd: event.target.value,
+                        error: null
+                      })
+                    }
+                  />
+                </label>
+                <label className="field field--wide">
+                  <span>{ui.startupCommand}</span>
+                  <textarea
+                    rows={3}
+                    value={customPanelEditor.startupCommand}
+                    onChange={(event) =>
+                      setCustomPanelEditor({
+                        ...customPanelEditor,
+                        startupCommand: event.target.value,
+                        error: null
+                      })
+                    }
+                  />
+                </label>
+              </>
+            )}
+
+            {customPanelEditor.error ? <p className="app-modal__error">{customPanelEditor.error}</p> : null}
+
+            <div className="action-row action-row--end">
+              <button type="button" className="action-button action-button--ghost" onClick={() => setCustomPanelEditor(null)}>
+                {ui.cancel}
+              </button>
+              <button type="submit" className="action-button" disabled={customPanelEditor.saving}>
+                {ui.save}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   )
-}
-
-function deriveCustomWebTitle(url: string): string {
-  try {
-    const parsed = new URL(url)
-    return parsed.hostname.replace(/^www\./i, '')
-  } catch {
-    return ''
-  }
 }
 
 interface SidebarSectionProps {
@@ -732,23 +950,3 @@ function getPanelIcon(kind: ManagedPanel['definition']['kind']): LucideIcon {
   }
 }
 
-function promptForCustomWebHomeUrl(locale: ReturnType<typeof resolveLocale>, initialValue = 'https://example.com/'): string | null {
-  const ui = getUiText(locale)
-  let promptLabel: string = ui.customWebUrlPrompt
-  let nextValue: string = initialValue
-
-  while (true) {
-    const requestedUrl = window.prompt(promptLabel, nextValue)
-    if (requestedUrl === null) {
-      return null
-    }
-
-    const result = validateWebPanelUrl(requestedUrl)
-    if (result.ok && result.url) {
-      return result.url
-    }
-
-    promptLabel = `${ui.customWebUrlPrompt}\n\n${getWebPanelUrlValidationMessage(result.error, locale)}`
-    nextValue = requestedUrl.trim() || initialValue
-  }
-}

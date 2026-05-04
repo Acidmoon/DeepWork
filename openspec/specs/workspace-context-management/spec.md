@@ -97,7 +97,7 @@ The workspace panel SHALL allow users to inspect saved sessions and artifacts th
 - **THEN** result counts and empty states reflect the combined filter state
 
 ### Requirement: Workspace inspection remains secondary
-The workspace panel SHALL present artifact, scope, and thread browsing as optional inspection and debugging surfaces instead of making workspace navigation a required step for routine continuation in web or CLI conversations.
+The workspace panel SHALL present artifact, scope, and thread browsing as an optional secondary inspection and debugging surface with routine inspection content prioritized above advanced maintenance or repair workflows.
 
 #### Scenario: Continue work without opening Workspace
 - **WHEN** a managed web or CLI surface already carries enough thread or scope context for the current task
@@ -113,6 +113,11 @@ The workspace panel SHALL present artifact, scope, and thread browsing as option
 - **WHEN** the operator selects artifacts or sessions in the workspace panel
 - **THEN** the panel treats those selections as local inspection state only
 - **THEN** the panel does not expose prompt-draft generation or send-to-CLI actions as part of the browsing flow
+
+#### Scenario: Keep maintenance and repair visually secondary
+- **WHEN** the user opens the workspace panel for ordinary inspection
+- **THEN** artifact, scope, thread, and preview browsing appear before low-frequency maintenance or repair controls
+- **THEN** maintenance scans, rebuilds, safe repair, and scope-reassignment tooling remain available as clearly secondary operator workflows
 
 ### Requirement: On-demand artifact preview
 The workspace panel SHALL let users preview a selected artifact by loading its content on demand through the existing artifact read operation when secondary inspection is intentionally requested.
@@ -284,4 +289,63 @@ The workspace inspection model SHALL expose the active filter state clearly and 
 - **WHEN** the active inspection mode is log browsing
 - **THEN** the panel emphasizes log source selection, log record rows, and raw preview content
 - **THEN** operators do not need to interpret conversation-oriented labels to inspect runtime records
+
+### Requirement: Workspace maintenance operations
+The workspace manager SHALL provide explicit maintenance operations that scan workspace health, rebuild derived indexes, and apply safe non-destructive repairs without requiring manual JSON edits.
+
+#### Scenario: Scan workspace health
+- **WHEN** the user or helper command runs a workspace maintenance scan
+- **THEN** the workspace manager reports structured findings for missing artifact files, orphaned manifest records, stale derived indexes, duplicate IDs, unsafe paths, and uninitialized workspace state
+- **THEN** the scan does not modify workspace files
+
+#### Scenario: Rebuild derived indexes
+- **WHEN** the user or helper command runs a derived-index rebuild
+- **THEN** the workspace manager rebuilds context indexes, origin manifests, thread indexes, and per-thread manifests from current safe artifact metadata
+- **THEN** raw artifact files are not rewritten as part of the rebuild
+
+#### Scenario: Apply safe repair
+- **WHEN** the user explicitly applies safe maintenance repair
+- **THEN** the workspace manager corrects derived manifest or index inconsistencies that can be repaired without deleting raw artifact files
+- **THEN** any finding that would require destructive deletion remains reported for explicit follow-up instead of being performed automatically
+
+#### Scenario: Respect workspace path confinement
+- **WHEN** maintenance operations encounter artifact records with paths outside the active workspace root
+- **THEN** they report the unsafe records and exclude outside paths from reads, writes, and deletion attempts
+- **THEN** valid in-workspace records remain eligible for scan, rebuild, and safe repair
+
+### Requirement: Workspace maintenance helper support
+The managed workspace helper surface SHALL expose structured maintenance diagnostics for explicit inspection and debugging.
+
+#### Scenario: Run maintenance scan from helper command
+- **WHEN** a workspace-aware CLI session invokes the maintenance scan helper
+- **THEN** the helper returns structured diagnostics derived from workspace-managed indexes
+- **THEN** it does not recursively read raw artifact content from unrelated scopes
+
+#### Scenario: Run rebuild from helper command
+- **WHEN** a developer invokes the maintenance rebuild helper
+- **THEN** the helper executes the same bounded derived-index rebuild operation as the desktop Workspace surface
+- **THEN** the result identifies which derived files were rewritten or left unchanged
+
+### Requirement: Log-bucket workspace inspection
+The workspace panel SHALL expose artifacts stored under the `logs/` bucket through the same secondary inspection, search, and preview model used for other workspace-managed artifacts.
+
+#### Scenario: Open log-bucket inspection
+- **WHEN** the user opens the Logs workspace surface
+- **THEN** the artifact list is filtered to log-bucket records by default
+- **THEN** each listed log record exposes indexed metadata such as origin, context label, thread identity, summary, type, and latest update time
+
+#### Scenario: Search within logs
+- **WHEN** the user enters a query while inspecting Logs
+- **THEN** the renderer filters log results using indexed metadata without recursively reading raw log files
+- **THEN** active origin and thread filters continue to compose with the log-bucket constraint
+
+#### Scenario: Preview a log artifact
+- **WHEN** the user selects a text-compatible terminal transcript or retrieval-audit log artifact
+- **THEN** the renderer loads that artifact through the workspace read-artifact operation
+- **THEN** the preview surface displays the returned content together with the artifact metadata
+
+#### Scenario: Avoid turning logs into CLI handoff
+- **WHEN** the user selects one or more log records
+- **THEN** the Logs surface treats selection as local inspection state
+- **THEN** it does not expose prompt-draft generation or send-to-CLI actions as part of log browsing
 

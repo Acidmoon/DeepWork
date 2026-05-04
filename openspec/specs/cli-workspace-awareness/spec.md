@@ -2,7 +2,6 @@
 
 ## Purpose
 Define how managed CLI sessions stay workspace-aware by default, infer prior context from ordinary natural-language requests, accept lightweight explicit hints when needed, and retrieve only the bounded scope that matches the user's intent.
-
 ## Requirements
 ### Requirement: Natural-language-triggered workspace retrieval
 Managed CLI sessions SHALL treat ordinary natural-language user requests as the trigger for deciding whether prior workspace context is needed.
@@ -122,3 +121,27 @@ Managed CLI retrieval audit records SHALL use a consistent summary and metadata 
 - **WHEN** a managed CLI lookup ends with no selection or is superseded by a later lookup
 - **THEN** the saved audit artifact uses the same normalized outcome and identity fields as successful lookups
 - **THEN** thread-aware inspection can distinguish the outcome without special-case parsing logic
+
+### Requirement: Inline retrieval outcome summaries
+Managed CLI sessions SHALL expose a concise latest retrieval outcome summary that can be rendered by the terminal panel without reading raw artifact content or parsing terminal transcript text.
+
+#### Scenario: Summarize selected-scope retrieval
+- **WHEN** a managed CLI lookup resolves with a selected scope
+- **THEN** the session state exposes the original query, retrieval mode, selected scope identity, and candidate count as summary metadata
+- **THEN** the summary references the persisted retrieval audit evidence without embedding unrelated raw artifact content
+
+#### Scenario: Summarize global fallback retrieval
+- **WHEN** a thread-first lookup falls back to global workspace ranking
+- **THEN** the summary preserves that fallback path together with the selected or no-match outcome
+- **THEN** later renderer inspection can distinguish fallback from thread-local retrieval
+
+#### Scenario: Summarize no-match retrieval
+- **WHEN** a managed CLI lookup resolves without selecting a scope
+- **THEN** the summary exposes the no-match outcome and machine-readable reason
+- **THEN** the terminal panel can explain that no prior context was attached for that lookup
+
+#### Scenario: Avoid raw content injection
+- **WHEN** a retrieval summary is projected into terminal panel state
+- **THEN** it includes only bounded metadata from the retrieval outcome
+- **THEN** it does not include raw artifact bodies from selected or unselected scopes
+

@@ -137,6 +137,7 @@ export function TerminalPanel({
   const inspectorLabel = `${panel.definition.title} ${ui.showDetails}`
   const isCustomPanel = panel.definition.userDefined === true
   const [customPanelTitle, setCustomPanelTitle] = useState(panel.definition.title)
+  const [deleteArmed, setDeleteArmed] = useState(false)
   const normalizedDraftShell = state.draftShell.trim()
   const normalizedDraftShellArgs = parseShellArgs(state.draftShellArgsText)
   const normalizedDraftCwd = state.draftCwd.trim()
@@ -161,6 +162,7 @@ export function TerminalPanel({
 
   useEffect(() => {
     setCustomPanelTitle(panel.definition.title)
+    setDeleteArmed(false)
   }, [panel.definition.id, panel.definition.title])
 
   useEffect(() => {
@@ -265,7 +267,7 @@ export function TerminalPanel({
   }
 
   const removeCustomPanel = async (): Promise<void> => {
-    if (!isCustomPanel || !window.confirm(ui.confirmDelete)) {
+    if (!isCustomPanel) {
       return
     }
 
@@ -690,9 +692,21 @@ export function TerminalPanel({
                 {state.pendingRestart ? ui.restartToApply : state.isRunning || state.status === 'starting' ? ui.restart : ui.start}
               </button>
               {isCustomPanel ? (
-                <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
-                  {ui.delete}
-                </button>
+                deleteArmed ? (
+                  <>
+                    <p className="drawer-note drawer-note--warning">{ui.confirmDelete}</p>
+                    <button type="button" className="action-button action-button--danger" onClick={() => void removeCustomPanel()}>
+                      {ui.confirmDelete}
+                    </button>
+                    <button type="button" className="action-button action-button--ghost" onClick={() => setDeleteArmed(false)}>
+                      {ui.cancel}
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="action-button action-button--danger" onClick={() => setDeleteArmed(true)}>
+                    {ui.delete}
+                  </button>
+                )
               ) : null}
             </div>
 

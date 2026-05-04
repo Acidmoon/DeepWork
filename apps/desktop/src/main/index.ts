@@ -6,10 +6,20 @@ import { TerminalManager } from './terminal-manager'
 import { WebPanelManager } from './web-panel-manager'
 import { WorkspaceManager } from './workspace-manager'
 import { SettingsManager } from './settings-manager'
-import type { PanelBounds, WebPanelConfig, WebPanelNavigationAction } from '@ai-workbench/core/desktop/web-panels'
-import type { TerminalResizePayload } from '@ai-workbench/core/desktop/terminal-panels'
-import { resolveStartupWorkspaceRoot, type AppSettingsSnapshot, type AppSettingsUpdate } from '@ai-workbench/core/desktop/settings'
-import type { SaveClipboardOptions } from '@ai-workbench/core/desktop/workspace'
+import {
+  guardIdentifier,
+  guardOptionalIdentifier,
+  guardOptionalTitle,
+  guardOptionalUrl,
+  guardPanelBounds,
+  guardSaveClipboardOptions,
+  guardSettingsUpdate,
+  guardTerminalResize,
+  guardTerminalWrite,
+  guardWebPanelConfigUpdate,
+  guardWebPanelNavigationAction
+} from './ipc-guards'
+import { resolveStartupWorkspaceRoot, type AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | null = null
@@ -65,7 +75,7 @@ function createMainWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   })
 
@@ -175,60 +185,137 @@ app.whenReady().then(() => {
   terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
   schedulePackageSmokeResult()
 
-  ipcMain.handle('web-panel:get-state', (_event, panelId: string) => webPanelManager?.getSnapshot(panelId) ?? null)
-  ipcMain.handle('web-panel:show', (_event, panelId: string, bounds: PanelBounds) =>
-    webPanelManager?.showPanel(panelId, bounds) ?? null
-  )
-  ipcMain.handle('web-panel:hide', (_event, panelId: string) => {
-    webPanelManager?.hidePanel(panelId)
+  ipcMain.handle('web-panel:get-state', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    return guardedPanelId ? (webPanelManager?.getSnapshot(guardedPanelId) ?? null) : null
   })
-  ipcMain.handle('web-panel:update-bounds', (_event, panelId: string, bounds: PanelBounds) => {
-    webPanelManager?.updateBounds(panelId, bounds)
+  ipcMain.handle('web-panel:show', (_event, panelId: unknown, bounds: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    const guardedBounds = guardPanelBounds(bounds)
+    return guardedPanelId && guardedBounds ? (webPanelManager?.showPanel(guardedPanelId, guardedBounds) ?? null) : null
   })
-  ipcMain.handle('web-panel:navigate', (_event, panelId: string, action: WebPanelNavigationAction, url?: string) =>
-    webPanelManager?.navigate(panelId, action, url) ?? null
-  )
+  ipcMain.handle('web-panel:hide', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    if (guardedPanelId) {
+      webPanelManager?.hidePanel(guardedPanelId)
+    }
+  })
+  ipcMain.handle('web-panel:update-bounds', (_event, panelId: unknown, bounds: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    const guardedBounds = guardPanelBounds(bounds)
+    if (guardedPanelId && guardedBounds) {
+      webPanelManager?.updateBounds(guardedPanelId, guardedBounds)
+    }
+  })
+  ipcMain.handle('web-panel:navigate', (_event, panelId: unknown, action: unknown, url?: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    const guardedAction = guardWebPanelNavigationAction(action)
+    const guardedUrl = guardOptionalUrl(url)
+    return guardedPanelId && guardedAction && guardedUrl !== null
+      ? (webPanelManager?.navigate(guardedPanelId, guardedAction, guardedUrl) ?? null)
+      : null
+  })
   ipcMain.handle(
     'web-panel:update-config',
-    (_event, panelId: string, update: Pick<WebPanelConfig, 'homeUrl' | 'partition' | 'enabled'>) => {
-      const settingsSnapshot = settingsManager?.updateWebPanel(panelId, update)
+    (_event, panelId: unknown, update: unknown) => {
+      const guardedPanelId = guardIdentifier(panelId)
+      const guardedUpdate = guardWebPanelConfigUpdate(update)
+      if (!guardedPanelId || !guardedUpdate) {
+        return null
+      }
+
+      const settingsSnapshot = settingsManager?.updateWebPanel(guardedPanelId, guardedUpdate)
       if (!settingsSnapshot) {
         return null
       }
 
-      const customConfig = settingsSnapshot.customWebPanels.find((panel) => panel.id === panelId)
+      const customConfig = settingsSnapshot.customWebPanels.find((panel) => panel.id === guardedPanelId)
       if (customConfig) {
         webPanelManager?.syncCustomPanels(settingsSnapshot.customWebPanels)
-        return webPanelManager?.getSnapshot(panelId) ?? null
+        return webPanelManager?.getSnapshot(guardedPanelId) ?? null
       }
 
-      const nextConfig = settingsSnapshot.webPanels[panelId]
-      return nextConfig ? (webPanelManager?.updateConfig(panelId, nextConfig) ?? null) : null
+      const nextConfig = settingsSnapshot.webPanels[guardedPanelId]
+      return nextConfig ? (webPanelManager?.updateConfig(guardedPanelId, nextConfig) ?? null) : null
     }
   )
-  ipcMain.handle('terminal:attach', (_event, panelId: string) => terminalManager?.attach(panelId) ?? null)
-  ipcMain.handle('terminal:get-state', (_event, panelId: string) => terminalManager?.getSnapshot(panelId) ?? null)
-  ipcMain.handle('terminal:start', (_event, panelId: string) => terminalManager?.start(panelId) ?? null)
-  ipcMain.handle('terminal:restart', (_event, panelId: string) => terminalManager?.restart(panelId) ?? null)
-  ipcMain.handle('terminal:write', (_event, panelId: string, data: string) => {
-    terminalManager?.write(panelId, data)
+  ipcMain.handle('terminal:attach', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    return guardedPanelId ? (terminalManager?.attach(guardedPanelId) ?? null) : null
   })
-  ipcMain.handle('terminal:resize', (_event, panelId: string, size: TerminalResizePayload) => {
-    terminalManager?.resize(panelId, size)
+  ipcMain.handle('terminal:get-state', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    return guardedPanelId ? (terminalManager?.getSnapshot(guardedPanelId) ?? null) : null
   })
-  ipcMain.handle('terminal:clear', (_event, panelId: string) => terminalManager?.clearBuffer(panelId) ?? null)
+  ipcMain.handle('terminal:start', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    return guardedPanelId ? (terminalManager?.start(guardedPanelId) ?? null) : null
+  })
+  ipcMain.handle('terminal:restart', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    return guardedPanelId ? (terminalManager?.restart(guardedPanelId) ?? null) : null
+  })
+  ipcMain.handle('terminal:write', (_event, panelId: unknown, data: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    const guardedData = guardTerminalWrite(data)
+    if (guardedPanelId && guardedData !== null) {
+      terminalManager?.write(guardedPanelId, guardedData)
+    }
+  })
+  ipcMain.handle('terminal:resize', (_event, panelId: unknown, size: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    const guardedSize = guardTerminalResize(size)
+    if (guardedPanelId && guardedSize) {
+      terminalManager?.resize(guardedPanelId, guardedSize)
+    }
+  })
+  ipcMain.handle('terminal:clear', (_event, panelId: unknown) => {
+    const guardedPanelId = guardIdentifier(panelId)
+    return guardedPanelId ? (terminalManager?.clearBuffer(guardedPanelId) ?? null) : null
+  })
   ipcMain.handle('workspace:get-state', () => workspaceManager?.getSnapshot() ?? null)
-  ipcMain.handle('workspace:read-artifact', (_event, artifactId: string) => workspaceManager?.readArtifactContent(artifactId) ?? null)
-  ipcMain.handle('workspace:delete-scope', (_event, scopeId: string) => workspaceManager?.deleteScope(scopeId) ?? null)
-  ipcMain.handle('workspace:create-thread', (_event, title?: string | null) => workspaceManager?.createThread(title ?? null, true) ?? null)
-  ipcMain.handle('workspace:select-thread', (_event, threadId: string | null) => workspaceManager?.selectThread(threadId) ?? null)
-  ipcMain.handle('workspace:rename-thread', (_event, threadId: string, title: string) => workspaceManager?.renameThread(threadId, title) ?? null)
+  ipcMain.handle('workspace:read-artifact', (_event, artifactId: unknown) => {
+    const guardedArtifactId = guardIdentifier(artifactId)
+    return guardedArtifactId ? (workspaceManager?.readArtifactContent(guardedArtifactId) ?? null) : null
+  })
+  ipcMain.handle('workspace:delete-scope', (_event, scopeId: unknown) => {
+    const guardedScopeId = guardIdentifier(scopeId)
+    return guardedScopeId ? (workspaceManager?.deleteScope(guardedScopeId) ?? null) : null
+  })
+  ipcMain.handle('workspace:create-thread', (_event, title?: unknown) => {
+    const guardedTitle = guardOptionalTitle(title)
+    return title !== undefined && title !== null && guardedTitle === null
+      ? null
+      : (workspaceManager?.createThread(guardedTitle ?? null, true) ?? null)
+  })
+  ipcMain.handle('workspace:select-thread', (_event, threadId: unknown) => {
+    const guardedThreadId = guardOptionalIdentifier(threadId)
+    return threadId !== null && threadId !== undefined && guardedThreadId === null
+      ? null
+      : (workspaceManager?.selectThread(guardedThreadId) ?? null)
+  })
+  ipcMain.handle('workspace:rename-thread', (_event, threadId: unknown, title: unknown) => {
+    const guardedThreadId = guardIdentifier(threadId)
+    const guardedTitle = guardOptionalTitle(title)
+    return guardedThreadId && guardedTitle ? (workspaceManager?.renameThread(guardedThreadId, guardedTitle) ?? null) : null
+  })
   ipcMain.handle(
     'workspace:reassign-scope-thread',
-    (_event, scopeId: string, threadId: string) => workspaceManager?.reassignScopeToThread(scopeId, threadId) ?? null
+    (_event, scopeId: unknown, threadId: unknown) => {
+      const guardedScopeId = guardIdentifier(scopeId)
+      const guardedThreadId = guardIdentifier(threadId)
+      return guardedScopeId && guardedThreadId
+        ? (workspaceManager?.reassignScopeToThread(guardedScopeId, guardedThreadId) ?? null)
+        : null
+    }
   )
-  ipcMain.handle('workspace:resync', async (_event, panelId?: string) => {
-    await webPanelManager?.capturePersistedContexts(panelId)
+  ipcMain.handle('workspace:resync', async (_event, panelId?: unknown) => {
+    const guardedPanelId = guardOptionalIdentifier(panelId)
+    if (panelId !== undefined && panelId !== null && guardedPanelId === null) {
+      return workspaceManager?.getSnapshot() ?? null
+    }
+
+    await webPanelManager?.capturePersistedContexts(guardedPanelId ?? undefined)
     return workspaceManager?.getSnapshot() ?? null
   })
   ipcMain.handle('workspace:maintenance-scan', () => workspaceManager?.scanMaintenance() ?? null)
@@ -252,13 +339,22 @@ app.whenReady().then(() => {
     terminalManager?.syncWorkspaceRoot(snapshot.workspaceRoot)
     return snapshot
   })
-  ipcMain.handle('workspace:open-profile', (_event, profileId: string) => {
+  ipcMain.handle('workspace:open-profile', (_event, profileId: unknown) => {
     if (!settingsManager || !workspaceManager) {
       return null
     }
 
     const currentSettings = settingsManager.getSnapshot()
-    const profile = currentSettings.workspaceProfiles.find((item) => item.id === profileId)
+    const guardedProfileId = guardIdentifier(profileId)
+    if (!guardedProfileId) {
+      return {
+        settings: currentSettings,
+        workspace: workspaceManager.getSnapshot(),
+        error: 'Workspace profile is unavailable.'
+      }
+    }
+
+    const profile = currentSettings.workspaceProfiles.find((item) => item.id === guardedProfileId)
     if (!profile || !profile.root.trim()) {
       return {
         settings: currentSettings,
@@ -296,18 +392,24 @@ app.whenReady().then(() => {
       error: null
     }
   })
-  ipcMain.handle('workspace:save-clipboard', (_event, options: SaveClipboardOptions) =>
-    workspaceManager?.saveClipboardAsArtifact(options) ?? null
-  )
+  ipcMain.handle('workspace:save-clipboard', (_event, options: unknown) => {
+    const guardedOptions = guardSaveClipboardOptions(options)
+    return guardedOptions ? (workspaceManager?.saveClipboardAsArtifact(guardedOptions) ?? null) : null
+  })
   ipcMain.handle('settings:get-state', () => settingsManager?.getSnapshot() ?? null)
-  ipcMain.handle('settings:update', (_event, update: AppSettingsUpdate) => {
-    const snapshot = settingsManager?.update(update) ?? null
+  ipcMain.handle('settings:update', (_event, update: unknown) => {
+    const guardedUpdate = guardSettingsUpdate(update)
+    if (!guardedUpdate) {
+      return null
+    }
+
+    const snapshot = settingsManager?.update(guardedUpdate) ?? null
     if (!snapshot) {
       return null
     }
 
     syncRuntimeSettings(snapshot)
-    if (workspaceManager && Object.prototype.hasOwnProperty.call(update, 'workspaceRoot')) {
+    if (workspaceManager && Object.prototype.hasOwnProperty.call(guardedUpdate, 'workspaceRoot')) {
       syncWorkspaceRoot(snapshot.workspaceRoot)
     }
     return snapshot

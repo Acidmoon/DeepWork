@@ -14,6 +14,7 @@ The desktop app keeps focused validation flows under this directory instead of o
 - `visual-smoke/`: modern minimal UI smoke coverage for Web, Terminal, inline retrieval context, Workspace, Logs, Settings, light/dark theme, and constrained viewport screenshots
 - `renderer-startup/`: renderer entry-chunk guardrail for startup-oriented code-splitting and CSS/JS baseline checks
 - `security-boundaries/`: main-process and workspace boundary checks for unsafe paths, workspace confinement, settings normalization, and maintenance fixtures
+- `openspec-active-changes/`: release-readiness check that reports completed OpenSpec changes still left in the active changes directory
 - `package-win/`: Windows alpha and beta package smoke coverage for generated unpacked app artifacts, first-launch workspace behavior, and beta settings-normalization startup
 
 ## Recommended Order
@@ -39,6 +40,7 @@ npm run validate:security-boundaries -w @ai-workbench/desktop
 npm run validate:custom-web-panels -w @ai-workbench/desktop
 npm run validate:terminal-behavior -w @ai-workbench/desktop
 npm run validate:workspace-profiles -w @ai-workbench/desktop
+npm run validate:openspec-active-changes -w @ai-workbench/desktop
 ```
 
 For UI redesign work, review the screenshots in `apps/desktop/validation/visual-smoke/artifacts/` after the flow passes. The acceptance target is no blank primary Web or Terminal surface, no toolbar/sidebar/form/list/inspector overlap, readable English and Simplified Chinese labels, and coherent light/dark hierarchy without decorative gradients.
@@ -50,6 +52,8 @@ Use `custom-web-panels/` when changing built-in panel defaults or web-panel sett
 Use `visual-smoke/` and `terminal-behavior/` when changing terminal details or Settings. The current coverage includes the compact CLI retrieval summary in the terminal inspector and the absence of the old empty placeholder-only Settings scaffold.
 
 Use `renderer-startup/` when changing renderer import boundaries, lazy loading, or bundle shape. It reads the deterministic renderer build output and fails if the protected entry JS/CSS assets grow past the current startup guardrail.
+
+Use `openspec-active-changes/` before release-readiness checks when active OpenSpec state has changed. It fails if a fully completed `openspec/changes/*/tasks.md` remains active instead of being archived through `openspec archive <change-name> -y`.
 
 Browser-driven validation defaults to `apps/desktop/out/renderer/index.html` and fails fast if that entrypoint is missing, references missing assets, or is older than renderer prerequisites. For targeted debugging only, override the renderer URL explicitly:
 

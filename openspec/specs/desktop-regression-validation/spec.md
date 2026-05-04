@@ -168,3 +168,161 @@ The repository SHALL provide repeatable package validation that inspects generat
 - **WHEN** a Windows alpha or beta package is generated
 - **THEN** the package excludes workspace-package source trees, dependency source trees, test files, logs, validation assets, and native build scaffolding from the packaged runtime artifact
 - **THEN** the package preserves runtime application output, runtime JavaScript dependencies, and Windows native prebuilds needed by managed terminal panels
+
+### Requirement: Workspace maintenance validation
+The repository SHALL provide focused validation coverage for workspace maintenance scan, rebuild, safe repair, and path-confinement behavior.
+
+#### Scenario: Validate maintenance diagnostics
+- **WHEN** maintenance validation runs with deterministic inconsistent workspace fixtures
+- **THEN** it verifies missing files, orphaned manifest records, stale indexes, duplicate IDs, and unsafe paths are reported as structured findings
+- **THEN** scan-only mode leaves fixture files unchanged
+
+#### Scenario: Validate rebuild and safe repair
+- **WHEN** validation runs rebuild and safe repair operations
+- **THEN** it verifies derived indexes and manifests are regenerated from safe artifact metadata
+- **THEN** it verifies raw artifact files and outside-workspace paths are not deleted or rewritten
+
+### Requirement: Log inspection regression validation
+The repository SHALL provide repeatable validation coverage for log-bucket listing, metadata filtering, and preview behavior.
+
+#### Scenario: Validate log listing and filtering
+- **WHEN** the workspace regression validation opens the Logs surface with deterministic fixtures
+- **THEN** it verifies terminal transcript and retrieval-audit log records are listed from the `logs/` bucket
+- **THEN** it verifies query and origin filters reduce log results using indexed metadata
+
+#### Scenario: Validate log preview
+- **WHEN** the validation selects a text-compatible log artifact
+- **THEN** it verifies the preview content is loaded through the workspace artifact read path
+- **THEN** it verifies unavailable or unsupported logs produce explicit preview states
+
+### Requirement: MiniMax built-in web preset validation
+The repository SHALL provide focused validation coverage proving that the MiniMax built-in web preset uses the managed web-panel lifecycle when enabled and returns to reserved behavior when disabled.
+
+#### Scenario: Validate enabled MiniMax lifecycle
+- **WHEN** the MiniMax web-panel validation flow runs with default settings
+- **THEN** it verifies MiniMax is selectable from navigation as an enabled managed web panel
+- **THEN** it verifies managed navigation state is published without relying on a live third-party login
+
+#### Scenario: Validate disabled MiniMax override
+- **WHEN** the validation flow applies a MiniMax built-in override with `enabled: false`
+- **THEN** it verifies the panel reports reserved state
+- **THEN** it verifies re-enabling or clearing the override restores the managed lifecycle
+
+### Requirement: Track renderer startup performance guardrails
+The repository SHALL provide repeatable guidance or checks that make renderer startup optimizations measurable rather than anecdotal.
+
+#### Scenario: Revalidate startup optimization work
+- **WHEN** developers change renderer loading boundaries or bundle structure
+- **THEN** they can rerun a documented measurement or guardrail flow for startup performance
+- **THEN** the repo can detect regressions in the protected startup baseline
+
+### Requirement: Validate beta packaged-app readiness
+The repository SHALL provide repeatable packaged-app validation guidance or checks for the beta desktop distribution workflow.
+
+#### Scenario: Verify beta packaged startup behavior
+- **WHEN** the beta packaged-app validation flow runs
+- **THEN** it confirms the packaged renderer shell opens successfully
+- **THEN** it confirms the app preserves explicit workspace-selection behavior and safe settings restoration
+
+### Requirement: Windows distribution preflight validation
+The repository SHALL document or script a Windows distribution preflight path that combines internal-alpha validation with package generation and a packaged-app smoke check.
+
+#### Scenario: Run release preflight
+- **WHEN** a developer prepares a Windows alpha distribution
+- **THEN** the documented preflight includes `validate:internal-alpha` or an equivalent validated sequence before packaging
+- **THEN** the preflight includes the Windows package command and expected output verification
+
+#### Scenario: Smoke packaged renderer startup
+- **WHEN** the packaged-app smoke step runs
+- **THEN** it verifies the packaged app can reach the renderer shell
+- **THEN** it verifies startup does not create a workspace implicitly when no workspace is configured
+
+### Requirement: Validate explicit settings-management commits
+Focused renderer validation SHALL verify that updated settings and panel-management flows use explicit commit behavior for persisted edits where the UI no longer saves every intermediate draft change.
+
+#### Scenario: Verify explicit profile rename commit
+- **WHEN** the scripted validation edits a workspace profile name or comparable settings-management draft field
+- **THEN** the persisted settings update occurs only after the explicit save or commit action
+- **THEN** intermediate draft typing does not count as a completed persisted settings change
+
+### Requirement: Validate streamlined Workspace inspection hierarchy
+Focused renderer validation SHALL verify that Workspace keeps routine inspection content visible before advanced maintenance and repair controls after the surface is streamlined.
+
+#### Scenario: Verify routine inspection remains primary
+- **WHEN** the scripted validation opens the Workspace surface
+- **THEN** the artifact and selected-scope inspection regions are visible without opening advanced maintenance sections
+- **THEN** critical inspection interactions continue to work before any repair tooling is expanded
+
+### Requirement: Inline CLI retrieval context validation
+The repository SHALL provide focused validation coverage for rendering latest CLI retrieval outcome summaries without reintroducing deprecated continuity chrome.
+
+#### Scenario: Validate selected-scope summary
+- **WHEN** renderer validation opens a terminal panel with a selected-scope retrieval summary fixture
+- **THEN** it verifies the selected scope and retrieval mode are visible in the terminal status or inspector surface
+- **THEN** it verifies raw artifact content is not displayed as part of the summary
+
+#### Scenario: Validate fallback and no-match summaries
+- **WHEN** renderer validation opens terminal fixtures for global fallback and no-match retrieval outcomes
+- **THEN** it verifies each outcome is distinguishable through visible summary text or state
+- **THEN** it verifies the primary panel still lacks deprecated continuity toolbar chrome
+
+### Requirement: OpenSpec active-change hygiene validation
+The repository SHALL provide a repeatable check or documented validation step that identifies completed active OpenSpec changes before release-readiness validation is considered complete.
+
+#### Scenario: Detect completed active changes
+- **WHEN** the release-readiness validation checks active OpenSpec changes
+- **THEN** it identifies active changes whose task lists are fully complete
+- **THEN** it reports those changes as candidates for archival
+
+### Requirement: IPC boundary regression validation
+The repository SHALL provide focused validation coverage for malformed renderer-originated IPC payloads reaching security-sensitive desktop shell capabilities.
+
+#### Scenario: Validate malformed IPC rejection
+- **WHEN** the security-boundary validation sends malformed payloads for terminal, web-panel, workspace, and settings operations
+- **THEN** the main-process boundary rejects or normalizes them before manager side effects occur
+- **THEN** the validation reports failures with the affected IPC capability name
+
+#### Scenario: Validate valid IPC behavior remains intact
+- **WHEN** the same validation sends representative valid payloads for guarded operations
+- **THEN** the guarded operations continue to reach the intended manager paths
+- **THEN** existing focused desktop validation flows remain compatible with the new guards
+
+### Requirement: In-app panel management regression validation
+The repository SHALL provide renderer validation that covers custom web and CLI panel create/delete flows after native browser dialogs are removed.
+
+#### Scenario: Validate custom web panel creation form
+- **WHEN** the custom web-panel validation runs
+- **THEN** it creates a custom web panel through the in-app form
+- **THEN** it verifies invalid URL submission shows an in-app error without persisting settings
+
+#### Scenario: Validate custom panel deletion confirmation
+- **WHEN** the custom panel validation deletes a user-defined web or CLI panel
+- **THEN** it confirms deletion through the in-app confirmation state
+- **THEN** it verifies canceling the confirmation leaves the panel persisted
+
+### Requirement: Static quality gate is part of documented validation
+The repository SHALL document where the static quality gate fits relative to typechecking, focused desktop validation, and release-readiness flows.
+
+#### Scenario: Run focused validation prechecks
+- **WHEN** a developer follows documented focused validation guidance
+- **THEN** the guidance includes the static quality gate and typecheck as prechecks or companion checks
+- **THEN** focused behavior validation commands remain listed separately
+
+#### Scenario: Run release-readiness validation
+- **WHEN** a developer follows documented release-readiness validation
+- **THEN** the guidance includes the static quality gate before packaging or release smoke checks
+- **THEN** package validation remains responsible for generated artifact and startup smoke behavior
+
+### Requirement: Startup refactor regression coverage
+The repository SHALL keep validation coverage that proves shared desktop runtime initialization preserves first startup, activation, renderer entrypoint, and package smoke behavior.
+
+#### Scenario: Validate renderer startup after initialization refactor
+- **WHEN** the runtime initialization path is refactored
+- **THEN** renderer entrypoint and visual smoke validation still pass against the deterministic renderer build
+- **THEN** the main window shell still loads without selecting or creating a workspace implicitly
+
+#### Scenario: Validate package smoke after initialization refactor
+- **WHEN** a Windows alpha or beta package is generated after the runtime initialization refactor
+- **THEN** package validation still confirms first-launch unselected-workspace behavior
+- **THEN** package smoke result scheduling continues to write the expected validation payload
+
