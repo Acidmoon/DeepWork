@@ -1,9 +1,12 @@
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const require = createRequire(import.meta.url)
+const { listPackage } = require('@electron/asar')
 const desktopRoot = resolve(__dirname, '..', '..')
 const repoRoot = resolve(desktopRoot, '..', '..')
 const channel = parseChannel(process.argv.slice(2))
@@ -103,22 +106,17 @@ function runPackagedAppSmoke({
 }
 
 function listAsarFiles() {
-  const asarBinPath = join(repoRoot, 'node_modules', '@electron', 'asar', 'bin', 'asar.js')
-  const result = spawnSync(process.execPath, [asarBinPath, 'list', appAsarPath], {
-    cwd: repoRoot,
-    encoding: 'utf8'
-  })
-
-  if (result.status !== 0) {
+  try {
+    return listPackage(appAsarPath)
+      .map((entry) => String(entry).trim().replace(/\\/g, '/'))
+      .filter(Boolean)
+  } catch (error) {
     throw new Error(
-      `Failed to list app.asar contents for ${channel}. stdout=${result.stdout ?? ''} stderr=${result.stderr ?? ''}`
+      `Failed to list app.asar contents for ${channel} at ${appAsarPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
     )
   }
-
-  return (result.stdout ?? '')
-    .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter(Boolean)
 }
 
 function assertArtifactBoundaries() {
