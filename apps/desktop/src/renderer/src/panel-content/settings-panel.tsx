@@ -9,12 +9,47 @@ import { asSettingsViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel, SettingsPanelViewState } from '@ai-workbench/core/desktop/panels'
 import {
   MAX_TERMINAL_SCROLLBACK_LINES,
+  MAX_REMOTE_BRIDGE_LOCK_TIMEOUT_MS,
+  MAX_REMOTE_BRIDGE_OUTPUT_CHARACTERS,
+  MAX_REMOTE_BRIDGE_OUTPUT_DEBOUNCE_MS,
+  MAX_REMOTE_BRIDGE_POLLING_INTERVAL_MS,
   MIN_TERMINAL_SCROLLBACK_LINES,
+  MIN_REMOTE_BRIDGE_LOCK_TIMEOUT_MS,
+  MIN_REMOTE_BRIDGE_OUTPUT_CHARACTERS,
+  MIN_REMOTE_BRIDGE_OUTPUT_DEBOUNCE_MS,
+  MIN_REMOTE_BRIDGE_POLLING_INTERVAL_MS,
   createWorkspaceProfile,
   getWorkspaceProfileNameFromRoot,
   normalizeWorkspaceProfileKey,
+  type RemoteBridgeSettings,
   type WorkspaceProfileSettings
 } from '@ai-workbench/core/desktop/settings'
+
+function listToTextareaValue(items: string[]): string {
+  return items.join('\n')
+}
+
+function textareaValueToList(value: string): string[] {
+  const seenItems = new Set<string>()
+  const items: string[] = []
+
+  for (const item of value.split(/\r?\n/)) {
+    const normalized = item.trim()
+    if (!normalized || seenItems.has(normalized)) {
+      continue
+    }
+
+    seenItems.add(normalized)
+    items.push(normalized)
+  }
+
+  return items
+}
+
+function readNumberInput(value: string, fallback: number): number {
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : fallback
+}
 
 export function SettingsPanel({
   panel,
@@ -59,6 +94,49 @@ export function SettingsPanel({
       terminalBehavior
     })
     syncSettingsSnapshot(await window.workbenchShell.settings.update({ terminalBehavior }))
+  }
+
+  const updateRemoteBridge = (remoteBridge: SettingsPanelViewState['remoteBridge']): void => {
+    updateSettingsState({
+      ...state,
+      remoteBridge
+    })
+  }
+
+  const updateRemoteBridgeCredentials = (
+    credentials: Partial<RemoteBridgeSettings['credentials']>
+  ): void => {
+    updateRemoteBridge({
+      ...state.remoteBridge,
+      credentials: {
+        ...state.remoteBridge.credentials,
+        ...credentials
+      }
+    })
+  }
+
+  const updateRemoteBridgeOutput = (output: Partial<RemoteBridgeSettings['output']>): void => {
+    updateRemoteBridge({
+      ...state.remoteBridge,
+      output: {
+        ...state.remoteBridge.output,
+        ...output
+      }
+    })
+  }
+
+  const updateRemoteBridgeLock = (lock: Partial<RemoteBridgeSettings['lock']>): void => {
+    updateRemoteBridge({
+      ...state.remoteBridge,
+      lock: {
+        ...state.remoteBridge.lock,
+        ...lock
+      }
+    })
+  }
+
+  const saveRemoteBridgeConfig = async (): Promise<void> => {
+    syncSettingsSnapshot(await window.workbenchShell.settings.update({ remoteBridge: state.remoteBridge }))
   }
 
   const saveCurrentWorkspaceProfile = async (): Promise<void> => {
@@ -466,6 +544,309 @@ export function SettingsPanel({
             }
           />
         </label>
+      </div>
+
+      <div className="panel-section settings-section">
+        <div className="section-line">
+          <strong>{ui.remoteBridgeSettings}</strong>
+          <span>{ui.remoteBridgeSettingsHint}</span>
+        </div>
+
+        <label className="settings-toggle-row">
+          <span>
+            <strong>{ui.remoteBridgeEnable}</strong>
+            <small>{ui.remoteBridgeEnableHint}</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={state.remoteBridge.enabled}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                enabled: event.target.checked
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeTargetMode}</span>
+          <select
+            value={state.remoteBridge.targetMode}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                targetMode: event.target.value as RemoteBridgeSettings['targetMode']
+              })
+            }
+          >
+            <option value="pty">{ui.remoteBridgePtyMode}</option>
+            <option value="codex-app-server">{ui.remoteBridgeCodexAppServerMode}</option>
+          </select>
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeIntakeMode}</span>
+          <input value={ui.remoteBridgePollingMode} readOnly />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeApiBase}</span>
+          <input
+            value={state.remoteBridge.apiBase}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                apiBase: event.target.value
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgePollingIntervalMs}</span>
+          <input
+            type="number"
+            min={MIN_REMOTE_BRIDGE_POLLING_INTERVAL_MS}
+            max={MAX_REMOTE_BRIDGE_POLLING_INTERVAL_MS}
+            step={1000}
+            value={state.remoteBridge.pollingIntervalMs}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                pollingIntervalMs: readNumberInput(event.target.value, state.remoteBridge.pollingIntervalMs)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.feishuAppId}</span>
+          <input
+            value={state.remoteBridge.credentials.appId}
+            onChange={(event) => updateRemoteBridgeCredentials({ appId: event.target.value })}
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.feishuAppSecret}</span>
+          <input
+            type="password"
+            value={state.remoteBridge.credentials.appSecret}
+            onChange={(event) => updateRemoteBridgeCredentials({ appSecret: event.target.value })}
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.feishuVerificationToken}</span>
+          <input
+            type="password"
+            value={state.remoteBridge.credentials.verificationToken}
+            onChange={(event) => updateRemoteBridgeCredentials({ verificationToken: event.target.value })}
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.feishuEncryptKey}</span>
+          <input
+            type="password"
+            value={state.remoteBridge.credentials.encryptKey}
+            onChange={(event) => updateRemoteBridgeCredentials({ encryptKey: event.target.value })}
+          />
+        </label>
+
+        <label className="field settings-form-row settings-form-row--textarea">
+          <span>{ui.remoteBridgeAllowedChatIds}</span>
+          <textarea
+            rows={3}
+            value={listToTextareaValue(state.remoteBridge.allowedChatIds)}
+            placeholder={ui.remoteBridgeOnePerLine}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                allowedChatIds: textareaValueToList(event.target.value)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row settings-form-row--textarea">
+          <span>{ui.remoteBridgeAllowedUserIds}</span>
+          <textarea
+            rows={3}
+            value={listToTextareaValue(state.remoteBridge.allowedUserIds)}
+            placeholder={ui.remoteBridgeOnePerLine}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                allowedUserIds: textareaValueToList(event.target.value)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row settings-form-row--textarea">
+          <span>{ui.remoteBridgeAdminUserIds}</span>
+          <textarea
+            rows={2}
+            value={listToTextareaValue(state.remoteBridge.adminUserIds)}
+            placeholder={ui.remoteBridgeOnePerLine}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                adminUserIds: textareaValueToList(event.target.value)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row settings-form-row--textarea">
+          <span>{ui.remoteBridgeEnabledPanelIds}</span>
+          <textarea
+            rows={2}
+            value={listToTextareaValue(state.remoteBridge.enabledPanelIds)}
+            placeholder="codex-cli"
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                enabledPanelIds: textareaValueToList(event.target.value)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeDefaultPanelId}</span>
+          <input
+            value={state.remoteBridge.defaultPanelId}
+            onChange={(event) =>
+              updateRemoteBridge({
+                ...state.remoteBridge,
+                defaultPanelId: event.target.value
+              })
+            }
+          />
+        </label>
+
+        <div className="section-line">
+          <strong>{ui.remoteBridgeOutputLimits}</strong>
+          <span>{ui.remoteBridgeOutputLimitsHint}</span>
+        </div>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeMaxTailCharacters}</span>
+          <input
+            type="number"
+            min={MIN_REMOTE_BRIDGE_OUTPUT_CHARACTERS}
+            max={MAX_REMOTE_BRIDGE_OUTPUT_CHARACTERS}
+            step={500}
+            value={state.remoteBridge.output.maxTailCharacters}
+            onChange={(event) =>
+              updateRemoteBridgeOutput({
+                maxTailCharacters: readNumberInput(event.target.value, state.remoteBridge.output.maxTailCharacters)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeMaxMessageCharacters}</span>
+          <input
+            type="number"
+            min={MIN_REMOTE_BRIDGE_OUTPUT_CHARACTERS}
+            max={MAX_REMOTE_BRIDGE_OUTPUT_CHARACTERS}
+            step={100}
+            value={state.remoteBridge.output.maxMessageCharacters}
+            onChange={(event) =>
+              updateRemoteBridgeOutput({
+                maxMessageCharacters: readNumberInput(event.target.value, state.remoteBridge.output.maxMessageCharacters)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeDebounceMs}</span>
+          <input
+            type="number"
+            min={MIN_REMOTE_BRIDGE_OUTPUT_DEBOUNCE_MS}
+            max={MAX_REMOTE_BRIDGE_OUTPUT_DEBOUNCE_MS}
+            step={250}
+            value={state.remoteBridge.output.debounceMs}
+            onChange={(event) =>
+              updateRemoteBridgeOutput({
+                debounceMs: readNumberInput(event.target.value, state.remoteBridge.output.debounceMs)
+              })
+            }
+          />
+        </label>
+
+        <label className="settings-toggle-row">
+          <span>
+            <strong>{ui.remoteBridgeProactiveDelivery}</strong>
+            <small>{ui.remoteBridgeProactiveDeliveryHint}</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={state.remoteBridge.output.proactiveDelivery}
+            onChange={(event) => updateRemoteBridgeOutput({ proactiveDelivery: event.target.checked })}
+          />
+        </label>
+
+        <div className="section-line">
+          <strong>{ui.remoteBridgeLockSettings}</strong>
+          <span>{ui.remoteBridgeLockSettingsHint}</span>
+        </div>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeLockTimeoutMs}</span>
+          <input
+            type="number"
+            min={MIN_REMOTE_BRIDGE_LOCK_TIMEOUT_MS}
+            max={MAX_REMOTE_BRIDGE_LOCK_TIMEOUT_MS}
+            step={1000}
+            value={state.remoteBridge.lock.timeoutMs}
+            onChange={(event) =>
+              updateRemoteBridgeLock({
+                timeoutMs: readNumberInput(event.target.value, state.remoteBridge.lock.timeoutMs)
+              })
+            }
+          />
+        </label>
+
+        <label className="field settings-form-row">
+          <span>{ui.remoteBridgeLocalActivityBlockMs}</span>
+          <input
+            type="number"
+            min={0}
+            max={MAX_REMOTE_BRIDGE_LOCK_TIMEOUT_MS}
+            step={1000}
+            value={state.remoteBridge.lock.localActivityBlockMs}
+            onChange={(event) =>
+              updateRemoteBridgeLock({
+                localActivityBlockMs: readNumberInput(event.target.value, state.remoteBridge.lock.localActivityBlockMs)
+              })
+            }
+          />
+        </label>
+
+        <label className="settings-toggle-row">
+          <span>
+            <strong>{ui.remoteBridgeAllowLockOwnerDuringLocalActivity}</strong>
+            <small>{ui.remoteBridgeAllowLockOwnerHint}</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={state.remoteBridge.lock.allowLockOwnerDuringLocalActivity}
+            onChange={(event) => updateRemoteBridgeLock({ allowLockOwnerDuringLocalActivity: event.target.checked })}
+          />
+        </label>
+
+        <div className="action-row action-row--end">
+          <button type="button" className="action-button" onClick={() => void saveRemoteBridgeConfig()}>
+            {ui.saveConfig}
+          </button>
+        </div>
       </div>
 
       <div className="panel-section settings-section">

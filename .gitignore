@@ -20,3 +20,7 @@ apps/desktop/.playwright-cli/
 Dev/
 .claude/
 .codex/
+
+# Local release/runtime configuration with credentials
+config/remote-bridge.local.json
+config/remote-bridge.*.local.json

@@ -13,11 +13,17 @@ import type {
 import {
   defaultAppSettings,
   normalizeCliRetrievalPreference,
+  normalizeRemoteBridgeSettings,
   normalizeTerminalBehaviorSettings,
   normalizeThreadContinuationPreference,
   normalizeWorkspaceProfileRoot,
   normalizeWorkspaceProfiles
 } from '@ai-workbench/core/desktop/settings'
+import {
+  readRemoteBridgeConfigFile,
+  resolveRemoteBridgeConfigPath,
+  writeRemoteBridgeConfigFile
+} from './remote-bridge-config-file'
 
 const BUILT_IN_PANEL_IDS = new Set([...webPanelConfigs, ...terminalPanelConfigs].map((panel) => panel.id))
 
@@ -211,10 +217,12 @@ function normalizeCustomTerminalPanels(
 
 export class SettingsManager {
   private readonly filePath: string
+  private readonly remoteBridgeConfigPath: string
   private snapshot: AppSettingsSnapshot
 
-  constructor(baseDirectory: string) {
+  constructor(baseDirectory: string, remoteBridgeConfigPath: string = resolveRemoteBridgeConfigPath(baseDirectory)) {
     this.filePath = join(baseDirectory, 'settings.json')
+    this.remoteBridgeConfigPath = remoteBridgeConfigPath
     this.snapshot = this.readSettings()
   }
 
@@ -231,10 +239,37 @@ export class SettingsManager {
             ...this.snapshot.terminalBehavior,
             ...update.terminalBehavior
           }
-        : this.snapshot.terminalBehavior
+        : this.snapshot.terminalBehavior,
+      remoteBridge: update.remoteBridge
+        ? {
+            ...this.snapshot.remoteBridge,
+            ...update.remoteBridge,
+            credentials: update.remoteBridge.credentials
+              ? {
+                  ...this.snapshot.remoteBridge.credentials,
+                  ...update.remoteBridge.credentials
+                }
+              : this.snapshot.remoteBridge.credentials,
+            output: update.remoteBridge.output
+              ? {
+                  ...this.snapshot.remoteBridge.output,
+                  ...update.remoteBridge.output
+                }
+              : this.snapshot.remoteBridge.output,
+            lock: update.remoteBridge.lock
+              ? {
+                  ...this.snapshot.remoteBridge.lock,
+                  ...update.remoteBridge.lock
+                }
+              : this.snapshot.remoteBridge.lock
+          }
+        : this.snapshot.remoteBridge
     })
 
     this.writeSettings(this.snapshot)
+    if (update.remoteBridge) {
+      writeRemoteBridgeConfigFile(this.remoteBridgeConfigPath, this.snapshot.remoteBridge)
+    }
     return this.snapshot
   }
 
@@ -291,11 +326,27 @@ export class SettingsManager {
 
       const raw = readFileSync(this.filePath, 'utf8')
       const parsed = JSON.parse(raw) as Partial<AppSettingsSnapshot>
+      const snapshot = this.applyRemoteBridgeConfigFile(this.normalizeSettingsSnapshot(parsed))
 
-      return this.normalizeSettingsSnapshot(parsed)
+      this.writeSettings(snapshot)
+      return snapshot
     } catch {
       this.writeSettings(defaultAppSettings)
-      return defaultAppSettings
+      return this.applyRemoteBridgeConfigFile(defaultAppSettings)
+    }
+  }
+
+  private applyRemoteBridgeConfigFile(snapshot: AppSettingsSnapshot): AppSettingsSnapshot {
+    try {
+      const remoteBridge = readRemoteBridgeConfigFile(this.remoteBridgeConfigPath)
+      return remoteBridge
+        ? {
+            ...snapshot,
+            remoteBridge
+          }
+        : snapshot
+    } catch {
+      return snapshot
     }
   }
 
@@ -316,6 +367,7 @@ export class SettingsManager {
         ? normalizeStringList(value.terminalPreludeCommands)
         : defaultAppSettings.terminalPreludeCommands,
       terminalBehavior: normalizeTerminalBehaviorSettings(value.terminalBehavior),
+      remoteBridge: normalizeRemoteBridgeSettings(value.remoteBridge),
       threadContinuationPreference: normalizeThreadContinuationPreference(value.threadContinuationPreference),
       cliRetrievalPreference: normalizeCliRetrievalPreference(value.cliRetrievalPreference),
       webPanels: normalizeBuiltInWebPanels(value.webPanels),
@@ -326,7 +378,8 @@ export class SettingsManager {
   }
 
   private writeSettings(snapshot: AppSettingsSnapshot): void {
+    const { remoteBridge: _remoteBridge, ...storedSnapshot } = snapshot
     mkdirSync(dirname(this.filePath), { recursive: true })
-    writeFileSync(this.filePath, JSON.stringify(snapshot, null, 2), 'utf8')
+    writeFileSync(this.filePath, JSON.stringify(storedSnapshot, null, 2), 'utf8')
   }
 }

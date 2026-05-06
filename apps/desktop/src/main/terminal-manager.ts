@@ -204,6 +204,8 @@ interface ManagedTerminalSession {
   threadTitle: string | null
   retrievalAuditPath: string | null
   retrievalStatePath: string | null
+  lastOutputAt: string | null
+  lastLocalInputAt: string | null
 }
 
 interface PersistTerminalTranscriptPayload {
@@ -382,12 +384,14 @@ function createInitialSnapshot(config: TerminalPanelConfig, cwd: string, logPath
     threadId: null,
     threadTitle: null,
     continuitySummary: null,
-    retrievalSummary: null
+    retrievalSummary: null,
+    lastOutputAt: null
   }
 }
 
 export class TerminalManager {
   private readonly sessions = new Map<string, ManagedTerminalSession>()
+  private readonly outputListeners = new Set<(event: TerminalOutputEvent) => void>()
   private readonly logDirectory: string
   private readonly builtInIds = new Set(terminalPanelConfigs.map((config) => config.id))
   private workspaceRoot: string
@@ -434,6 +438,17 @@ export class TerminalManager {
 
   getSnapshot(panelId: string): TerminalPanelSnapshot | null {
     return this.sessions.get(panelId)?.snapshot ?? null
+  }
+
+  subscribeOutput(listener: (event: TerminalOutputEvent) => void): () => void {
+    this.outputListeners.add(listener)
+    return () => {
+      this.outputListeners.delete(listener)
+    }
+  }
+
+  getLastLocalInputAt(panelId: string): string | null {
+    return this.sessions.get(panelId)?.lastLocalInputAt ?? null
   }
 
   attach(panelId: string): TerminalPanelAttachPayload | null {
@@ -518,6 +533,8 @@ export class TerminalManager {
       })
       session.hasReceivedData = false
       session.hasMeaningfulUserInput = false
+      session.lastOutputAt = null
+      session.lastLocalInputAt = null
       session.buffer = ''
       session.captureBuffer = ''
       session.captureTruncated = false
@@ -538,6 +555,7 @@ export class TerminalManager {
           launchCount: nextLaunchCount,
           pid: session.ptyProcess.pid,
           bufferSize: 0,
+          lastOutputAt: null,
           lastExitCode: null,
           lastExitSignal: null,
           lastError: null,
@@ -601,13 +619,16 @@ export class TerminalManager {
     return this.start(panelId)
   }
 
-  write(panelId: string, data: string): void {
+  write(panelId: string, data: string, source: 'local' | 'remote' = 'local'): void {
     const session = this.sessions.get(panelId)
     if (!session?.ptyProcess) {
       return
     }
 
     if (hasMeaningfulTerminalInput(data)) {
+      if (source === 'local') {
+        session.lastLocalInputAt = new Date().toISOString()
+      }
       if (!session.hasMeaningfulUserInput) {
         session.captureBuffer = ''
         session.captureTruncated = false
@@ -718,7 +739,6 @@ export class TerminalManager {
       }
 
       if (session.ptyProcess) {
-        const sessionCwd = session.config.cwd ?? workspaceRoot
         const sessionIdentity = session.contextLabel
           ? createManagedSessionIdentity(
               workspaceRoot,
@@ -743,9 +763,6 @@ export class TerminalManager {
           ...session.snapshot,
           retrievalSummary: readLatestRetrievalSummary(session.retrievalAuditPath)
         }
-        session.ptyProcess.write(
-          `${createWorkspaceBootstrap(workspaceRoot, sessionCwd, sessionIdentity, this.cliRetrievalPreference)}\r`
-        )
       }
 
       session.snapshot = attachSessionContinuity(
@@ -765,32 +782,6 @@ export class TerminalManager {
 
   syncCliRetrievalPreference(preference: CliRetrievalPreference): void {
     this.cliRetrievalPreference = preference
-
-    for (const session of this.sessions.values()) {
-      if (!session.ptyProcess) {
-        continue
-      }
-
-      const sessionCwd = session.config.cwd ?? this.workspaceRoot
-      const sessionIdentity = session.contextLabel
-        ? createManagedSessionIdentity(
-            this.workspaceRoot,
-            session.config.id,
-            session.config.title,
-            session.snapshot.launchCount,
-            session.contextLabel,
-            session.threadId && session.threadTitle
-              ? {
-                  threadId: session.threadId,
-                  title: session.threadTitle
-                }
-              : null
-          )
-        : null
-      session.ptyProcess.write(
-        `${createWorkspaceBootstrap(this.workspaceRoot, sessionCwd, sessionIdentity, this.cliRetrievalPreference)}\r`
-      )
-    }
   }
 
   private buildContinuitySummary(
@@ -828,6 +819,7 @@ export class TerminalManager {
       session.captureBuffer = nextCaptureBuffer.content
       session.captureTruncated = session.captureTruncated || nextCaptureBuffer.truncated
       appendLog(session.logPath, data)
+      session.lastOutputAt = new Date().toISOString()
 
       if (!session.hasReceivedData) {
         session.hasReceivedData = true
@@ -842,7 +834,8 @@ export class TerminalManager {
       session.snapshot = {
         ...session.snapshot,
         bufferSize: session.buffer.length,
-        pid: session.ptyProcess?.pid ?? null
+        pid: session.ptyProcess?.pid ?? null,
+        lastOutputAt: session.lastOutputAt
       }
 
       this.publishState(session.snapshot)
@@ -950,6 +943,9 @@ export class TerminalManager {
     if (!this.window.isDestroyed()) {
       this.window.webContents.send('terminal:output', event)
     }
+    for (const listener of this.outputListeners) {
+      listener(event)
+    }
   }
 
   private upsertSession(config: TerminalPanelConfig): void {
@@ -992,7 +988,9 @@ export class TerminalManager {
         threadId: null,
         threadTitle: null,
         retrievalAuditPath: null,
-        retrievalStatePath: null
+        retrievalStatePath: null,
+        lastOutputAt: null,
+        lastLocalInputAt: null
       })
       return
     }

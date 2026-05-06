@@ -1,0 +1,31 @@
+{
+  "remoteBridge": {
+    "enabled": false,
+    "intakeMode": "polling",
+    "targetMode": "pty",
+    "apiBase": "https://open.feishu.cn/open-apis",
+    "pollingIntervalMs": 5000,
+    "credentials": {
+      "appId": "",
+      "appSecret": "",
+      "verificationToken": "",
+      "encryptKey": ""
+    },
+    "allowedChatIds": [],
+    "allowedUserIds": [],
+    "adminUserIds": [],
+    "enabledPanelIds": ["codex-cli"],
+    "defaultPanelId": "codex-cli",
+    "output": {
+      "maxTailCharacters": 12000,
+      "maxMessageCharacters": 3800,
+      "debounceMs": 1200,
+      "proactiveDelivery": false
+    },
+    "lock": {
+      "timeoutMs": 900000,
+      "localActivityBlockMs": 20000,
+      "allowLockOwnerDuringLocalActivity": false
+    }
+  }
+}

@@ -6,6 +6,7 @@ import { getTerminalStatusLabel, getUiText, resolveLocale } from '../i18n'
 import { asTerminalViewState, useWorkbenchStore } from '../store'
 import type { ManagedPanel } from '@ai-workbench/core/desktop/panels'
 import type { TerminalRetrievalSummary } from '@ai-workbench/core/desktop/terminal-panels'
+import { isRemoteBridgeReady } from '@ai-workbench/core/desktop/settings'
 
 const XTERM_STYLESHEET_ID = 'xterm-stylesheet'
 
@@ -127,6 +128,8 @@ export function TerminalPanel({
   const lastSizeRef = useRef<{ cols: number; rows: number } | null>(null)
   const resizeFrameRef = useRef<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isRemoteModeSaving, setIsRemoteModeSaving] = useState(false)
+  const [remoteModeEnabled, setRemoteModeEnabled] = useState(false)
   const updatePanelViewState = useWorkbenchStore((state) => state.updatePanelViewState)
   const syncTerminalPanelState = useWorkbenchStore((state) => state.syncTerminalPanelState)
   const syncSettingsState = useWorkbenchStore((state) => state.syncSettingsState)
@@ -151,10 +154,30 @@ export function TerminalPanel({
       normalizedDraftStartupCommand !== state.savedStartupCommand
     : normalizedDraftCwd !== state.savedCwd || normalizedDraftStartupCommand !== state.savedStartupCommand
   const canSaveConfig = isCustomPanel ? normalizedCustomPanelTitle.length > 0 && normalizedDraftShell.length > 0 && hasConfigChanges : hasConfigChanges
+  const isCodexCliPanel = panel.definition.id === 'codex-cli'
 
   useEffect(() => {
     ensureXtermStylesheet()
   }, [])
+
+  useEffect(() => {
+    let disposed = false
+
+    if (!isCodexCliPanel) {
+      setRemoteModeEnabled(false)
+      return
+    }
+
+    void window.workbenchShell.settings.getState().then((settings) => {
+      if (!disposed && settings) {
+        setRemoteModeEnabled(isRemoteBridgeReady(settings.remoteBridge, [panel.definition.id]))
+      }
+    })
+
+    return () => {
+      disposed = true
+    }
+  }, [isCodexCliPanel])
 
   useEffect(() => {
     setIsSaving(false)
@@ -190,6 +213,46 @@ export function TerminalPanel({
     }
 
     await window.workbenchShell.terminals.start(panel.definition.id)
+  }
+
+  const startRemoteMode = async (): Promise<void> => {
+    if (!isCodexCliPanel || isRemoteModeSaving) {
+      return
+    }
+
+    const settings = await window.workbenchShell.settings.getState()
+    if (!settings) {
+      return
+    }
+
+    setIsRemoteModeSaving(true)
+
+    try {
+      const enabledPanelIds = Array.from(new Set([...settings.remoteBridge.enabledPanelIds, panel.definition.id]))
+      const snapshot = await window.workbenchShell.settings.update({
+        remoteBridge: {
+          ...settings.remoteBridge,
+          enabled: true,
+          targetMode: 'pty',
+          enabledPanelIds,
+          defaultPanelId: panel.definition.id
+        }
+      })
+
+      if (snapshot) {
+        syncSettingsState(snapshot)
+        setRemoteModeEnabled(isRemoteBridgeReady(snapshot.remoteBridge, [panel.definition.id]))
+      }
+
+      if (!state.isRunning && state.status !== 'starting') {
+        const terminalSnapshot = await window.workbenchShell.terminals.start(panel.definition.id)
+        if (terminalSnapshot) {
+          syncTerminalPanelState(terminalSnapshot)
+        }
+      }
+    } finally {
+      setIsRemoteModeSaving(false)
+    }
   }
 
   const persistConfig = async (): Promise<void> => {
@@ -713,6 +776,23 @@ export function TerminalPanel({
             <p className="drawer-note">
               {isCustomPanel ? ui.terminalConfigApplyHint : ui.builtInTerminalConfigHint}
             </p>
+          </div>
+        ) : null}
+
+        {isCodexCliPanel ? (
+          <div className="terminal-remote-bar">
+            <div className="terminal-remote-bar__status">
+              <strong>{ui.remoteBridgeSettings}</strong>
+              <span>{remoteModeEnabled ? ui.remoteBridgeCliModeRunning : ui.remoteBridgeCliModeStopped}</span>
+            </div>
+            <button
+              type="button"
+              className="action-button"
+              disabled={isRemoteModeSaving || remoteModeEnabled}
+              onClick={() => void startRemoteMode()}
+            >
+              {remoteModeEnabled ? ui.remoteBridgeCliStartDone : isRemoteModeSaving ? ui.inProgress : ui.remoteBridgeCliStart}
+            </button>
           </div>
         ) : null}
 

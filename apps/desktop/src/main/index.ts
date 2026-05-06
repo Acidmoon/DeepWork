@@ -6,6 +6,15 @@ import { TerminalManager } from './terminal-manager'
 import { WebPanelManager } from './web-panel-manager'
 import { WorkspaceManager } from './workspace-manager'
 import { SettingsManager } from './settings-manager'
+import { FeishuRemoteBridgeApiClient } from './feishu-remote-bridge-api-client'
+import { FeishuRemoteBridgeService } from './feishu-remote-bridge-service'
+import { CodexAppServerStdioTransport } from './codex-app-server/prototype-client'
+import {
+  createStructuredCodexAdapterIfEnabled,
+  type StructuredCodexThreadIdentityStore
+} from './codex-app-server/structured-adapter'
+import { JsonlRemoteBridgeAuditSink } from './remote-bridge-audit'
+import { PtyRemoteSessionAdapter } from './remote-session-adapter'
 import {
   guardIdentifier,
   guardOptionalIdentifier,
@@ -19,7 +28,8 @@ import {
   guardWebPanelConfigUpdate,
   guardWebPanelNavigationAction
 } from './ipc-guards'
-import { resolveStartupWorkspaceRoot, type AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
+import { isRemoteBridgeReady, resolveStartupWorkspaceRoot, type AppSettingsSnapshot } from '@ai-workbench/core/desktop/settings'
+import { terminalPanelConfigs } from '@ai-workbench/core/desktop/terminal-panels'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | null = null
@@ -27,6 +37,16 @@ let webPanelManager: WebPanelManager | null = null
 let terminalManager: TerminalManager | null = null
 let workspaceManager: WorkspaceManager | null = null
 let settingsManager: SettingsManager | null = null
+let remoteBridgeService: FeishuRemoteBridgeService | null = null
+const structuredCodexThreadStore: StructuredCodexThreadIdentityStore = {
+  threads: new Map<string, string>(),
+  getThreadId(targetId: string): string | null {
+    return this.threads.get(targetId) ?? null
+  },
+  setThreadId(targetId: string, threadId: string): void {
+    this.threads.set(targetId, threadId)
+  }
+} as StructuredCodexThreadIdentityStore & { threads: Map<string, string> }
 
 function resolveAppPath(name: 'userData' | 'documents', overrideEnv: string): string {
   const override = process.env[overrideEnv]?.trim()
@@ -45,6 +65,10 @@ function getResolvedWorkspaceRoot(snapshot: AppSettingsSnapshot): string | null 
   return resolveStartupWorkspaceRoot(snapshot)
 }
 
+function getAvailableRemotePanelIds(snapshot: AppSettingsSnapshot): string[] {
+  return [...terminalPanelConfigs.map((panel) => panel.id), ...snapshot.customTerminalPanels.map((panel) => panel.id)]
+}
+
 function syncWorkspaceRoot(root: string | null): void {
   const workspaceSnapshot = workspaceManager?.setWorkspaceRoot(root) ?? null
   if (workspaceSnapshot) {
@@ -61,6 +85,92 @@ function syncRuntimeSettings(snapshot: AppSettingsSnapshot): void {
   workspaceManager?.syncThreadContinuationPreference(snapshot.threadContinuationPreference)
 }
 
+function syncRemoteBridgeService(snapshot: AppSettingsSnapshot): void {
+  try {
+    remoteBridgeService?.dispose()
+  } catch (error) {
+    console.warn(
+      `[remote-bridge] Failed to dispose remote bridge service: ${error instanceof Error ? error.message : String(error)}`
+    )
+  } finally {
+    remoteBridgeService = null
+  }
+
+  if (!terminalManager) {
+    return
+  }
+
+  const availablePanelIds = getAvailableRemotePanelIds(snapshot)
+  if (!isRemoteBridgeReady(snapshot.remoteBridge, availablePanelIds)) {
+    return
+  }
+
+  let nextService: FeishuRemoteBridgeService | null = null
+  let disposableAdapter: { dispose?: () => void } | null = null
+  try {
+    const auditSink = new JsonlRemoteBridgeAuditSink(join(getUserDataPath(), 'remote-bridge-audit.jsonl'))
+    const defaultPanelSnapshot = terminalManager.getSnapshot(snapshot.remoteBridge.defaultPanelId)
+    const remoteCwd = defaultPanelSnapshot?.cwd ?? getResolvedWorkspaceRoot(snapshot) ?? process.cwd()
+    const adapter =
+      snapshot.remoteBridge.targetMode === 'codex-app-server'
+        ? createStructuredCodexAdapterIfEnabled({
+            settings: snapshot.remoteBridge,
+            transport: new CodexAppServerStdioTransport({
+              cwd: remoteCwd,
+              autoApproveServerRequests: true
+            }),
+            threadStore: structuredCodexThreadStore,
+            options: {
+              cwd: remoteCwd,
+              title: 'Codex App Server'
+            }
+          })
+        : new PtyRemoteSessionAdapter(terminalManager, snapshot.remoteBridge.enabledPanelIds, {
+            lockTimeoutMs: snapshot.remoteBridge.lock.timeoutMs,
+            localActivityBlockMs: snapshot.remoteBridge.lock.localActivityBlockMs,
+            allowLockOwnerDuringLocalActivity: snapshot.remoteBridge.lock.allowLockOwnerDuringLocalActivity,
+            adminUserIds: snapshot.remoteBridge.adminUserIds
+          })
+    if (!adapter) {
+      return
+    }
+
+    disposableAdapter = adapter as { dispose?: () => void }
+    const client = new FeishuRemoteBridgeApiClient(snapshot.remoteBridge)
+    nextService = new FeishuRemoteBridgeService({
+      settings: snapshot.remoteBridge,
+      availablePanelIds,
+      adapter,
+      client,
+      auditSink
+    })
+    if (!nextService.start()) {
+      nextService.dispose()
+      return
+    }
+
+    remoteBridgeService = nextService
+    nextService = null
+    disposableAdapter = null
+  } catch (error) {
+    try {
+      nextService?.dispose()
+      if (!nextService) {
+        disposableAdapter?.dispose?.()
+      }
+    } catch (disposeError) {
+      console.warn(
+        `[remote-bridge] Failed to clean up failed remote bridge service: ${
+          disposeError instanceof Error ? disposeError.message : String(disposeError)
+        }`
+      )
+    }
+    console.warn(
+      `[remote-bridge] Failed to start remote bridge service: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
+
 function createMainWindow(): BrowserWindow {
   const rendererUrl = process.env.ELECTRON_RENDERER_URL
   const window = new BrowserWindow({
@@ -72,7 +182,7 @@ function createMainWindow(): BrowserWindow {
     autoHideMenuBar: true,
     title: 'DeepWork',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true
@@ -86,6 +196,21 @@ function createMainWindow(): BrowserWindow {
   }
 
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedUrl) => {
+    if (process.env.DEEPWORK_RENDERER_DEBUG === '1') {
+      console.error(`[renderer:did-fail-load] ${errorCode} ${errorDescription} ${validatedUrl}`)
+    }
+  })
+  window.webContents.on('render-process-gone', (_event, details) => {
+    if (process.env.DEEPWORK_RENDERER_DEBUG === '1') {
+      console.error(`[renderer:gone] ${details.reason} exitCode=${details.exitCode}`)
+    }
+  })
+  window.webContents.on('preload-error', (_event, preloadPath, error) => {
+    if (process.env.DEEPWORK_RENDERER_DEBUG === '1') {
+      console.error(`[renderer:preload-error] ${preloadPath}: ${error.message}`)
+    }
+  })
 
   return window
 }
@@ -106,13 +231,28 @@ function schedulePackageSmokeResult(): void {
 
     void mainWindow.webContents
       .executeJavaScript(
-        "Boolean(document.querySelector('.shell') && document.querySelector('.home-workspace'))"
+        `({
+          rendererReady: Boolean(document.querySelector('.shell') && document.querySelector('.home-workspace')),
+          location: window.location.href,
+          title: document.title,
+          bodyText: document.body?.innerText?.slice(0, 1000) ?? '',
+          rootHtml: document.querySelector('#root')?.innerHTML?.slice(0, 1000) ?? '',
+          rootChildCount: document.querySelector('#root')?.childElementCount ?? 0
+        })`
       )
-      .then((rendererReady: boolean) => {
+      .then((rendererDiagnostics: {
+        rendererReady: boolean
+        location: string
+        title: string
+        bodyText: string
+        rootHtml: string
+        rootChildCount: number
+      }) => {
         const workspaceSnapshot = workspaceManager?.getSnapshot() ?? null
         const settingsSnapshot = settingsManager?.getSnapshot() ?? null
         const payload = {
-          rendererReady,
+          rendererReady: rendererDiagnostics.rendererReady,
+          rendererDiagnostics,
           workspaceRoot: workspaceSnapshot?.workspaceRoot ?? null,
           workspaceInitialized: workspaceSnapshot?.initialized ?? null,
           settingsWorkspaceRoot: settingsSnapshot?.workspaceRoot ?? null,
@@ -183,6 +323,7 @@ app.whenReady().then(() => {
     (input) => workspaceManager?.getContinuitySummary(input) ?? null
   )
   terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
+  syncRemoteBridgeService(initialSettings)
   schedulePackageSmokeResult()
 
   ipcMain.handle('web-panel:get-state', (_event, panelId: unknown) => {
@@ -409,6 +550,9 @@ app.whenReady().then(() => {
     }
 
     syncRuntimeSettings(snapshot)
+    if (Object.prototype.hasOwnProperty.call(guardedUpdate, 'remoteBridge')) {
+      syncRemoteBridgeService(snapshot)
+    }
     if (workspaceManager && Object.prototype.hasOwnProperty.call(guardedUpdate, 'workspaceRoot')) {
       syncWorkspaceRoot(snapshot.workspaceRoot)
     }
@@ -416,8 +560,10 @@ app.whenReady().then(() => {
   })
 
   mainWindow.on('closed', () => {
+    remoteBridgeService?.dispose()
     webPanelManager?.dispose()
     terminalManager?.dispose()
+    remoteBridgeService = null
     webPanelManager = null
     terminalManager = null
     workspaceManager = null
@@ -466,6 +612,7 @@ app.whenReady().then(() => {
         (input) => workspaceManager?.getContinuitySummary(input) ?? null
       )
       terminalManager.syncWorkspaceRoot(workspaceManager.getSnapshot().workspaceRoot)
+      syncRemoteBridgeService(activatedSettings)
       schedulePackageSmokeResult()
     }
   })

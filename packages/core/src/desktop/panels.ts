@@ -4,6 +4,7 @@ import {
   type CustomTerminalPanelSettings,
   type CustomWebPanelSettings,
   type LanguagePreference,
+  type RemoteBridgeSettings,
   type TerminalBehaviorSettings,
   type ThemePreference,
   type ThreadContinuationPreference,
@@ -160,6 +161,7 @@ export interface SettingsPanelViewState {
   workspaceProfileError: string | null
   terminalPreludeText: string
   terminalBehavior: TerminalBehaviorSettings
+  remoteBridge: RemoteBridgeSettings
   threadContinuationPreference: ThreadContinuationPreference
   cliRetrievalPreference: CliRetrievalPreference
   placeholders: SettingsOptionPlaceholder[]
@@ -452,6 +454,7 @@ export function createDefaultPanelViewState(panel: PanelDefinition): PanelViewSt
         workspaceProfileError: null,
         terminalPreludeText: defaultAppSettings.terminalPreludeCommands.join('\n'),
         terminalBehavior: defaultAppSettings.terminalBehavior,
+        remoteBridge: defaultAppSettings.remoteBridge,
         threadContinuationPreference: defaultAppSettings.threadContinuationPreference,
         cliRetrievalPreference: defaultAppSettings.cliRetrievalPreference,
         placeholders: defaultSettingsPlaceholders,

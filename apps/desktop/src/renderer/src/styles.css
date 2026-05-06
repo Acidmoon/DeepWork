@@ -1028,6 +1028,39 @@ summary:focus-visible {
   margin-right: var(--inspector-width);
 }
 
+.terminal-stage:has(.stage-drawer) .terminal-remote-bar {
+  margin-right: var(--inspector-width);
+}
+
+.terminal-remote-bar {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  background: var(--surface);
+}
+
+.terminal-remote-bar__status {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.terminal-remote-bar__status strong {
+  color: var(--text-strong);
+  font-size: 0.86rem;
+}
+
+.terminal-remote-bar__status span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
 .stage-drawer {
   position: absolute;
   inset: 0 0 0 auto;

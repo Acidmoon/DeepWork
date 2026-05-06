@@ -1,0 +1,17 @@
+{
+  "generatedFrom": "codex-cli 0.128.0",
+  "generatedAt": "2026-05-06T11:06:00.000Z",
+  "commands": [
+    "codex app-server generate-ts --experimental --out apps\\desktop\\src\\main\\codex-app-server\\protocol\\ts",
+    "codex app-server generate-json-schema --experimental --out apps\\desktop\\src\\main\\codex-app-server\\protocol\\json-schema"
+  ],
+  "transportAssumption": "stdio:// is the default local transport; ws://IP:PORT is available for explicit structured mode experiments.",
+  "requiredMethods": [
+    "initialize",
+    "thread/start",
+    "thread/resume",
+    "turn/start",
+    "turn/steer",
+    "turn/interrupt"
+  ]
+}

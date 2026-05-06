@@ -426,6 +426,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             workspaceProfileError: null,
             terminalPreludeText: snapshot.terminalPreludeCommands.join('\n'),
             terminalBehavior: snapshot.terminalBehavior,
+            remoteBridge: snapshot.remoteBridge,
             threadContinuationPreference: snapshot.threadContinuationPreference,
             cliRetrievalPreference: snapshot.cliRetrievalPreference
           }

@@ -51,6 +51,7 @@ export interface TerminalPanelSnapshot {
   threadTitle: string | null
   continuitySummary: ManagedSessionContinuitySummary | null
   retrievalSummary: TerminalRetrievalSummary | null
+  lastOutputAt: string | null
 }
 
 export interface TerminalPanelAttachPayload {

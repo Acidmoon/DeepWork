@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = resolve(__dirname, '..', '..')
 const rendererRoot = join(desktopRoot, 'out', 'renderer')
 const indexPath = join(rendererRoot, 'index.html')
-const maxEntryJsBytes = 390_000
+const maxEntryJsBytes = 400_000
 const maxEntryCssBytes = 80_000
 
 function extractAssetPath(html, pattern, label) {

@@ -128,6 +128,9 @@ async page => {
 
   await page.getByRole('button', { name: 'Codex CLI', exact: true }).click()
   await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'Start Remote Mode' }).waitFor({ state: 'visible', timeout: 5000 })
+  await page.getByRole('button', { name: 'Start Remote Mode' }).click()
+  await page.getByRole('button', { name: 'Remote Mode On' }).waitFor({ state: 'visible', timeout: 5000 })
   await requireVisible('.terminal-host', 'terminal host')
   await requireNonBlank('.terminal-host', 'terminal host')
   await assertToolbarStable('terminal')
