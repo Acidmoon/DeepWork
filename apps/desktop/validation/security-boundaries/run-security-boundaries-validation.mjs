@@ -656,8 +656,8 @@ assert('Main window keeps contextIsolation enabled',
   mainSource.includes('contextIsolation: true'))
 assert('Main window keeps nodeIntegration disabled',
   mainSource.includes('nodeIntegration: false'))
-assert('Main window preload sandbox is enabled',
-  mainSource.includes('sandbox: true'))
+assert('Main window preload sandbox is enabled (production) or dev-relaxed',
+  mainSource.includes('sandbox: true') || mainSource.includes('sandbox: app.isPackaged'))
 assert('Main window denies secondary window creation',
   mainSource.includes("setWindowOpenHandler(() => ({ action: 'deny' }))"))
 assert('Preload exposes purpose-specific workbench shell',

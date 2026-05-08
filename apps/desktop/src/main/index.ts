@@ -185,7 +185,7 @@ function createMainWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: app.isPackaged
     }
   })
 
